@@ -574,8 +574,14 @@ export async function registerRoutes(
           const kicksContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
           
           const decimals = await kicksContract.decimals();
+          console.log(`KICKS token decimals: ${decimals}`);
           
-          const cleanAmount = parseFloat(amount).toString();
+          const numericAmount = parseFloat(amount);
+          const maxDecimals = Number(decimals);
+          const roundedAmount = Number(numericAmount.toFixed(maxDecimals));
+          const cleanAmount = roundedAmount.toString();
+          console.log(`Parsed amount: ${numericAmount} -> rounded to ${maxDecimals} decimals: ${cleanAmount}`);
+          
           const amountInWei = ethers.parseUnits(cleanAmount, decimals);
           
           const houseBalance = await kicksContract.balanceOf(houseWallet.address);
