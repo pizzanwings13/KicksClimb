@@ -44,20 +44,20 @@ function generateBoard(seed: string): BoardStep[] {
     let bonusChance: number = 0.02;
     
     if (i <= 25) {
-      hazardChance = 0.10;
-      multiplierChance = 0.25;
+      hazardChance = 0.25;
+      multiplierChance = 0.20;
       powerupChance = 0.08;
     } else if (i <= 50) {
-      hazardChance = 0.20;
-      multiplierChance = 0.20;
+      hazardChance = 0.30;
+      multiplierChance = 0.18;
       powerupChance = 0.06;
     } else if (i <= 75) {
-      hazardChance = 0.35;
+      hazardChance = 0.40;
       multiplierChance = 0.15;
       powerupChance = 0.04;
       bonusChance = 0.03;
     } else {
-      hazardChance = 0.50;
+      hazardChance = 0.55;
       multiplierChance = 0.10;
       powerupChance = 0.03;
       bonusChance = 0.04;
