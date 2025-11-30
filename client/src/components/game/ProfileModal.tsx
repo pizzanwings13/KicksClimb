@@ -57,39 +57,39 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     : "0";
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50">
-      <div className="bg-gradient-to-b from-purple-900/90 to-indigo-900/90 rounded-2xl p-6 max-w-md w-full mx-4 border border-purple-500/30">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <User className="w-6 h-6 text-purple-400" />
-            Your Profile
+    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 p-4">
+      <div className="bg-gradient-to-b from-purple-900/90 to-indigo-900/90 rounded-xl p-4 max-w-sm w-full border border-purple-500/30 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <User className="w-5 h-5 text-purple-400" />
+            Profile
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex justify-center mb-4">
+        <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+          <div className="flex justify-center">
             <div className="relative">
               <div 
-                className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center overflow-hidden border-4 border-purple-500/50 cursor-pointer hover:border-purple-400 transition-colors"
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center overflow-hidden border-3 border-purple-500/50 cursor-pointer hover:border-purple-400 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-12 h-12 text-white/70" />
+                  <User className="w-8 h-8 text-white/70" />
                 )}
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 p-2 bg-purple-600 hover:bg-purple-500 rounded-full border-2 border-purple-900 transition-colors"
+                className="absolute bottom-0 right-0 p-1.5 bg-purple-600 hover:bg-purple-500 rounded-full border-2 border-purple-900 transition-colors"
               >
-                <Camera className="w-4 h-4 text-white" />
+                <Camera className="w-3 h-3 text-white" />
               </button>
               <input
                 ref={fileInputRef}
@@ -100,91 +100,91 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               />
             </div>
           </div>
-          
-          <p className="text-center text-gray-400 text-xs mb-2">Click to upload your avatar (max 2MB)</p>
 
-          <div className="bg-black/30 rounded-xl p-4 border border-purple-500/20">
-            <div className="flex items-center gap-3 mb-3">
-              <Wallet className="w-5 h-5 text-purple-400" />
-              <span className="text-gray-400 text-sm">Wallet Address</span>
+          <div className="bg-black/30 rounded-lg p-3 border border-purple-500/20">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="w-4 h-4 text-purple-400" />
+              <span className="text-gray-400 text-xs">Wallet</span>
             </div>
-            <p className="text-white font-mono text-sm break-all">
-              {walletAddress}
+            <p className="text-white font-mono text-xs break-all">
+              {walletAddress?.slice(0, 10)}...{walletAddress?.slice(-8)}
             </p>
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Username</label>
+            <label className="block text-gray-400 text-xs mb-1">Username</label>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="bg-black/30 border-purple-500/30 text-white"
+              placeholder="Enter username"
+              className="bg-black/30 border-purple-500/30 text-white h-9 text-sm"
             />
           </div>
 
-          <div className="bg-black/30 rounded-xl p-4 border border-yellow-500/20">
+          <div className="bg-black/30 rounded-lg p-3 border border-yellow-500/20">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">KICKS Balance</span>
-              <span className="text-2xl font-bold text-yellow-400">
+              <span className="text-gray-400 text-sm">KICKS Balance</span>
+              <span className="text-lg font-bold text-yellow-400">
                 {parseFloat(kicksBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/30 rounded-xl p-4 border border-purple-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Gamepad2 className="w-4 h-4 text-purple-400" />
-                <span className="text-gray-400 text-sm">Games Played</span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-black/30 rounded-lg p-2 border border-purple-500/20">
+              <div className="flex items-center gap-1 mb-1">
+                <Gamepad2 className="w-3 h-3 text-purple-400" />
+                <span className="text-gray-400 text-xs">Games</span>
               </div>
-              <p className="text-2xl font-bold text-white">{user.totalGamesPlayed}</p>
+              <p className="text-lg font-bold text-white">{user.totalGamesPlayed}</p>
             </div>
 
-            <div className="bg-black/30 rounded-xl p-4 border border-purple-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Trophy className="w-4 h-4 text-yellow-400" />
-                <span className="text-gray-400 text-sm">Win Rate</span>
+            <div className="bg-black/30 rounded-lg p-2 border border-purple-500/20">
+              <div className="flex items-center gap-1 mb-1">
+                <Trophy className="w-3 h-3 text-yellow-400" />
+                <span className="text-gray-400 text-xs">Win Rate</span>
               </div>
-              <p className="text-2xl font-bold text-white">{winRate}%</p>
+              <p className="text-lg font-bold text-white">{winRate}%</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/30 rounded-xl p-4 border border-green-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-4 h-4 text-green-400" />
-                <span className="text-gray-400 text-sm">Total Won</span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-black/30 rounded-lg p-2 border border-green-500/20">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp className="w-3 h-3 text-green-400" />
+                <span className="text-gray-400 text-xs">Won</span>
               </div>
-              <p className="text-xl font-bold text-green-400">
+              <p className="text-sm font-bold text-green-400">
                 +{parseFloat(user.totalKicksWon).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
 
-            <div className="bg-black/30 rounded-xl p-4 border border-red-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-4 h-4 text-red-400" />
-                <span className="text-gray-400 text-sm">Total Lost</span>
+            <div className="bg-black/30 rounded-lg p-2 border border-red-500/20">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingDown className="w-3 h-3 text-red-400" />
+                <span className="text-gray-400 text-xs">Lost</span>
               </div>
-              <p className="text-xl font-bold text-red-400">
+              <p className="text-sm font-bold text-red-400">
                 -{parseFloat(user.totalKicksLost).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>
 
-          <div className="bg-black/30 rounded-xl p-4 border border-yellow-500/20">
+          <div className="bg-black/30 rounded-lg p-2 border border-yellow-500/20">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Best Multiplier</span>
-              <span className="text-2xl font-bold text-yellow-400">
+              <span className="text-gray-400 text-sm">Best Multiplier</span>
+              <span className="text-lg font-bold text-yellow-400">
                 {parseFloat(user.highestMultiplier).toFixed(2)}x
               </span>
             </div>
           </div>
+        </div>
 
+        <div className="pt-3 space-y-2 border-t border-purple-500/20 mt-3">
           <Button
             onClick={handleSave}
             disabled={isSaving || !username.trim()}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl"
+            className="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-lg text-sm"
           >
             {isSaving ? "Saving..." : "Save Profile"}
           </Button>
@@ -192,7 +192,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           <Button
             onClick={handleSignOut}
             variant="outline"
-            className="w-full py-4 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 font-semibold rounded-xl mt-2"
+            className="w-full py-2 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 font-semibold rounded-lg text-sm"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
