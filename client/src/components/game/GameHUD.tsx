@@ -37,12 +37,10 @@ export function GameHUD() {
     kicksBalance, 
     signClaimMessage, 
     requestKicksFromHouse, 
-    claimFromVaultContract,
     transactionState, 
     resetTransactionState,
     kicksTokenAddress,
     houseWalletAddress,
-    vaultContractAddress,
     walletAddress,
     refreshBalance
   } = useWallet();
