@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import "@fontsource/inter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -17,6 +17,8 @@ import { ProfileButton } from "./components/game/ProfileModal";
 import { TokenConfigButton } from "./components/game/TokenConfig";
 import { SoundControls } from "./components/game/SoundControls";
 import { StatsButton } from "./components/game/StatsModal";
+import { AchievementsButton } from "./components/game/AchievementsModal";
+import { AchievementNotification } from "./components/game/AchievementNotification";
 import { useGameState } from "./lib/stores/useGameState";
 import { useWallet } from "./lib/stores/useWallet";
 import { useAudio } from "./lib/stores/useAudio";
@@ -106,6 +108,68 @@ function SoundEffectsManager() {
   return null;
 }
 
+function AchievementsManager() {
+  const { phase, checkAchievements, currentGame } = useGameState();
+  const { walletAddress } = useWallet();
+  const [newAchievements, setNewAchievements] = useState<string[]>([]);
+  const lastCheckedGameRef = useRef<number | null>(null);
+  const checkInProgressRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const endPhases = ["won", "lost", "cashed_out"];
+    const isEndPhase = endPhases.includes(phase);
+    const gameId = currentGame?.id;
+    
+    if (isEndPhase && walletAddress && gameId && lastCheckedGameRef.current !== gameId && !checkInProgressRef.current) {
+      lastCheckedGameRef.current = gameId;
+      checkInProgressRef.current = true;
+      
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+      
+      const doCheck = async () => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          if (signal.aborted) return;
+          
+          const achievements = await checkAchievements(walletAddress);
+          if (!signal.aborted && achievements.length > 0) {
+            setNewAchievements(achievements);
+          }
+        } catch (error) {
+          if (!signal.aborted) {
+            console.error("Failed to check achievements:", error);
+          }
+        } finally {
+          checkInProgressRef.current = false;
+        }
+      };
+      
+      doCheck();
+    }
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [phase, walletAddress, checkAchievements, currentGame?.id]);
+
+  const handleAchievementsComplete = useCallback(() => {
+    setNewAchievements([]);
+  }, []);
+
+  if (newAchievements.length === 0) return null;
+
+  return (
+    <AchievementNotification 
+      achievements={newAchievements} 
+      onComplete={handleAchievementsComplete} 
+    />
+  );
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const { phase } = useGameState();
@@ -129,6 +193,7 @@ function App() {
         <WalletInitializer />
         <SoundManager />
         <SoundEffectsManager />
+        <AchievementsManager />
         
         {showCanvas && (
           <Canvas
@@ -159,6 +224,7 @@ function App() {
         <ProfileButton />
         <StatsButton />
         <LeaderboardButton />
+        <AchievementsButton />
         <TokenConfigButton />
         <SoundControls />
       </div>

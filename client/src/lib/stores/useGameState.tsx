@@ -77,6 +77,7 @@ interface GameState {
   cashOut: () => Promise<{ payout: string; multiplier: number } | null>;
   fetchLeaderboards: () => Promise<void>;
   usePowerUp: (type: "shield" | "double" | "skip") => void;
+  checkAchievements: (walletAddress: string) => Promise<string[]>;
   reset: () => void;
 }
 
@@ -270,6 +271,17 @@ export const useGameState = create<GameState>()(
         collectedPowerUps: newCollected,
         activePowerUps: [...activePowerUps, { type, active: true }],
       });
+    },
+
+    checkAchievements: async (walletAddress: string) => {
+      try {
+        const res = await apiRequest("POST", `/api/user/${walletAddress}/achievements/check`);
+        const data = await res.json();
+        return data.newAchievements || [];
+      } catch (error) {
+        console.error("Check achievements error:", error);
+        return [];
+      }
     },
 
     reset: () => {

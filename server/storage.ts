@@ -1,7 +1,7 @@
 import { 
-  users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard,
+  users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
   type User, type InsertUser, type Game, type InsertGame, 
-  type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry
+  type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -27,6 +27,11 @@ export interface IStorage {
   
   getAllTimeLeaderboard(limit?: number, type?: string): Promise<User[]>;
   getBiggestWins(limit?: number): Promise<(Game & { user: User })[]>;
+  
+  getUserAchievements(userId: number): Promise<UserAchievement[]>;
+  unlockAchievement(userId: number, achievementId: string): Promise<UserAchievement>;
+  updateAchievementProgress(userId: number, achievementId: string, progress: number, maxProgress: number): Promise<UserAchievement>;
+  hasAchievement(userId: number, achievementId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -240,6 +245,71 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
 
     return results.map(r => ({ ...r.games, user: r.users }));
+  }
+
+  async getUserAchievements(userId: number): Promise<UserAchievement[]> {
+    return db.select()
+      .from(userAchievements)
+      .where(eq(userAchievements.userId, userId))
+      .orderBy(desc(userAchievements.unlockedAt));
+  }
+
+  async unlockAchievement(userId: number, achievementId: string): Promise<UserAchievement> {
+    const [existing] = await db.select()
+      .from(userAchievements)
+      .where(and(
+        eq(userAchievements.userId, userId),
+        eq(userAchievements.achievementId, achievementId)
+      ));
+
+    if (existing) {
+      return existing;
+    }
+
+    const [achievement] = await db.insert(userAchievements).values({
+      userId,
+      achievementId,
+      progress: 1,
+      maxProgress: 1,
+    }).returning();
+
+    return achievement;
+  }
+
+  async updateAchievementProgress(userId: number, achievementId: string, progress: number, maxProgress: number): Promise<UserAchievement> {
+    const [existing] = await db.select()
+      .from(userAchievements)
+      .where(and(
+        eq(userAchievements.userId, userId),
+        eq(userAchievements.achievementId, achievementId)
+      ));
+
+    if (existing) {
+      const [updated] = await db.update(userAchievements)
+        .set({ progress, maxProgress })
+        .where(eq(userAchievements.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [achievement] = await db.insert(userAchievements).values({
+      userId,
+      achievementId,
+      progress,
+      maxProgress,
+    }).returning();
+
+    return achievement;
+  }
+
+  async hasAchievement(userId: number, achievementId: string): Promise<boolean> {
+    const [existing] = await db.select()
+      .from(userAchievements)
+      .where(and(
+        eq(userAchievements.userId, userId),
+        eq(userAchievements.achievementId, achievementId)
+      ));
+    return !!existing && existing.progress >= existing.maxProgress;
   }
 }
 

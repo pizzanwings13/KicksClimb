@@ -469,5 +469,66 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/user/:walletAddress/achievements", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const user = await storage.getUserByWallet(walletAddress);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const achievements = await storage.getUserAchievements(user.id);
+      res.json({ achievements });
+    } catch (error) {
+      console.error("Get achievements error:", error);
+      res.status(500).json({ error: "Failed to get achievements" });
+    }
+  });
+
+  app.post("/api/user/:walletAddress/achievements/check", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const user = await storage.getUserByWallet(walletAddress);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const newAchievements: string[] = [];
+      
+      const achievementChecks = [
+        { id: "first_climb", condition: user.totalGamesPlayed >= 1 },
+        { id: "veteran_climber", condition: user.totalGamesPlayed >= 10 },
+        { id: "dedicated_climber", condition: user.totalGamesPlayed >= 50 },
+        { id: "master_climber", condition: user.totalGamesPlayed >= 100 },
+        { id: "first_win", condition: user.gamesWon >= 1 },
+        { id: "winner", condition: user.gamesWon >= 10 },
+        { id: "champion", condition: user.gamesWon >= 50 },
+        { id: "multiplier_hunter", condition: parseFloat(user.highestMultiplier) >= 5 },
+        { id: "big_multiplier", condition: parseFloat(user.highestMultiplier) >= 10 },
+        { id: "legendary_multiplier", condition: parseFloat(user.highestMultiplier) >= 20 },
+        { id: "thousand_kicks", condition: parseFloat(user.totalKicksWon) >= 1000 },
+        { id: "ten_thousand_kicks", condition: parseFloat(user.totalKicksWon) >= 10000 },
+        { id: "hundred_thousand_kicks", condition: parseFloat(user.totalKicksWon) >= 100000 },
+      ];
+
+      for (const check of achievementChecks) {
+        if (check.condition) {
+          const hasIt = await storage.hasAchievement(user.id, check.id);
+          if (!hasIt) {
+            await storage.unlockAchievement(user.id, check.id);
+            newAchievements.push(check.id);
+          }
+        }
+      }
+      
+      res.json({ newAchievements, total: newAchievements.length });
+    } catch (error) {
+      console.error("Check achievements error:", error);
+      res.status(500).json({ error: "Failed to check achievements" });
+    }
+  });
+
   return httpServer;
 }

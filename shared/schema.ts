@@ -67,10 +67,27 @@ export const weeklyLeaderboard = pgTable("weekly_leaderboard", {
   weekEnd: timestamp("week_end").notNull(),
 });
 
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  achievementId: text("achievement_id").notNull(),
+  unlockedAt: timestamp("unlocked_at").defaultNow().notNull(),
+  progress: integer("progress").default(0).notNull(),
+  maxProgress: integer("max_progress").default(1).notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   games: many(games),
   dailyLeaderboard: many(dailyLeaderboard),
   weeklyLeaderboard: many(weeklyLeaderboard),
+  achievements: many(userAchievements),
+}));
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+  user: one(users, {
+    fields: [userAchievements.userId],
+    references: [users.id],
+  }),
 }));
 
 export const gamesRelations = relations(games, ({ one, many }) => ({
@@ -126,3 +143,4 @@ export type GameStep = typeof gameSteps.$inferSelect;
 export type InsertGameStep = z.infer<typeof insertGameStepSchema>;
 export type DailyLeaderboardEntry = typeof dailyLeaderboard.$inferSelect;
 export type WeeklyLeaderboardEntry = typeof weeklyLeaderboard.$inferSelect;
+export type UserAchievement = typeof userAchievements.$inferSelect;
