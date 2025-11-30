@@ -440,7 +440,24 @@ export const useWallet = create<WalletState>((set, get) => ({
     await connectWithProvider(ethereumProvider, walletType);
   },
 
-  disconnect: () => {
+  disconnect: async () => {
+    const { connectedWalletType } = get();
+    
+    try {
+      if (connectedWalletType === "metamask" && window.ethereum) {
+        try {
+          await (window.ethereum as any).request({
+            method: "wallet_revokePermissions",
+            params: [{ eth_accounts: {} }],
+          });
+        } catch (e) {
+          console.log("Could not revoke permissions (may not be supported)");
+        }
+      }
+    } catch (e) {
+      console.log("Disconnect cleanup error:", e);
+    }
+    
     set({
       isConnected: false,
       connectedWalletType: null,
@@ -449,6 +466,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       provider: null,
       signer: null,
       kicksContract: null,
+      transactionState: { status: "idle", message: "" },
     });
   },
 
