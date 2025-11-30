@@ -6,7 +6,7 @@ import crypto from "crypto";
 
 const TOTAL_STEPS = 100;
 
-type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "multiplier_15x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_5x" | "multiplier_8x" | "multiplier_10x" | "multiplier_11x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 interface BoardStep {
   position: number;
@@ -77,36 +77,48 @@ function generateBoard(seed: string): BoardStep[] {
     } else if (roll < resetTrapChance + hazardChance + multiplierChance) {
       const multiplierRoll = getNextRandom();
       if (i >= 76) {
-        if (multiplierRoll < 0.30) {
-          board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else if (multiplierRoll < 0.50) {
+        if (multiplierRoll < 0.15) {
           board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
-        } else if (multiplierRoll < 0.70) {
+        } else if (multiplierRoll < 0.35) {
           board.push({ position: i, type: "multiplier_5x", multiplier: 5 });
-        } else if (multiplierRoll < 0.90) {
+        } else if (multiplierRoll < 0.55) {
+          board.push({ position: i, type: "multiplier_8x", multiplier: 8 });
+        } else if (multiplierRoll < 0.75) {
           board.push({ position: i, type: "multiplier_10x", multiplier: 10 });
         } else {
-          board.push({ position: i, type: "multiplier_15x", multiplier: 15 });
+          board.push({ position: i, type: "multiplier_11x", multiplier: 11 });
         }
       } else if (i >= 51) {
-        if (multiplierRoll < 0.40) {
+        if (multiplierRoll < 0.20) {
           board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else if (multiplierRoll < 0.70) {
+        } else if (multiplierRoll < 0.40) {
+          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
+        } else if (multiplierRoll < 0.60) {
           board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
-        } else if (multiplierRoll < 0.90) {
+        } else if (multiplierRoll < 0.80) {
           board.push({ position: i, type: "multiplier_5x", multiplier: 5 });
         } else {
-          board.push({ position: i, type: "multiplier_10x", multiplier: 10 });
+          board.push({ position: i, type: "multiplier_8x", multiplier: 8 });
+        }
+      } else if (i >= 26) {
+        if (multiplierRoll < 0.25) {
+          board.push({ position: i, type: "multiplier_1_5x", multiplier: 1.5 });
+        } else if (multiplierRoll < 0.50) {
+          board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
+        } else if (multiplierRoll < 0.75) {
+          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
+        } else {
+          board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
         }
       } else {
-        if (multiplierRoll < 0.5) {
+        if (multiplierRoll < 0.35) {
+          board.push({ position: i, type: "multiplier_1x", multiplier: 1 });
+        } else if (multiplierRoll < 0.65) {
+          board.push({ position: i, type: "multiplier_1_5x", multiplier: 1.5 });
+        } else if (multiplierRoll < 0.90) {
           board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else if (multiplierRoll < 0.8) {
-          board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
-        } else if (multiplierRoll < 0.95) {
-          board.push({ position: i, type: "multiplier_5x", multiplier: 5 });
         } else {
-          board.push({ position: i, type: "multiplier_10x", multiplier: 10 });
+          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
         }
       }
     } else if (roll < resetTrapChance + hazardChance + multiplierChance + powerupChance) {

@@ -11,16 +11,24 @@ function getStepColor(type: StepType): string {
   switch (type) {
     case "safe":
       return "#4a5568";
-    case "multiplier_2x":
+    case "multiplier_1x":
+      return "#68d391";
+    case "multiplier_1_5x":
       return "#48bb78";
-    case "multiplier_3x":
+    case "multiplier_2x":
+      return "#38a169";
+    case "multiplier_2_5x":
       return "#38b2ac";
+    case "multiplier_3x":
+      return "#319795";
     case "multiplier_5x":
       return "#4299e1";
+    case "multiplier_8x":
+      return "#667eea";
     case "multiplier_10x":
       return "#9f7aea";
-    case "multiplier_15x":
-      return "#d53f8c";
+    case "multiplier_11x":
+      return "#b794f4";
     case "hazard":
       return "#e53e3e";
     case "reset_trap":
@@ -42,13 +50,17 @@ function getStepColor(type: StepType): string {
 
 function getStepEmissive(type: StepType): string {
   switch (type) {
+    case "multiplier_1x":
+    case "multiplier_1_5x":
     case "multiplier_2x":
+    case "multiplier_2_5x":
     case "multiplier_3x":
     case "multiplier_5x":
-    case "multiplier_10x":
       return "#22543d";
-    case "multiplier_15x":
-      return "#97266d";
+    case "multiplier_8x":
+    case "multiplier_10x":
+    case "multiplier_11x":
+      return "#553c9a";
     case "hazard":
       return "#742a2a";
     case "reset_trap":
@@ -185,10 +197,10 @@ function StepTile({ step, isCurrentPosition }: StepTileProps) {
         </group>
       )}
       
-      {step.type === "multiplier_15x" && (
+      {(step.type === "multiplier_8x" || step.type === "multiplier_10x" || step.type === "multiplier_11x") && (
         <mesh position={[0, 0.4, 0]} rotation={[0, 0, 0]}>
           <octahedronGeometry args={[0.2]} />
-          <meshStandardMaterial color="#ec4899" emissive="#f472b6" emissiveIntensity={0.6} />
+          <meshStandardMaterial color="#9f7aea" emissive="#b794f4" emissiveIntensity={0.6} />
         </mesh>
       )}
     </group>

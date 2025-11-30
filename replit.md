@@ -38,12 +38,12 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
 
-## Multiplier Types
-- 2x (50% of multipliers)
-- 3x (30% of multipliers)
-- 5x (15% of multipliers)
-- 10x (5% of multipliers, rare in early zones)
-- 15x (rare in Expert zone only)
+## Multiplier Types (progressive by zone)
+- **Steps 1-25 (Easy)**: 1x, 1.5x, 2x, 2.5x
+- **Steps 26-50 (Medium)**: 1.5x, 2x, 2.5x, 3x
+- **Steps 51-75 (Hard)**: 2x, 2.5x, 3x, 5x, 8x
+- **Steps 76-99 (Expert)**: 3x, 5x, 8x, 10x, 11x
+- **Step 100 (Finish)**: 20x (guaranteed)
 
 ## Power-Up Types
 - **Shield**: Protects from one hazard

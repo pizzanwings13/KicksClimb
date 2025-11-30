@@ -3,7 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { apiRequest } from "../queryClient";
 
 export type GamePhase = "menu" | "betting" | "playing" | "won" | "lost" | "cashed_out";
-export type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "multiplier_15x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+export type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_5x" | "multiplier_8x" | "multiplier_10x" | "multiplier_11x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 export interface BoardStep {
   position: number;

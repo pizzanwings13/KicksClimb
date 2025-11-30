@@ -79,16 +79,24 @@ export function GameHUD() {
         return { text: "HAZARD!", color: "text-red-500", bg: "bg-red-500/20" };
       case "reset_trap":
         return { text: "RESET TRAP! BACK TO START!", color: "text-purple-500", bg: "bg-purple-500/20" };
+      case "multiplier_1x":
+        return { text: "1x MULTIPLIER!", color: "text-green-300", bg: "bg-green-500/20" };
+      case "multiplier_1_5x":
+        return { text: "1.5x MULTIPLIER!", color: "text-green-400", bg: "bg-green-500/20" };
       case "multiplier_2x":
-        return { text: "2x MULTIPLIER!", color: "text-green-400", bg: "bg-green-500/20" };
+        return { text: "2x MULTIPLIER!", color: "text-green-500", bg: "bg-green-500/20" };
+      case "multiplier_2_5x":
+        return { text: "2.5x MULTIPLIER!", color: "text-teal-400", bg: "bg-teal-500/20" };
       case "multiplier_3x":
-        return { text: "3x MULTIPLIER!", color: "text-teal-400", bg: "bg-teal-500/20" };
+        return { text: "3x MULTIPLIER!", color: "text-teal-500", bg: "bg-teal-500/20" };
       case "multiplier_5x":
         return { text: "5x MULTIPLIER!", color: "text-blue-400", bg: "bg-blue-500/20" };
+      case "multiplier_8x":
+        return { text: "8x MULTIPLIER!", color: "text-indigo-400", bg: "bg-indigo-500/20" };
       case "multiplier_10x":
         return { text: "10x MULTIPLIER!", color: "text-purple-400", bg: "bg-purple-500/20" };
-      case "multiplier_15x":
-        return { text: "15x MULTIPLIER!", color: "text-pink-400", bg: "bg-pink-500/20" };
+      case "multiplier_11x":
+        return { text: "11x MULTIPLIER!", color: "text-purple-300", bg: "bg-purple-500/20" };
       case "finish":
         return { text: "FINISH! 20x!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
       case "powerup_shield":
