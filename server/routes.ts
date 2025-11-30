@@ -473,7 +473,7 @@ export async function registerRoutes(
 
   app.post("/api/claim", async (req, res) => {
     try {
-      const { walletAddress, amount, gameId, signature, nonce } = req.body;
+      const { walletAddress, amount, gameId, signature, nonce, kicksTokenAddress } = req.body;
       
       if (!walletAddress || !amount || !gameId || !signature || !nonce) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -524,6 +524,49 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Signature verification failed" });
       }
       
+      let txHash: string | null = null;
+      
+      const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+      if (housePrivateKey && kicksTokenAddress) {
+        try {
+          const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
+          const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
+          const houseWallet = new ethers.Wallet(housePrivateKey, provider);
+          
+          const erc20Abi = [
+            "function transfer(address to, uint256 amount) returns (bool)",
+            "function decimals() view returns (uint8)",
+            "function balanceOf(address owner) view returns (uint256)"
+          ];
+          
+          const kicksContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
+          
+          const decimals = await kicksContract.decimals();
+          const amountInWei = ethers.parseUnits(amount, decimals);
+          
+          const houseBalance = await kicksContract.balanceOf(houseWallet.address);
+          if (houseBalance < amountInWei) {
+            return res.status(400).json({ 
+              error: "House wallet has insufficient KICKS balance. Please contact support." 
+            });
+          }
+          
+          console.log(`Sending ${amount} KICKS to ${walletAddress}...`);
+          const tx = await kicksContract.transfer(walletAddress, amountInWei);
+          console.log(`Transaction sent: ${tx.hash}`);
+          
+          const receipt = await tx.wait();
+          console.log(`Transaction confirmed: ${receipt.hash}`);
+          txHash = receipt.hash;
+          
+        } catch (transferError: any) {
+          console.error("Token transfer failed:", transferError);
+          return res.status(500).json({ 
+            error: `Failed to send KICKS: ${transferError.message || "Unknown error"}` 
+          });
+        }
+      }
+      
       await storage.updateGame(game.id, {
         claimStatus: "claimed",
         claimNonce: null,
@@ -531,9 +574,11 @@ export async function registerRoutes(
       
       res.json({ 
         success: true,
-        message: "Claim verified successfully. The house will process your payout.",
+        message: txHash 
+          ? "KICKS tokens sent successfully!" 
+          : "Claim verified successfully. The house will process your payout.",
         amount: game.payout,
-        txHash: null,
+        txHash,
       });
     } catch (error) {
       console.error("Claim error:", error);

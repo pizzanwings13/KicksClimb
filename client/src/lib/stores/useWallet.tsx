@@ -577,7 +577,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   requestKicksFromHouse: async (amount: string, gameId: number, signature: string, nonce: string) => {
-    const { walletAddress, setTransactionState } = get();
+    const { walletAddress, kicksTokenAddress, setTransactionState } = get();
     
     if (!walletAddress) {
       setTransactionState({ status: "error", message: "Wallet not connected" });
@@ -585,7 +585,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
 
     try {
-      setTransactionState({ status: "claiming", message: "Processing claim request..." });
+      setTransactionState({ status: "claiming", message: "Processing claim and sending KICKS..." });
       
       const response = await fetch("/api/claim", {
         method: "POST",
@@ -596,6 +596,7 @@ export const useWallet = create<WalletState>((set, get) => ({
           gameId: gameId,
           signature: signature,
           nonce: nonce,
+          kicksTokenAddress: kicksTokenAddress,
         }),
       });
       
@@ -610,7 +611,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       
       setTransactionState({ 
         status: "success", 
-        message: "Claim verified! Your winnings have been recorded.",
+        message: data.txHash 
+          ? `KICKS sent! Transaction: ${data.txHash.slice(0, 10)}...`
+          : "Claim verified! Your winnings have been recorded.",
         txHash: data.txHash 
       });
       
