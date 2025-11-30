@@ -67,35 +67,56 @@ const detectWalletProvider = (walletType: WalletType): any => {
     return null;
   }
 
-  const providers = window.ethereum.providers || [window.ethereum];
+  const providers = window.ethereum.providers || [];
+  
+  console.log("[Wallet Detection] Looking for:", walletType);
+  console.log("[Wallet Detection] window.ethereum:", {
+    isMetaMask: window.ethereum.isMetaMask,
+    isZerion: window.ethereum.isZerion,
+    providersCount: providers.length
+  });
 
   if (walletType === "metamask") {
-    const metamaskProvider = providers.find((p: any) => p.isMetaMask && !p.isZerion);
+    // First check the providers array for MetaMask
+    const metamaskProvider = providers.find((p: any) => {
+      const isMetaMask = p.isMetaMask === true;
+      const isNotZerion = p.isZerion !== true;
+      console.log("[Wallet Detection] Provider check:", { isMetaMask, isNotZerion });
+      return isMetaMask && isNotZerion;
+    });
+    
     if (metamaskProvider) {
+      console.log("[Wallet Detection] Found MetaMask in providers array");
       return metamaskProvider;
     }
-    if (window.ethereum.isMetaMask && !window.ethereum.isZerion) {
+    
+    // Check if window.ethereum itself is MetaMask (and not Zerion)
+    if (window.ethereum.isMetaMask === true && window.ethereum.isZerion !== true) {
+      console.log("[Wallet Detection] window.ethereum is MetaMask");
       return window.ethereum;
     }
-    if (window.ethereum && !window.ethereum.isZerion) {
-      return window.ethereum;
-    }
+    
+    console.log("[Wallet Detection] MetaMask not found");
     return null;
   }
 
   if (walletType === "zerion") {
-    const zerionProvider = providers.find((p: any) => p.isZerion);
+    // First check the providers array for Zerion
+    const zerionProvider = providers.find((p: any) => p.isZerion === true);
+    
     if (zerionProvider) {
+      console.log("[Wallet Detection] Found Zerion in providers array");
       return zerionProvider;
     }
-    if (window.ethereum.isZerion) {
+    
+    // Check if window.ethereum itself is Zerion
+    if (window.ethereum.isZerion === true) {
+      console.log("[Wallet Detection] window.ethereum is Zerion");
       return window.ethereum;
     }
+    
+    console.log("[Wallet Detection] Zerion not found");
     return null;
-  }
-
-  if (window.ethereum) {
-    return window.ethereum;
   }
 
   return null;
@@ -107,14 +128,33 @@ export const checkWalletAvailability = (): { hasEthereum: boolean; isIframe: boo
   const wallets: string[] = [];
   
   if (hasEthereum && window.ethereum) {
-    const providers = window.ethereum.providers || [window.ethereum];
+    const providers = window.ethereum.providers || [];
+    
+    // Check providers array
+    let hasMetaMask = false;
+    let hasZerion = false;
+    
     providers.forEach((p: any) => {
-      if (p.isMetaMask) wallets.push("MetaMask");
-      if (p.isZerion) wallets.push("Zerion");
+      if (p.isMetaMask === true && p.isZerion !== true) {
+        hasMetaMask = true;
+      }
+      if (p.isZerion === true) {
+        hasZerion = true;
+      }
     });
-    if (wallets.length === 0 && window.ethereum.isMetaMask) {
-      wallets.push("MetaMask");
+    
+    // Check window.ethereum directly if no providers array
+    if (providers.length === 0) {
+      if (window.ethereum.isMetaMask === true && window.ethereum.isZerion !== true) {
+        hasMetaMask = true;
+      }
+      if (window.ethereum.isZerion === true) {
+        hasZerion = true;
+      }
     }
+    
+    if (hasMetaMask) wallets.push("MetaMask");
+    if (hasZerion) wallets.push("Zerion");
   }
   
   return { hasEthereum, isIframe: iframe, wallets };
