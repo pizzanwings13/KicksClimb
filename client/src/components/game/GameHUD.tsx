@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,8 @@ export function GameHUD() {
     kicksTokenAddress,
     houseWalletAddress,
     vaultContractAddress,
-    walletAddress
+    walletAddress,
+    refreshBalance
   } = useWallet();
   const [diceValue, setDiceValue] = useState<number>(1);
   const [isRolling, setIsRolling] = useState(false);
@@ -54,6 +55,12 @@ export function GameHUD() {
 
   const isTokenConfigured = kicksTokenAddress && houseWalletAddress;
 
+  useEffect(() => {
+    if (phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out") {
+      refreshBalance();
+    }
+  }, [phase, refreshBalance]);
+
   if (phase === "menu" || phase === "betting") return null;
 
   const handleRollDice = async () => {
@@ -62,7 +69,7 @@ export function GameHUD() {
     setIsRolling(true);
     
     let rollCount = 0;
-    const rollInterval = setInterval(() => {
+    const rollInterval = setInterval(async () => {
       setDiceValue(Math.floor(Math.random() * 6) + 1);
       rollCount++;
       if (rollCount > 10) {
@@ -70,7 +77,8 @@ export function GameHUD() {
         const finalRoll = Math.floor(Math.random() * 6) + 1;
         setDiceValue(finalRoll);
         setIsRolling(false);
-        makeMove(finalRoll);
+        await makeMove(finalRoll);
+        refreshBalance();
       }
     }, 100);
   };
@@ -79,6 +87,7 @@ export function GameHUD() {
     setIsCashingOut(true);
     await cashOut();
     setIsCashingOut(false);
+    refreshBalance();
   };
 
   const handleClaimWinnings = async () => {
