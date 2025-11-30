@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, X, Wallet, Trophy, Gamepad2, TrendingUp, TrendingDown } from "lucide-react";
+import { User, X, Wallet, Trophy, Gamepad2, TrendingUp, TrendingDown, Camera, Upload } from "lucide-react";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -14,14 +14,33 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { walletAddress, kicksBalance } = useWallet();
   const { user, updateProfile } = useGameState();
   const [username, setUsername] = useState(user?.username || "");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatarUrl || null);
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen || !user) return null;
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be smaller than 2MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setAvatarPreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async () => {
     if (!walletAddress || !username.trim()) return;
     setIsSaving(true);
-    await updateProfile(walletAddress, username.trim());
+    await updateProfile(walletAddress, username.trim(), avatarPreview || undefined);
     setIsSaving(false);
     onClose();
   };
@@ -47,6 +66,36 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         </div>
 
         <div className="space-y-4">
+          <div className="flex justify-center mb-4">
+            <div className="relative">
+              <div 
+                className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center overflow-hidden border-4 border-purple-500/50 cursor-pointer hover:border-purple-400 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-12 h-12 text-white/70" />
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 p-2 bg-purple-600 hover:bg-purple-500 rounded-full border-2 border-purple-900 transition-colors"
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+          
+          <p className="text-center text-gray-400 text-xs mb-2">Click to upload your avatar (max 2MB)</p>
+
           <div className="bg-black/30 rounded-xl p-4 border border-purple-500/20">
             <div className="flex items-center gap-3 mb-3">
               <Wallet className="w-5 h-5 text-purple-400" />
