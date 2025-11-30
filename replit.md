@@ -71,6 +71,10 @@ server/
 └── storage.ts               # Data access layer
 shared/
 └── schema.ts                # Drizzle database schema
+contracts/
+└── KicksClaimVault.sol      # Smart contract for secure claim system
+scripts/
+└── deploy.cjs               # Hardhat deployment script
 ```
 
 ## API Endpoints
@@ -84,6 +88,10 @@ shared/
 - `POST /api/game/start` - Start new game
 - `POST /api/game/:gameId/move` - Make move (roll dice)
 - `POST /api/game/:gameId/cashout` - Cash out current winnings
+- `POST /api/game/:gameId/claim-nonce` - Get nonce for claiming winnings
+- `POST /api/game/:gameId/claim` - Claim winnings (direct transfer)
+- `POST /api/claim/contract` - Get EIP-712 signature for vault contract claim
+- `POST /api/claim/contract/confirm` - Confirm vault contract claim completed
 - `GET /api/leaderboard/daily` - Get daily leaderboard
 - `GET /api/leaderboard/weekly` - Get weekly leaderboard
 - `GET /api/leaderboard/alltime` - Get all-time leaderboard (by type: winnings or multiplier)
@@ -94,6 +102,39 @@ To fully enable token betting:
 1. Click the Settings icon (bottom right)
 2. Enter KICKS token contract address on ApeChain
 3. Enter house wallet address for receiving/sending KICKS
+4. (Optional) Enter Claim Vault contract address for secure smart contract claims
+
+## Smart Contract Claim System
+The game supports two claim methods for winnings:
+
+### 1. Direct Transfer (Default)
+- House wallet directly sends KICKS tokens to winners
+- Requires HOUSE_WALLET_PRIVATE_KEY in environment secrets
+- Simple setup, but requires private key exposure to server
+
+### 2. Smart Contract Vault (Recommended for Production)
+- Uses KicksClaimVault.sol for secure, trustless claims
+- Server signs EIP-712 typed messages authorizing claims
+- Player calls contract's `claimWin()` function with signature
+- No private key needed for transfers - contract holds and distributes tokens
+
+### Vault Contract Deployment
+```bash
+# Set environment variables
+export KICKS_TOKEN_ADDRESS=0x...  # KICKS token address
+export ADMIN_ADDRESS=0x...         # Admin wallet for vault management
+export SIGNER_ADDRESS=0x...        # Address matching HOUSE_WALLET_KEY
+
+# Compile and deploy
+npx hardhat compile
+npx hardhat run scripts/deploy.cjs --network apechain
+```
+
+### Vault Contract Features
+- **EIP-712 Signatures**: Type-safe, human-readable claim authorization
+- **Role-Based Access**: Admin and Signer roles for security
+- **Replay Protection**: Nonce-based to prevent double claims
+- **Emergency Withdraw**: Admin can recover tokens if needed
 
 ## Running the Application
 ```bash
