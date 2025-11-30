@@ -3,7 +3,7 @@ import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, X, Wallet, Trophy, Gamepad2, TrendingUp, TrendingDown, Camera, Upload } from "lucide-react";
+import { User, X, Wallet, Trophy, Gamepad2, TrendingUp, TrendingDown, Camera, Upload, LogOut } from "lucide-react";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -11,8 +11,8 @@ interface ProfileModalProps {
 }
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
-  const { walletAddress, kicksBalance } = useWallet();
-  const { user, updateProfile } = useGameState();
+  const { walletAddress, kicksBalance, disconnect } = useWallet();
+  const { user, updateProfile, reset, setUser } = useGameState();
   const [username, setUsername] = useState(user?.username || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatarUrl || null);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,6 +42,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     setIsSaving(true);
     await updateProfile(walletAddress, username.trim(), avatarPreview || undefined);
     setIsSaving(false);
+    onClose();
+  };
+
+  const handleSignOut = () => {
+    disconnect();
+    setUser(null);
+    reset();
     onClose();
   };
 
@@ -180,6 +187,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl"
           >
             {isSaving ? "Saving..." : "Save Profile"}
+          </Button>
+
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            className="w-full py-4 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 font-semibold rounded-xl mt-2"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
           </Button>
         </div>
       </div>
