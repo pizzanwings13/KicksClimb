@@ -552,146 +552,9 @@ export async function registerRoutes(
   });
 
   app.post("/api/claim", async (req, res) => {
-    try {
-      const { walletAddress, amount, gameId, signature, nonce, kicksTokenAddress } = req.body;
-      
-      if (!walletAddress || !amount || !gameId || !signature || !nonce) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-      
-      const game = await storage.getGame(parseInt(gameId));
-      if (!game) {
-        return res.status(404).json({ error: "Game not found" });
-      }
-      
-      const user = await storage.getUser(game.userId);
-      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
-        return res.status(403).json({ error: "Wallet address does not match game owner" });
-      }
-      
-      if (game.claimNonce !== nonce) {
-        return res.status(400).json({ error: "Invalid or expired nonce" });
-      }
-      
-      if (game.claimStatus === "claimed") {
-        return res.status(400).json({ error: "Game already claimed" });
-      }
-      
-      if (game.gameStatus !== "won" && game.gameStatus !== "cashed_out") {
-        return res.status(400).json({ error: "Game must be won or cashed out to claim" });
-      }
-      
-      if (!game.payout || parseFloat(game.payout) <= 0) {
-        return res.status(400).json({ error: "No payout available" });
-      }
-      
-      if (game.payout !== amount) {
-        return res.status(400).json({ error: "Amount mismatch" });
-      }
-      
-      const expectedMessage = `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
-      
-      const { ethers } = await import("ethers");
-      let recoveredAddress: string;
-      
-      try {
-        recoveredAddress = ethers.verifyMessage(expectedMessage, signature);
-      } catch (e) {
-        return res.status(400).json({ error: "Invalid signature format" });
-      }
-      
-      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
-        return res.status(400).json({ error: "Signature verification failed" });
-      }
-      
-      let txHash: string | null = null;
-      
-      const houseWalletKey = process.env.HOUSE_WALLET_KEY;
-      console.log(`HOUSE_WALLET_KEY exists: ${!!houseWalletKey}, length: ${houseWalletKey?.length || 0}, first 4 chars: ${houseWalletKey?.substring(0, 4) || 'N/A'}`);
-      
-      if (houseWalletKey && kicksTokenAddress) {
-        try {
-          const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
-          const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
-          
-          const cleanKey = houseWalletKey.trim();
-          let houseWallet;
-          
-          const wordCount = cleanKey.split(' ').length;
-          console.log(`Key word count: ${wordCount}, is mnemonic: ${wordCount >= 12}`);
-          
-          if (wordCount >= 12) {
-            const mnemonic = cleanKey.startsWith('0x') ? cleanKey.slice(2) : cleanKey;
-            const hdWallet = ethers.Wallet.fromPhrase(mnemonic);
-            houseWallet = new ethers.Wallet(hdWallet.privateKey, provider);
-          } else {
-            const privateKey = cleanKey.startsWith('0x') ? cleanKey : `0x${cleanKey}`;
-            houseWallet = new ethers.Wallet(privateKey, provider);
-          }
-          
-          console.log(`House wallet address: ${houseWallet.address}`);
-          
-          const erc20Abi = [
-            "function transfer(address to, uint256 amount) returns (bool)",
-            "function decimals() view returns (uint8)",
-            "function balanceOf(address owner) view returns (uint256)"
-          ];
-          
-          const kicksContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
-          
-          const decimals = await kicksContract.decimals();
-          console.log(`KICKS token decimals: ${decimals}`);
-          
-          const numericAmount = parseFloat(amount);
-          const maxDecimals = Number(decimals);
-          const roundedAmount = Number(numericAmount.toFixed(maxDecimals));
-          const cleanAmount = roundedAmount.toString();
-          console.log(`Parsed amount: ${numericAmount} -> rounded to ${maxDecimals} decimals: ${cleanAmount}`);
-          
-          const amountInWei = ethers.parseUnits(cleanAmount, decimals);
-          
-          const houseBalance = await kicksContract.balanceOf(houseWallet.address);
-          console.log(`House wallet balance: ${houseBalance.toString()} KICKS (need ${amountInWei.toString()})`);
-          
-          if (houseBalance < amountInWei) {
-            return res.status(400).json({ 
-              error: `House wallet has insufficient KICKS balance (has ${houseBalance.toString()}, need ${cleanAmount}). Please fund the house wallet: ${houseWallet.address}` 
-            });
-          }
-          
-          console.log(`Sending ${amount} KICKS to ${walletAddress}...`);
-          const tx = await kicksContract.transfer(walletAddress, amountInWei);
-          console.log(`Transaction sent: ${tx.hash}`);
-          
-          const receipt = await tx.wait();
-          console.log(`Transaction confirmed: ${receipt.hash}`);
-          txHash = receipt.hash;
-          
-        } catch (transferError: any) {
-          console.error("Token transfer failed:", transferError);
-          return res.status(500).json({ 
-            error: `Failed to send KICKS: ${transferError.message || "Unknown error"}` 
-          });
-        }
-      }
-      
-      await storage.updateGame(game.id, {
-        claimStatus: "claimed",
-        claimNonce: null,
-      });
-      
-      res.json({ 
-        success: true,
-        message: txHash 
-          ? "KICKS tokens sent successfully!" 
-          : "Claim verified successfully. The house will process your payout.",
-        amount: game.payout,
-        txHash,
-      });
-    } catch (error) {
-      console.error("Claim error:", error);
-      res.status(500).json({ error: "Failed to process claim" });
-    }
+    res.status(400).json({ 
+      error: "Direct claims are disabled. Please use the vault contract to claim your winnings." 
+    });
   });
 
   app.post("/api/claim/contract", async (req, res) => {
@@ -724,9 +587,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No payout available for this game" });
       }
       
-      const signerKey = process.env.HOUSE_WALLET_KEY;
+      const signerKey = process.env.CLAIM_SIGNER_KEY;
       if (!signerKey) {
-        return res.status(500).json({ error: "Claim signer not configured" });
+        return res.status(500).json({ error: "Claim signer not configured. Set CLAIM_SIGNER_KEY environment variable." });
       }
       
       const nonce = Date.now();

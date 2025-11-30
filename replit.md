@@ -105,14 +105,8 @@ To fully enable token betting:
 4. (Optional) Enter Claim Vault contract address for secure smart contract claims
 
 ## Smart Contract Claim System
-The game supports two claim methods for winnings:
+The game uses a smart contract vault for secure, trustless claims:
 
-### 1. Direct Transfer (Default)
-- House wallet directly sends KICKS tokens to winners
-- Requires HOUSE_WALLET_PRIVATE_KEY in environment secrets
-- Simple setup, but requires private key exposure to server
-
-### 2. Smart Contract Vault (Recommended for Production)
 - Uses KicksClaimVault.sol for secure, trustless claims
 - Server signs EIP-712 typed messages authorizing claims
 - Player calls contract's `claimWin()` function with signature
@@ -123,12 +117,17 @@ The game supports two claim methods for winnings:
 # Set environment variables
 export KICKS_TOKEN_ADDRESS=0x...  # KICKS token address
 export ADMIN_ADDRESS=0x...         # Admin wallet for vault management
-export SIGNER_ADDRESS=0x...        # Address matching HOUSE_WALLET_KEY
+export SIGNER_ADDRESS=0x...        # Address matching CLAIM_SIGNER_KEY
 
 # Compile and deploy
 npx hardhat compile
 npx hardhat run scripts/deploy.cjs --network apechain
 ```
+
+### Environment Variables for Deployment
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Random string for session encryption
+- `CLAIM_SIGNER_KEY` - Private key for signing claim authorizations (not for holding funds)
 
 ### Vault Contract Features
 - **EIP-712 Signatures**: Type-safe, human-readable claim authorization
