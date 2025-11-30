@@ -1,5 +1,5 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express, { type Request, Response, NextFunction } from "express";
-import serverless from "serverless-http";
 import { registerRoutes } from "../server/routes";
 
 const app = express();
@@ -22,9 +22,12 @@ async function initializeApp() {
   initialized = true;
 }
 
-const handler = serverless(app);
-
-export default async function (req: Request, res: Response) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   await initializeApp();
-  return handler(req, res);
+  
+  return new Promise<void>((resolve) => {
+    app(req as any, res as any, () => {
+      resolve();
+    });
+  });
 }
