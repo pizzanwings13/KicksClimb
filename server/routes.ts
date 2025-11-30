@@ -742,7 +742,22 @@ export async function registerRoutes(
       
       const amount = Math.round(parseFloat(game.payout)).toString();
       
+      const cleanKey = signerKey.trim();
+      let signerAddress: string;
+      const wordCount = cleanKey.split(' ').length;
+      if (wordCount >= 12) {
+        const { ethers } = await import("ethers");
+        const hdWallet = ethers.Wallet.fromPhrase(cleanKey);
+        signerAddress = hdWallet.address;
+      } else {
+        const { ethers } = await import("ethers");
+        const privateKey = cleanKey.startsWith('0x') ? cleanKey : `0x${cleanKey}`;
+        const wallet = new ethers.Wallet(privateKey);
+        signerAddress = wallet.address;
+      }
+      
       console.log(`Generating claim signature for game ${gameId}, player ${walletAddress}, amount ${amount}`);
+      console.log(`Signer address from HOUSE_WALLET_KEY: ${signerAddress}`);
       
       const { signature, domain } = await generateClaimSignature(
         signerKey,
