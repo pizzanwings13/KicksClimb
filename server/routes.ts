@@ -552,9 +552,72 @@ export async function registerRoutes(
   });
 
   app.post("/api/claim", async (req, res) => {
-    res.status(400).json({ 
-      error: "Direct claims are disabled. Please use the vault contract to claim your winnings." 
-    });
+    try {
+      const { walletAddress, amount, gameId, signature, nonce } = req.body;
+      
+      if (!walletAddress || !amount || !gameId || !signature || !nonce) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const game = await storage.getGame(parseInt(gameId));
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+      
+      const user = await storage.getUser(game.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Wallet address does not match game owner" });
+      }
+      
+      if (game.claimNonce !== nonce) {
+        return res.status(400).json({ error: "Invalid or expired nonce" });
+      }
+      
+      if (game.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Game already claimed" });
+      }
+      
+      if (game.gameStatus !== "won" && game.gameStatus !== "cashed_out") {
+        return res.status(400).json({ error: "Game must be won or cashed out to claim" });
+      }
+      
+      if (!game.payout || parseFloat(game.payout) <= 0) {
+        return res.status(400).json({ error: "No payout available" });
+      }
+      
+      if (game.payout !== amount) {
+        return res.status(400).json({ error: "Amount mismatch" });
+      }
+      
+      const expectedMessage = `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      
+      const { ethers } = await import("ethers");
+      let recoveredAddress: string;
+      
+      try {
+        recoveredAddress = ethers.verifyMessage(expectedMessage, signature);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid signature format" });
+      }
+      
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(400).json({ error: "Signature verification failed" });
+      }
+      
+      await storage.updateGame(game.id, {
+        claimStatus: "claimed",
+        claimNonce: null,
+      });
+      
+      res.json({ 
+        success: true,
+        message: "Claim verified! Your winnings have been recorded and will be sent from the vault contract.",
+        amount: game.payout,
+      });
+    } catch (error) {
+      console.error("Claim error:", error);
+      res.status(500).json({ error: "Failed to process claim" });
+    }
   });
 
   app.post("/api/claim/contract", async (req, res) => {
