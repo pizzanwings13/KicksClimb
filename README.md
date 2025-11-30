@@ -10,7 +10,7 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 - **Power-Ups**: Shield, Double Multiplier, Skip abilities
 - **Leaderboards**: Daily, weekly, and all-time rankings
 - **Achievements**: 13 unlockable badges
-- **Smart Contract Claims**: Secure EIP-712 signature-based claim system
+- **Direct Claims**: House wallet sends winnings directly to players
 
 ## Tech Stack
 
@@ -23,8 +23,7 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 ### Prerequisites
 
 1. A PostgreSQL database (Neon, Supabase, or similar)
-2. Deploy the KicksClaimVault contract to ApeChain
-3. A signing key for EIP-712 claim authorization
+2. A house wallet with KICKS tokens for payouts
 
 ### Environment Variables
 
@@ -33,10 +32,12 @@ Set these in your Vercel project settings:
 ```
 DATABASE_URL=postgresql://user:password@host:port/database
 SESSION_SECRET=your-random-session-secret
-CLAIM_SIGNER_KEY=your-signer-private-key
+HOUSE_WALLET_KEY=your-house-wallet-private-key
 ```
 
-**Note**: `CLAIM_SIGNER_KEY` is used only for signing claim authorizations (EIP-712), not for holding or transferring funds. The vault contract handles all token transfers.
+**Important**: 
+- `HOUSE_WALLET_KEY` is the private key of the wallet that holds KICKS tokens and sends them to winners
+- Fund this wallet with enough KICKS tokens to cover player winnings
 
 ### Deploy Steps
 
@@ -45,11 +46,18 @@ CLAIM_SIGNER_KEY=your-signer-private-key
 3. Add environment variables in Vercel dashboard
 4. Deploy
 
-### Smart Contract Setup
+### Custom Domain Setup
 
-1. Deploy the `KicksClaimVault.sol` contract to ApeChain
-2. Set the signer address in the contract to match your `CLAIM_SIGNER_KEY`
-3. Fund the vault contract with KICKS tokens for payouts
+After deployment:
+1. Go to your Vercel project settings > Domains
+2. Add your custom domain
+3. Configure DNS records as instructed by Vercel
+
+## Token Configuration
+
+The following addresses are pre-configured:
+- **KICKS Token**: `0x79F8f881dD05c93Ca230F7E912ae33f7ECAf0d60`
+- **House Wallet**: `0xb7AF40c853c20C806EA945EEb5F0f2447b2C02f5`
 
 ## Local Development
 
@@ -65,6 +73,13 @@ npm run dev
 - **Steps 51-75 (Hard)**: 40% hazard, 15% multiplier chance
 - **Steps 76-100 (Expert)**: 55% hazard, 10% multiplier chance
 - **Step 100**: 20x multiplier bonus
+
+## How Claims Work
+
+1. Player wins or cashes out with a multiplier > 0
+2. Player clicks "Claim Winnings" and signs a message with their wallet
+3. Server verifies the signature and sends KICKS from the house wallet to the player
+4. Transaction is recorded and balance updates
 
 ## License
 

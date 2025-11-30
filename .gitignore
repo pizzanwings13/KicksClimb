@@ -9,3 +9,19 @@ vite.config.ts.*
 .env.production
 *.pem
 *.key
+
+# Hardhat / Solidity
+cache
+artifacts
+contracts
+scripts/deploy.cjs
+
+# Replit specific
+.replit
+replit.nix
+.upm
+.cache
+.config
+
+# Vercel
+.vercel

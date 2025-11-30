@@ -13,6 +13,7 @@ const allowlist = [
   "date-fns",
   "drizzle-orm",
   "drizzle-zod",
+  "ethers",
   "express",
   "express-rate-limit",
   "express-session",
