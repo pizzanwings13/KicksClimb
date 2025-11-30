@@ -88,7 +88,7 @@ function WalletInitializer() {
   const { walletAddress, isConnected } = useWallet();
 
   useEffect(() => {
-    const defaultKicksAddress = "0x540F14c67c4B19C65F9177F1B5fddD1e16A1e0b6";
+    const defaultKicksAddress = "0x79F8f881dD05c93Ca230F7E912ae33f7ECAf0d60";
     const defaultHouseAddress = "0xb7AF40c853c20C806EA945EEb5F0f2447b2C02f5";
     const defaultVaultAddress = "0x6732551e002F88cc67b075bc521bBCf50087750d";
     
