@@ -183,10 +183,12 @@ export const useGameState = create<GameState>()(
       
       try {
         const hasActiveShield = activePowerUps.some(p => p.type === "shield" && p.active);
+        const hasActiveSkip = activePowerUps.some(p => p.type === "skip" && p.active);
         
         const res = await apiRequest("POST", `/api/game/${currentGame.id}/move`, { 
           steps,
           useShield: hasActiveShield,
+          useSkip: hasActiveSkip,
         });
         const data = await res.json();
         
@@ -203,6 +205,11 @@ export const useGameState = create<GameState>()(
           if (powerupType) {
             newCollectedPowerUps.push(powerupType);
           }
+        }
+        
+        if (data.skipUsed) {
+          newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "skip" && p.active));
+          newStreak = newStreak + 1;
         }
         
         if (data.shieldUsed) {

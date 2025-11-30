@@ -325,7 +325,7 @@ export async function registerRoutes(
   app.post("/api/game/:gameId/move", async (req, res) => {
     try {
       const { gameId } = req.params;
-      const { steps, useShield } = req.body;
+      const { steps, useShield, useSkip } = req.body;
       
       const game = await storage.getGame(parseInt(gameId));
       if (!game) {
@@ -337,8 +337,8 @@ export async function registerRoutes(
       }
       
       const board = generateBoard(game.oddseed);
-      const newPosition = Math.min(game.finalPosition + steps, TOTAL_STEPS);
-      const landedStep = board[newPosition];
+      let newPosition = Math.min(game.finalPosition + steps, TOTAL_STEPS);
+      let landedStep = board[newPosition];
       
       await storage.createGameStep({
         gameId: game.id,
@@ -351,6 +351,24 @@ export async function registerRoutes(
       let finalMultiplier = game.finalMultiplier ? parseFloat(game.finalMultiplier) : 1;
       let payout = game.payout;
       let shieldUsed = false;
+      let skipUsed = false;
+      let skippedPosition: number | null = null;
+      
+      if (landedStep.type === "hazard" || landedStep.type === "reset_trap") {
+        if (useSkip) {
+          skipUsed = true;
+          skippedPosition = newPosition;
+          newPosition = Math.min(newPosition + 1, TOTAL_STEPS);
+          landedStep = board[newPosition];
+          
+          await storage.createGameStep({
+            gameId: game.id,
+            stepNumber: newPosition,
+            stepType: landedStep.type,
+            multiplierValue: landedStep.multiplier?.toString(),
+          });
+        }
+      }
       
       if (landedStep.type === "hazard") {
         if (useShield) {
@@ -422,6 +440,8 @@ export async function registerRoutes(
         currentMultiplier: finalMultiplier,
         potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
         shieldUsed,
+        skipUsed,
+        skippedPosition,
       });
     } catch (error) {
       console.error("Move error:", error);
