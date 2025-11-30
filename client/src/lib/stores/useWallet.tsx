@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ethers, BrowserProvider, JsonRpcSigner } from "ethers";
+import { WalletType } from "../wagmi-config";
 
 const APECHAIN_CONFIG = {
   chainId: "0x8173",
@@ -25,6 +26,8 @@ const KICKS_TOKEN_ABI = [
 interface WalletState {
   isConnected: boolean;
   isConnecting: boolean;
+  connectingWallet: WalletType | null;
+  connectedWalletType: WalletType | null;
   walletAddress: string | null;
   kicksBalance: string;
   provider: BrowserProvider | null;
@@ -33,18 +36,57 @@ interface WalletState {
   error: string | null;
   kicksTokenAddress: string | null;
   houseWalletAddress: string | null;
+  showWalletModal: boolean;
+  glyphProvider: any | null;
   
-  connect: () => Promise<void>;
+  connect: (walletType: WalletType) => Promise<void>;
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
   setTokenAddresses: (kicks: string, house: string) => void;
   sendKicksToHouse: (amount: string) => Promise<string | null>;
   requestKicksFromHouse: (amount: string) => Promise<boolean>;
+  setShowWalletModal: (show: boolean) => void;
+  setGlyphProvider: (provider: any) => void;
+  connectWithProvider: (externalProvider: any, walletType: WalletType) => Promise<void>;
 }
+
+const detectWalletProvider = (walletType: WalletType): any => {
+  if (typeof window === "undefined" || !window.ethereum) {
+    return null;
+  }
+
+  const providers = window.ethereum.providers || [window.ethereum];
+
+  if (walletType === "metamask") {
+    const metamaskProvider = providers.find((p: any) => p.isMetaMask && !p.isZerion);
+    if (metamaskProvider) {
+      return metamaskProvider;
+    }
+    if (window.ethereum.isMetaMask && !window.ethereum.isZerion) {
+      return window.ethereum;
+    }
+    return null;
+  }
+
+  if (walletType === "zerion") {
+    const zerionProvider = providers.find((p: any) => p.isZerion);
+    if (zerionProvider) {
+      return zerionProvider;
+    }
+    if (window.ethereum.isZerion) {
+      return window.ethereum;
+    }
+    return null;
+  }
+
+  return null;
+};
 
 export const useWallet = create<WalletState>((set, get) => ({
   isConnected: false,
   isConnecting: false,
+  connectingWallet: null,
+  connectedWalletType: null,
   walletAddress: null,
   kicksBalance: "0",
   provider: null,
@@ -53,37 +95,40 @@ export const useWallet = create<WalletState>((set, get) => ({
   error: null,
   kicksTokenAddress: null,
   houseWalletAddress: null,
+  showWalletModal: false,
+  glyphProvider: null,
+
+  setShowWalletModal: (show: boolean) => {
+    set({ showWalletModal: show, error: null });
+  },
+
+  setGlyphProvider: (provider: any) => {
+    set({ glyphProvider: provider });
+  },
 
   setTokenAddresses: (kicks: string, house: string) => {
     set({ kicksTokenAddress: kicks, houseWalletAddress: house });
   },
 
-  connect: async () => {
+  connectWithProvider: async (externalProvider: any, walletType: WalletType) => {
     const { kicksTokenAddress } = get();
     
-    if (typeof window.ethereum === "undefined") {
-      set({ error: "Please install MetaMask or another Web3 wallet" });
-      return;
-    }
-
-    set({ isConnecting: true, error: null });
+    set({ isConnecting: true, connectingWallet: walletType, error: null });
 
     try {
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new BrowserProvider(externalProvider);
       
       try {
-        await window.ethereum.request({
+        await externalProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: APECHAIN_CONFIG.chainId }],
         });
       } catch (switchError: any) {
         if (switchError.code === 4902) {
-          await window.ethereum.request({
+          await externalProvider.request({
             method: "wallet_addEthereumChain",
             params: [APECHAIN_CONFIG],
           });
-        } else {
-          throw switchError;
         }
       }
 
@@ -108,14 +153,17 @@ export const useWallet = create<WalletState>((set, get) => ({
       set({
         isConnected: true,
         isConnecting: false,
+        connectingWallet: null,
+        connectedWalletType: walletType,
         walletAddress,
         provider,
         signer,
         kicksContract,
         kicksBalance,
+        showWalletModal: false,
       });
 
-      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+      externalProvider.on("accountsChanged", (accounts: string[]) => {
         if (accounts.length === 0) {
           get().disconnect();
         } else {
@@ -124,7 +172,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         }
       });
 
-      window.ethereum.on("chainChanged", () => {
+      externalProvider.on("chainChanged", () => {
         window.location.reload();
       });
 
@@ -132,14 +180,49 @@ export const useWallet = create<WalletState>((set, get) => ({
       console.error("Connection error:", error);
       set({
         isConnecting: false,
+        connectingWallet: null,
         error: error.message || "Failed to connect wallet",
       });
     }
   },
 
+  connect: async (walletType: WalletType) => {
+    const { kicksTokenAddress, glyphProvider, connectWithProvider } = get();
+    
+    set({ isConnecting: true, connectingWallet: walletType, error: null });
+
+    if (walletType === "glyph") {
+      if (glyphProvider) {
+        await connectWithProvider(glyphProvider, walletType);
+      } else {
+        set({
+          isConnecting: false,
+          connectingWallet: null,
+          error: "Glyph wallet not available. Please use MetaMask or Zerion.",
+        });
+      }
+      return;
+    }
+
+    const ethereumProvider = detectWalletProvider(walletType);
+    
+    if (!ethereumProvider) {
+      const walletName = walletType === "metamask" ? "MetaMask" : "Zerion";
+      set({
+        isConnecting: false,
+        connectingWallet: null,
+        error: `${walletName} not detected. Please install the ${walletName} extension.`,
+      });
+      return;
+    }
+
+    await connectWithProvider(ethereumProvider, walletType);
+  },
+
   disconnect: () => {
     set({
       isConnected: false,
+      connectedWalletType: null,
       walletAddress: null,
       kicksBalance: "0",
       provider: null,
@@ -164,7 +247,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   sendKicksToHouse: async (amount: string) => {
-    const { kicksContract, houseWalletAddress, kicksTokenAddress } = get();
+    const { kicksContract, houseWalletAddress } = get();
     
     if (!kicksContract || !houseWalletAddress) {
       console.error("Contract or house wallet not configured");

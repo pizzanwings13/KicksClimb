@@ -10,7 +10,7 @@ interface TokenConfigProps {
 }
 
 export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
-  const { setTokenAddresses, kicksTokenAddress, houseWalletAddress, connect, isConnected } = useWallet();
+  const { setTokenAddresses, kicksTokenAddress, houseWalletAddress, refreshBalance, isConnected } = useWallet();
   const [kicksAddress, setKicksAddress] = useState(kicksTokenAddress || "");
   const [houseAddress, setHouseAddress] = useState(houseWalletAddress || "");
   const [isSaved, setIsSaved] = useState(false);
@@ -30,7 +30,7 @@ export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
     setTimeout(() => setIsSaved(false), 2000);
     
     if (isConnected) {
-      await connect();
+      await refreshBalance();
     }
   };
 

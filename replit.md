@@ -98,7 +98,15 @@ npm run dev          # Start development server
 npm run db:push      # Push database schema changes
 ```
 
+## Wallet Integration
+- **MetaMask**: Full support - connects via browser extension
+- **Zerion**: Full support - connects via browser extension  
+- **Glyph**: Coming soon - Yuga Labs' wallet for ApeChain social login
+
+Wallet detection automatically identifies which wallets are installed and provides appropriate connection options through the WalletConnectModal component.
+
 ## Recent Changes (November 30, 2025)
+- Added multi-wallet connection modal (MetaMask, Zerion, Glyph coming soon)
 - Added sound effects and background music with mute controls
 - Implemented particle effects for game events (win, loss, multipliers)
 - Created power-up system with shield, double, skip, and bonus chest
@@ -110,4 +118,4 @@ npm run db:push      # Push database schema changes
 ## User Preferences
 - Token: KICKS on ApeChain
 - Sound effects enabled by default (can be muted)
-- Wallet connection via MetaMask/compatible wallets
+- Wallet connection via MetaMask, Zerion, or Glyph (coming soon)

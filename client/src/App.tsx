@@ -19,10 +19,12 @@ import { SoundControls } from "./components/game/SoundControls";
 import { StatsButton } from "./components/game/StatsModal";
 import { AchievementsButton } from "./components/game/AchievementsModal";
 import { AchievementNotification } from "./components/game/AchievementNotification";
+import { WalletConnectModal } from "./components/game/WalletConnectModal";
 import { useGameState } from "./lib/stores/useGameState";
 import { useWallet } from "./lib/stores/useWallet";
 import { useAudio } from "./lib/stores/useAudio";
 import { useSoundEffects } from "./lib/hooks/useSoundEffects";
+import { WalletType } from "./lib/wagmi-config";
 
 function LoadingScreen() {
   return (
@@ -81,7 +83,7 @@ function SoundManager() {
 }
 
 function WalletInitializer() {
-  const { setTokenAddresses, kicksTokenAddress, houseWalletAddress } = useWallet();
+  const { setTokenAddresses } = useWallet();
   const { connectUser, fetchLeaderboards } = useGameState();
   const { walletAddress, isConnected } = useWallet();
 
@@ -101,6 +103,32 @@ function WalletInitializer() {
   }, [isConnected, walletAddress, connectUser, fetchLeaderboards]);
 
   return null;
+}
+
+function WalletModalManager() {
+  const { 
+    showWalletModal, 
+    setShowWalletModal, 
+    connect, 
+    isConnecting, 
+    connectingWallet, 
+    error 
+  } = useWallet();
+
+  const handleSelectWallet = async (walletType: WalletType) => {
+    await connect(walletType);
+  };
+
+  return (
+    <WalletConnectModal
+      isOpen={showWalletModal}
+      onClose={() => setShowWalletModal(false)}
+      onSelectWallet={handleSelectWallet}
+      isConnecting={isConnecting}
+      connectingWallet={connectingWallet}
+      error={error}
+    />
+  );
 }
 
 function SoundEffectsManager() {
@@ -227,6 +255,7 @@ function App() {
         <AchievementsButton />
         <TokenConfigButton />
         <SoundControls />
+        <WalletModalManager />
       </div>
     </QueryClientProvider>
   );

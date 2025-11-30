@@ -4,17 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Wallet, Trophy, User, Gamepad2 } from "lucide-react";
 
 export function MenuScreen() {
-  const { isConnected, isConnecting, walletAddress, kicksBalance, connect, error } = useWallet();
+  const { isConnected, isConnecting, walletAddress, kicksBalance, setShowWalletModal, error, connectedWalletType } = useWallet();
   const { phase, setPhase, connectUser, user, fetchLeaderboards } = useGameState();
 
   if (phase !== "menu") return null;
 
-  const handleConnect = async () => {
-    await connect();
-    if (walletAddress) {
-      await connectUser(walletAddress);
-      await fetchLeaderboards();
-    }
+  const handleConnect = () => {
+    setShowWalletModal(true);
   };
 
   const handlePlay = () => {

@@ -1,0 +1,162 @@
+Installation
+Install the required dependencies:
+
+
+npm
+
+yarn
+
+pnpm
+
+bun
+
+npm install @use-glyph/sdk-react @rainbow-me/rainbowkit wagmi@^2.15.2 viem@^2.29.2 @tanstack/react-query@^5.76.0
+Import
+The @use-glyph/sdk-react package includes the glyphWalletRK connector you can use to add Glyph Wallet as a connection option in your RainbowKit ConnectButton.
+
+
+import { glyphWalletRK } from "@use-glyph/sdk-react";
+Usage
+1. Configure the Providers
+Wrap your application in the following providers:
+
+WagmiProvider from wagmi.
+QueryClientProvider from @tanstack/react-query.
+RainbowKitProvider from @rainbow-me/rainbowkit.
+
+import {
+	glyphConnectorDetails,
+	GlyphProvider,
+	glyphWalletRK,
+	StrategyType,
+	WalletClientType,
+} from "@use-glyph/sdk-react";
+import {
+	connectorsForWallets,
+	RainbowKitProvider,
+} from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Chain, http, Transport } from "viem";
+import { apeChain, base, mainnet, curtis } from "viem/chains";
+import { createConfig, WagmiProvider } from "wagmi";
+
+const queryClient = new QueryClient();
+
+const supportedChains: [Chain, ...Chain[]] = [apeChain, mainnet, base, curtis];
+
+const connectors = connectorsForWallets(
+	[
+		{
+			groupName: glyphConnectorDetails.name,
+			wallets: [glyphWalletRK],
+		},
+	],
+	{
+		appName: glyphConnectorDetails.name,
+		projectId: glyphConnectorDetails.id,
+	}
+);
+
+const wagmiConfig = createConfig({
+	chains: supportedChains,
+	transports: supportedChains.reduce((acc, chain) => {
+		acc[chain.id] = http();
+		return acc;
+	}, {} as Record<number, Transport>),
+	connectors,
+});
+
+function App() {
+	return (
+		<WagmiProvider config={wagmiConfig}>
+			<QueryClientProvider client={queryClient}>
+				<RainbowKitProvider>
+					<GlyphProvider
+						strategy={StrategyType.EIP1193}
+						walletClientType={WalletClientType.RAINBOWKIT}
+						askForSignature={true}
+					>
+						{/* Your app */}
+					</GlyphProvider>
+				</RainbowKitProvider>
+			</QueryClientProvider>
+		</WagmiProvider>
+	);
+}
+
+export default App;
+2. Render the ConnectButton
+Render the ConnectButton from @rainbow-me/rainbowkit anywhere in your app.
+
+
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+
+export default function Home() {
+	return <ConnectButton />;
+}
+3. Generate an authentication token for the user (optional)
+To start using the useGlyph hook or the Glyph Widget, you need to generate an authentication token for the user.
+
+INFO
+
+You can skip this step if you directly using the wagmi hooks.
+
+
+import { useGlyph } from "@use-glyph/sdk-react";
+
+const { login } = useGlyph();
+
+const LoginButton = () => {
+	return <button onClick={login}>Sign a message</button>;
+};
+Alternatively, you can use the LoginButton component to sign a message and generate an authentication token for the user.
+
+
+import { LoginButton } from "@use-glyph/sdk-react";
+
+const LoginButton = () => {
+	return <LoginButton />;
+};
+4. Use hooks and functions
+Once the user has signed in, you can begin to use any of the @use-glyph/sdk-react hooks, such as useGlyph as well as all of the existing wagmi hooks; such as useAccount, useBalance, etc.
+
+
+import { useAccount, useSendTransaction } from "wagmi";
+import { parseEther } from "viem";
+import { apeChain } from "viem/chains";
+
+export default function Example() {
+	const { address, status } = useAccount();
+	const { sendTransaction, isPending } = useSendTransaction();
+
+	const amount = parseEther("1");
+	const recipientAddress = "0x...some-recipient-address"; // recipient address
+
+	return (
+		<button
+			onClick={() => {
+				sendTransaction({
+					chainId: apeChain.id,
+					to: recipientAddress,
+					value: amount,
+				});
+			}}
+			disabled={isPending || status !== "connected"}
+		>
+			{isPending ? "Sending..." : "Send Transaction"}
+		</button>
+	);
+}
+4. Logout users
+Use any of the following methods to logout users:
+
+the useGlyph hook, or
+the LogoutButton component
+the useDisconnect hook from wagmi
+
+const { logout } = useGlyph();
+
+const LogoutButton = () => {
+	return <button onClick={logout}>Logout</button>;
+};
