@@ -2,6 +2,41 @@ import { create } from "zustand";
 import { ethers, BrowserProvider, JsonRpcSigner } from "ethers";
 import { WalletType } from "../wagmi-config";
 
+interface EIP6963ProviderInfo {
+  uuid: string;
+  name: string;
+  icon: string;
+  rdns: string;
+}
+
+interface EIP6963ProviderDetail {
+  info: EIP6963ProviderInfo;
+  provider: any;
+}
+
+interface EIP6963AnnounceProviderEvent extends CustomEvent {
+  detail: EIP6963ProviderDetail;
+}
+
+const discoveredProviders: Map<string, EIP6963ProviderDetail> = new Map();
+
+const setupEIP6963Listener = () => {
+  if (typeof window === "undefined") return;
+  
+  window.addEventListener("eip6963:announceProvider", (event: Event) => {
+    const e = event as EIP6963AnnounceProviderEvent;
+    const { info, provider } = e.detail;
+    console.log("[EIP6963] Discovered wallet:", info.name, info.rdns);
+    discoveredProviders.set(info.rdns, { info, provider });
+  });
+  
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+};
+
+if (typeof window !== "undefined") {
+  setupEIP6963Listener();
+}
+
 const APECHAIN_CONFIG = {
   chainId: "0x8173",
   chainName: "ApeChain",
@@ -83,18 +118,77 @@ const isRealZerion = (provider: any): boolean => {
   return provider.isZerion === true;
 };
 
+const getEIP6963Provider = (walletType: WalletType): any => {
+  console.log("[EIP6963] Looking for:", walletType);
+  console.log("[EIP6963] Discovered providers:", Array.from(discoveredProviders.keys()));
+  
+  if (walletType === "metamask") {
+    // MetaMask's RDNS
+    const metamaskRdns = ["io.metamask", "io.metamask.flask"];
+    for (const rdns of metamaskRdns) {
+      const provider = discoveredProviders.get(rdns);
+      if (provider) {
+        console.log("[EIP6963] Found MetaMask via RDNS:", rdns);
+        return provider.provider;
+      }
+    }
+    
+    // Also check by name
+    const entries = Array.from(discoveredProviders.entries());
+    for (const [rdns, detail] of entries) {
+      if (detail.info.name.toLowerCase().includes("metamask") && !rdns.includes("zerion")) {
+        console.log("[EIP6963] Found MetaMask by name:", detail.info.name);
+        return detail.provider;
+      }
+    }
+  }
+  
+  if (walletType === "zerion") {
+    // Zerion's RDNS
+    const zerionRdns = ["io.zerion.wallet", "app.zerion"];
+    for (const rdns of zerionRdns) {
+      const provider = discoveredProviders.get(rdns);
+      if (provider) {
+        console.log("[EIP6963] Found Zerion via RDNS:", rdns);
+        return provider.provider;
+      }
+    }
+    
+    // Also check by name
+    const entries = Array.from(discoveredProviders.entries());
+    for (const [rdns, detail] of entries) {
+      if (detail.info.name.toLowerCase().includes("zerion")) {
+        console.log("[EIP6963] Found Zerion by name:", detail.info.name);
+        return detail.provider;
+      }
+    }
+  }
+  
+  return null;
+};
+
 const detectWalletProvider = (walletType: WalletType): any => {
   if (typeof window === "undefined") {
     return null;
   }
 
+  console.log("[Wallet Detection] Looking for:", walletType);
+  
+  // First try EIP-6963 (modern standard)
+  const eip6963Provider = getEIP6963Provider(walletType);
+  if (eip6963Provider) {
+    console.log("[Wallet Detection] Found via EIP-6963");
+    return eip6963Provider;
+  }
+
   if (!window.ethereum) {
+    console.log("[Wallet Detection] No window.ethereum");
     return null;
   }
 
   const providers = window.ethereum.providers || [];
   
-  console.log("[Wallet Detection] Looking for:", walletType);
+  console.log("[Wallet Detection] Falling back to legacy detection");
   console.log("[Wallet Detection] Providers count:", providers.length);
   
   // Log all provider details for debugging
