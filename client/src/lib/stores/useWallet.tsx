@@ -50,8 +50,20 @@ interface WalletState {
   connectWithProvider: (externalProvider: any, walletType: WalletType) => Promise<void>;
 }
 
+const isInIframe = (): boolean => {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true;
+  }
+};
+
 const detectWalletProvider = (walletType: WalletType): any => {
-  if (typeof window === "undefined" || !window.ethereum) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (!window.ethereum) {
     return null;
   }
 
@@ -63,6 +75,9 @@ const detectWalletProvider = (walletType: WalletType): any => {
       return metamaskProvider;
     }
     if (window.ethereum.isMetaMask && !window.ethereum.isZerion) {
+      return window.ethereum;
+    }
+    if (window.ethereum && !window.ethereum.isZerion) {
       return window.ethereum;
     }
     return null;
@@ -79,7 +94,30 @@ const detectWalletProvider = (walletType: WalletType): any => {
     return null;
   }
 
+  if (window.ethereum) {
+    return window.ethereum;
+  }
+
   return null;
+};
+
+export const checkWalletAvailability = (): { hasEthereum: boolean; isIframe: boolean; wallets: string[] } => {
+  const hasEthereum = typeof window !== "undefined" && !!window.ethereum;
+  const iframe = isInIframe();
+  const wallets: string[] = [];
+  
+  if (hasEthereum && window.ethereum) {
+    const providers = window.ethereum.providers || [window.ethereum];
+    providers.forEach((p: any) => {
+      if (p.isMetaMask) wallets.push("MetaMask");
+      if (p.isZerion) wallets.push("Zerion");
+    });
+    if (wallets.length === 0 && window.ethereum.isMetaMask) {
+      wallets.push("MetaMask");
+    }
+  }
+  
+  return { hasEthereum, isIframe: iframe, wallets };
 };
 
 export const useWallet = create<WalletState>((set, get) => ({

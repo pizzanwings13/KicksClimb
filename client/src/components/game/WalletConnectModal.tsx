@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Wallet, ExternalLink, Loader2, Clock } from "lucide-react";
+import { X, Wallet, ExternalLink, Loader2, Clock, AlertTriangle, Globe } from "lucide-react";
 import { WalletType, walletOptions } from "../../lib/wagmi-config";
+import { checkWalletAvailability } from "../../lib/stores/useWallet";
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -19,12 +21,25 @@ export function WalletConnectModal({
   connectingWallet,
   error,
 }: WalletConnectModalProps) {
+  const [walletStatus, setWalletStatus] = useState({ hasEthereum: false, isIframe: false, wallets: [] as string[] });
+
+  useEffect(() => {
+    if (isOpen) {
+      const status = checkWalletAvailability();
+      setWalletStatus(status);
+    }
+  }, [isOpen]);
+
   const handleWalletClick = async (walletType: WalletType) => {
     const wallet = walletOptions.find(w => w.id === walletType);
     if (wallet && !wallet.available) {
       return;
     }
     await onSelectWallet(walletType);
+  };
+
+  const handleOpenInNewWindow = () => {
+    window.open(window.location.href, '_blank');
   };
 
   return (
@@ -64,9 +79,48 @@ export function WalletConnectModal({
                 </button>
               </div>
 
-              <p className="text-gray-400 text-sm mb-6">
+              <p className="text-gray-400 text-sm mb-4">
                 Choose your preferred wallet to connect to KICKS CLIMB on ApeChain
               </p>
+
+              {!walletStatus.hasEthereum && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-4 bg-amber-500/20 border border-amber-500/30 rounded-lg"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-amber-300 text-sm font-medium mb-2">
+                        No wallet detected
+                      </p>
+                      <p className="text-amber-200/70 text-xs mb-3">
+                        Browser wallet extensions may not work in embedded views. Try opening this app in a new browser window where your wallet extension is installed.
+                      </p>
+                      <button
+                        onClick={handleOpenInNewWindow}
+                        className="flex items-center gap-2 px-3 py-2 bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 text-sm rounded-lg transition-colors"
+                      >
+                        <Globe className="w-4 h-4" />
+                        Open in New Window
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {walletStatus.hasEthereum && walletStatus.wallets.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg"
+                >
+                  <p className="text-green-400 text-sm">
+                    Detected: {walletStatus.wallets.join(", ")}
+                  </p>
+                </motion.div>
+              )}
 
               {error && (
                 <motion.div
@@ -75,6 +129,15 @@ export function WalletConnectModal({
                   className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
                 >
                   <p className="text-red-400 text-sm">{error}</p>
+                  {error.includes("not detected") && (
+                    <button
+                      onClick={handleOpenInNewWindow}
+                      className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs rounded-lg transition-colors"
+                    >
+                      <Globe className="w-3 h-3" />
+                      Try opening in new window
+                    </button>
+                  )}
                 </motion.div>
               )}
 
