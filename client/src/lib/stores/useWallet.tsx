@@ -2,6 +2,38 @@ import { create } from "zustand";
 import { ethers, BrowserProvider, JsonRpcSigner } from "ethers";
 import { WalletType } from "../wagmi-config";
 
+export const isMobileDevice = (): boolean => {
+  if (typeof window === "undefined") return false;
+  
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+  
+  const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+  
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  const isSmallScreen = window.innerWidth <= 768;
+  
+  return mobileRegex.test(userAgent.toLowerCase()) || (isTouchDevice && isSmallScreen);
+};
+
+export const openWalletDeepLink = (walletType: WalletType): void => {
+  const currentUrl = window.location.href;
+  const host = window.location.host;
+  
+  let deepLink: string;
+  
+  if (walletType === "metamask") {
+    deepLink = `https://metamask.app.link/dapp/${host}`;
+  } else if (walletType === "zerion") {
+    deepLink = `https://wallet.zerion.io/wc?uri=https://${host}`;
+  } else {
+    return;
+  }
+  
+  console.log(`[Mobile Wallet] Opening deep link for ${walletType}:`, deepLink);
+  window.location.href = deepLink;
+};
+
 interface EIP6963ProviderInfo {
   uuid: string;
   name: string;
