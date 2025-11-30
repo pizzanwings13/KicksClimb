@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
+import { Billboard } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
@@ -18,17 +19,19 @@ function getPositionFromStep(stepIndex: number): [number, number, number] {
   return [x, y, z];
 }
 
-function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number }) {
+function FireEffect({ isOnFire, streak, hasAvatar }: { isOnFire: boolean; streak: number; hasAvatar: boolean }) {
   const flameRefs = useRef<THREE.Mesh[]>([]);
   
   const flamePositions = useMemo(() => [
-    { x: 0.3, z: 0, delay: 0 },
-    { x: -0.3, z: 0, delay: 0.3 },
-    { x: 0, z: 0.3, delay: 0.6 },
-    { x: 0, z: -0.3, delay: 0.9 },
-    { x: 0.2, z: 0.2, delay: 0.2 },
-    { x: -0.2, z: -0.2, delay: 0.5 },
+    { x: 0.35, z: 0, delay: 0 },
+    { x: -0.35, z: 0, delay: 0.3 },
+    { x: 0, z: 0.35, delay: 0.6 },
+    { x: 0, z: -0.35, delay: 0.9 },
+    { x: 0.25, z: 0.25, delay: 0.2 },
+    { x: -0.25, z: -0.25, delay: 0.5 },
   ], []);
+  
+  const baseY = hasAvatar ? 0.5 : 0.3;
   
   useFrame((state) => {
     if (!isOnFire) return;
@@ -36,7 +39,7 @@ function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number })
     flameRefs.current.forEach((flame, i) => {
       if (flame) {
         const time = state.clock.elapsedTime + flamePositions[i].delay;
-        flame.position.y = 0.3 + Math.sin(time * 8) * 0.15;
+        flame.position.y = baseY + Math.sin(time * 8) * 0.15;
         flame.scale.setScalar(0.8 + Math.sin(time * 10) * 0.3);
         flame.rotation.y = time * 3;
       }
@@ -53,7 +56,7 @@ function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number })
         <mesh
           key={i}
           ref={(el) => { if (el) flameRefs.current[i] = el; }}
-          position={[pos.x, 0.3, pos.z]}
+          position={[pos.x, baseY, pos.z]}
         >
           <coneGeometry args={[0.08 * flameIntensity, 0.25 * flameIntensity, 8]} />
           <meshStandardMaterial
@@ -66,7 +69,7 @@ function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number })
         </mesh>
       ))}
       <pointLight
-        position={[0, 0.5, 0]}
+        position={[0, baseY + 0.2, 0]}
         intensity={flameIntensity * 2}
         color="#ff6600"
         distance={3}
@@ -75,19 +78,120 @@ function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number })
   );
 }
 
+function AvatarHead({ avatarUrl, bodyColor, emissiveColor, emissiveIntensity }: { 
+  avatarUrl: string | null; 
+  bodyColor: string; 
+  emissiveColor: string;
+  emissiveIntensity: number;
+}) {
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  
+  useEffect(() => {
+    if (avatarUrl) {
+      const loader = new THREE.TextureLoader();
+      loader.load(avatarUrl, (loadedTexture) => {
+        loadedTexture.colorSpace = THREE.SRGBColorSpace;
+        setTexture(loadedTexture);
+      }, undefined, () => {
+        setTexture(null);
+      });
+    } else {
+      setTexture(null);
+    }
+  }, [avatarUrl]);
+  
+  if (texture) {
+    return (
+      <Billboard position={[0, 0.7, 0]} follow={true} lockX={false} lockY={false} lockZ={false}>
+        <mesh>
+          <circleGeometry args={[0.35, 32]} />
+          <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, 0, -0.01]}>
+          <circleGeometry args={[0.38, 32]} />
+          <meshStandardMaterial color={bodyColor} emissive={emissiveColor} emissiveIntensity={emissiveIntensity} />
+        </mesh>
+      </Billboard>
+    );
+  }
+  
+  return (
+    <>
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial 
+          color={bodyColor}
+          emissive={emissiveColor}
+          emissiveIntensity={emissiveIntensity}
+        />
+      </mesh>
+      <mesh position={[-0.1, 0.6, 0.15]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#1a202c" />
+      </mesh>
+      <mesh position={[0.1, 0.6, 0.15]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#1a202c" />
+      </mesh>
+    </>
+  );
+}
+
+function WalkingLegs({ isWalking, bodyColor }: { isWalking: boolean; bodyColor: string }) {
+  const leftLegRef = useRef<THREE.Mesh>(null);
+  const rightLegRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (!leftLegRef.current || !rightLegRef.current) return;
+    
+    if (isWalking) {
+      const walkCycle = state.clock.elapsedTime * 12;
+      leftLegRef.current.rotation.x = Math.sin(walkCycle) * 0.6;
+      rightLegRef.current.rotation.x = Math.sin(walkCycle + Math.PI) * 0.6;
+    } else {
+      leftLegRef.current.rotation.x = THREE.MathUtils.lerp(leftLegRef.current.rotation.x, 0, 0.1);
+      rightLegRef.current.rotation.x = THREE.MathUtils.lerp(rightLegRef.current.rotation.x, 0, 0.1);
+    }
+  });
+  
+  return (
+    <>
+      <mesh ref={leftLegRef} position={[-0.1, -0.35, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.25, 4, 8]} />
+        <meshStandardMaterial color={bodyColor} />
+      </mesh>
+      <mesh ref={rightLegRef} position={[0.1, -0.35, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.25, 4, 8]} />
+        <meshStandardMaterial color={bodyColor} />
+      </mesh>
+    </>
+  );
+}
+
 export function Player() {
   const meshRef = useRef<THREE.Group>(null);
-  const { currentPosition, phase, isMoving, lastStepType, isOnFire, streak, wasReset } = useGameState();
+  const { currentPosition, phase, isMoving, lastStepType, isOnFire, streak, wasReset, user } = useGameState();
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>([0, 0.6, -5 * STEP_SIZE]);
-  const [isJumping, setIsJumping] = useState(false);
-  const jumpProgress = useRef(0);
+  const [isWalking, setIsWalking] = useState(false);
+  const walkProgress = useRef(0);
+  const [previousPosition, setPreviousPosition] = useState<[number, number, number]>([0, 0.6, -5 * STEP_SIZE]);
+  const lastPosition = useRef(0);
   
   useEffect(() => {
     if (phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out") {
       const newPos = getPositionFromStep(currentPosition);
-      setTargetPosition(newPos);
-      setIsJumping(true);
-      jumpProgress.current = 0;
+      
+      if (currentPosition !== lastPosition.current) {
+        setPreviousPosition(targetPosition);
+        setTargetPosition(newPos);
+        setIsWalking(true);
+        walkProgress.current = 0;
+        lastPosition.current = currentPosition;
+      }
+    }
+    
+    if (phase === "won" || phase === "lost" || phase === "cashed_out") {
+      setTimeout(() => setIsWalking(false), 500);
     }
   }, [currentPosition, phase]);
   
@@ -96,33 +200,35 @@ export function Player() {
     
     const current = meshRef.current.position;
     const [tx, ty, tz] = targetPosition;
+    const [px, py, pz] = previousPosition;
     
-    if (isJumping) {
-      jumpProgress.current += delta * 3;
+    if (isWalking) {
+      walkProgress.current += delta * 2.5;
       
-      if (jumpProgress.current >= 1) {
-        jumpProgress.current = 1;
-        setIsJumping(false);
+      if (walkProgress.current >= 1) {
+        walkProgress.current = 1;
+        setIsWalking(false);
       }
       
-      const t = jumpProgress.current;
-      const jumpHeight = Math.sin(t * Math.PI) * 0.8;
+      const t = walkProgress.current;
+      const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       
-      current.x = THREE.MathUtils.lerp(current.x, tx, t);
-      current.z = THREE.MathUtils.lerp(current.z, tz, t);
-      current.y = ty + jumpHeight;
+      const hopHeight = Math.sin(t * Math.PI * 3) * 0.1 + Math.sin(t * Math.PI) * 0.15;
       
-      meshRef.current.rotation.y += delta * 5;
+      current.x = px + (tx - px) * easeT;
+      current.z = pz + (tz - pz) * easeT;
+      current.y = ty + hopHeight;
+      
+      const dirX = tx - px;
+      const dirZ = tz - pz;
+      if (Math.abs(dirX) > 0.01 || Math.abs(dirZ) > 0.01) {
+        const targetRotation = Math.atan2(dirX, dirZ);
+        meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, targetRotation, 0.1);
+      }
     } else {
       current.x = THREE.MathUtils.lerp(current.x, tx, delta * 5);
       current.z = THREE.MathUtils.lerp(current.z, tz, delta * 5);
-      current.y = ty + Math.sin(state.clock.elapsedTime * 2) * 0.05;
-      
-      meshRef.current.rotation.y = THREE.MathUtils.lerp(
-        meshRef.current.rotation.y,
-        0,
-        delta * 3
-      );
+      current.y = ty + Math.sin(state.clock.elapsedTime * 2) * 0.03;
     }
     
     if (lastStepType === "hazard" && phase === "lost") {
@@ -160,10 +266,12 @@ export function Player() {
     emissiveColor = "#805ad5";
   }
   
+  const avatarUrl = user?.avatarUrl || null;
+  
   return (
     <group ref={meshRef} position={[0, 0.6, -5 * STEP_SIZE]}>
       <mesh castShadow>
-        <capsuleGeometry args={[0.25, 0.5, 8, 16]} />
+        <capsuleGeometry args={[0.2, 0.4, 8, 16]} />
         <meshStandardMaterial 
           color={bodyColor}
           emissive={emissiveColor}
@@ -173,25 +281,16 @@ export function Player() {
         />
       </mesh>
       
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial 
-          color={bodyColor}
-          emissive={emissiveColor}
-          emissiveIntensity={emissiveIntensity}
-        />
-      </mesh>
+      <AvatarHead 
+        avatarUrl={avatarUrl} 
+        bodyColor={bodyColor} 
+        emissiveColor={emissiveColor}
+        emissiveIntensity={emissiveIntensity}
+      />
       
-      <mesh position={[-0.1, 0.6, 0.15]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color="#1a202c" />
-      </mesh>
-      <mesh position={[0.1, 0.6, 0.15]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color="#1a202c" />
-      </mesh>
+      <WalkingLegs isWalking={isWalking} bodyColor={bodyColor} />
       
-      <FireEffect isOnFire={isOnFire} streak={streak} />
+      <FireEffect isOnFire={isOnFire} streak={streak} hasAvatar={!!avatarUrl} />
       
       {(phase === "won" || phase === "cashed_out") && (
         <pointLight 
