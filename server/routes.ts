@@ -323,6 +323,25 @@ export async function registerRoutes(
           await storage.updateDailyLeaderboard(user.id, payout, finalMultiplier.toString());
           await storage.updateWeeklyLeaderboard(user.id, payout, finalMultiplier.toString());
         }
+      } else if (landedStep.type === "reset_trap") {
+        if (useShield) {
+          shieldUsed = true;
+        } else {
+          const updatedGame = await storage.updateGame(game.id, {
+            finalPosition: 0,
+            gameStatus: "active",
+            finalMultiplier: finalMultiplier.toString(),
+          });
+          
+          return res.json({
+            game: updatedGame,
+            landedStep,
+            currentMultiplier: finalMultiplier,
+            potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+            shieldUsed: false,
+            resetToStart: true,
+          });
+        }
       } else if (landedStep.multiplier) {
         finalMultiplier = Math.max(finalMultiplier, landedStep.multiplier);
         finalMultiplier = Math.min(finalMultiplier, 11);
