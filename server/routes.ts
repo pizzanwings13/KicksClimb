@@ -546,6 +546,8 @@ export async function registerRoutes(
       let txHash: string | null = null;
       
       const houseWalletKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+      console.log(`HOUSE_WALLET_PRIVATE_KEY exists: ${!!houseWalletKey}, length: ${houseWalletKey?.length || 0}, first 4 chars: ${houseWalletKey?.substring(0, 4) || 'N/A'}`);
+      
       if (houseWalletKey && kicksTokenAddress) {
         try {
           const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
@@ -554,7 +556,10 @@ export async function registerRoutes(
           const cleanKey = houseWalletKey.trim();
           let houseWallet;
           
-          if (cleanKey.split(' ').length >= 12) {
+          const wordCount = cleanKey.split(' ').length;
+          console.log(`Key word count: ${wordCount}, is mnemonic: ${wordCount >= 12}`);
+          
+          if (wordCount >= 12) {
             const mnemonic = cleanKey.startsWith('0x') ? cleanKey.slice(2) : cleanKey;
             const hdWallet = ethers.Wallet.fromPhrase(mnemonic);
             houseWallet = new ethers.Wallet(hdWallet.privateKey, provider);
