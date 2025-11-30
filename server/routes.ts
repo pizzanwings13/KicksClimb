@@ -585,9 +585,11 @@ export async function registerRoutes(
           const amountInWei = ethers.parseUnits(cleanAmount, decimals);
           
           const houseBalance = await kicksContract.balanceOf(houseWallet.address);
+          console.log(`House wallet balance: ${houseBalance.toString()} KICKS (need ${amountInWei.toString()})`);
+          
           if (houseBalance < amountInWei) {
             return res.status(400).json({ 
-              error: "House wallet has insufficient KICKS balance. Please contact support." 
+              error: `House wallet has insufficient KICKS balance (has ${houseBalance.toString()}, need ${cleanAmount}). Please fund the house wallet: ${houseWallet.address}` 
             });
           }
           
