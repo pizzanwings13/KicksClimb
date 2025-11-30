@@ -182,7 +182,12 @@ export const useGameState = create<GameState>()(
       set({ isMoving: true, wasReset: false });
       
       try {
-        const res = await apiRequest("POST", `/api/game/${currentGame.id}/move`, { steps });
+        const hasActiveShield = activePowerUps.some(p => p.type === "shield" && p.active);
+        
+        const res = await apiRequest("POST", `/api/game/${currentGame.id}/move`, { 
+          steps,
+          useShield: hasActiveShield,
+        });
         const data = await res.json();
         
         let newPosition = data.game.finalPosition;
@@ -200,11 +205,8 @@ export const useGameState = create<GameState>()(
           }
         }
         
-        const hasShield = newActivePowerUps.some(p => p.type === "shield" && p.active);
-        
-        if (landedStep.type === "hazard" && hasShield) {
+        if (data.shieldUsed) {
           newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "shield" && p.active));
-          data.game.gameStatus = "active";
           newStreak = 0;
         } else if (landedStep.type === "hazard") {
           newStreak = 0;
@@ -212,7 +214,6 @@ export const useGameState = create<GameState>()(
           newPosition = 0;
           wasReset = true;
           newStreak = 0;
-          data.game.gameStatus = "active";
         } else if (landedStep.type.startsWith("multiplier_") || landedStep.type === "finish" || landedStep.type === "safe") {
           newStreak = newStreak + 1;
         } else if (landedStep.type.startsWith("powerup_") || landedStep.type === "bonus_chest") {

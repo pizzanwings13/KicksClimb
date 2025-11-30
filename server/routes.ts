@@ -264,7 +264,7 @@ export async function registerRoutes(
   app.post("/api/game/:gameId/move", async (req, res) => {
     try {
       const { gameId } = req.params;
-      const { steps } = req.body;
+      const { steps, useShield } = req.body;
       
       const game = await storage.getGame(parseInt(gameId));
       if (!game) {
@@ -289,18 +289,24 @@ export async function registerRoutes(
       let gameStatus = game.gameStatus;
       let finalMultiplier = game.finalMultiplier ? parseFloat(game.finalMultiplier) : 1;
       let payout = game.payout;
+      let shieldUsed = false;
       
       if (landedStep.type === "hazard") {
-        gameStatus = "lost";
-        payout = "0";
-        finalMultiplier = 0;
-        
-        const user = await storage.getUser(game.userId);
-        if (user) {
-          await storage.updateUser(user.id, {
-            gamesLost: user.gamesLost + 1,
-            totalKicksLost: (parseFloat(user.totalKicksLost) + parseFloat(game.betAmount)).toString(),
-          });
+        if (useShield) {
+          shieldUsed = true;
+          gameStatus = "active";
+        } else {
+          gameStatus = "lost";
+          payout = "0";
+          finalMultiplier = 0;
+          
+          const user = await storage.getUser(game.userId);
+          if (user) {
+            await storage.updateUser(user.id, {
+              gamesLost: user.gamesLost + 1,
+              totalKicksLost: (parseFloat(user.totalKicksLost) + parseFloat(game.betAmount)).toString(),
+            });
+          }
         }
       } else if (landedStep.type === "finish") {
         gameStatus = "won";
@@ -335,6 +341,7 @@ export async function registerRoutes(
         landedStep,
         currentMultiplier: finalMultiplier,
         potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+        shieldUsed,
       });
     } catch (error) {
       console.error("Move error:", error);
