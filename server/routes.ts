@@ -146,9 +146,9 @@ function generateBoard(seed: string): BoardStep[] {
 }
 
 export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+  app: Express,
+  httpServer?: Server
+): Promise<void> {
   
   app.post("/api/auth/connect", async (req, res) => {
     try {
@@ -807,5 +807,4 @@ export async function registerRoutes(
     }
   });
 
-  return httpServer;
 }
