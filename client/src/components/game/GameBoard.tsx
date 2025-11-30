@@ -19,8 +19,12 @@ function getStepColor(type: StepType): string {
       return "#4299e1";
     case "multiplier_10x":
       return "#9f7aea";
+    case "multiplier_15x":
+      return "#d53f8c";
     case "hazard":
       return "#e53e3e";
+    case "reset_trap":
+      return "#1a1a2e";
     case "finish":
       return "#ecc94b";
     case "powerup_shield":
@@ -43,8 +47,12 @@ function getStepEmissive(type: StepType): string {
     case "multiplier_5x":
     case "multiplier_10x":
       return "#22543d";
+    case "multiplier_15x":
+      return "#97266d";
     case "hazard":
       return "#742a2a";
+    case "reset_trap":
+      return "#4a1a6b";
     case "finish":
       return "#744210";
     case "powerup_shield":
@@ -161,6 +169,26 @@ function StepTile({ step, isCurrentPosition }: StepTileProps) {
         <mesh position={[0, 0.35, 0]}>
           <boxGeometry args={[0.25, 0.2, 0.18]} />
           <meshStandardMaterial color="#ed8936" emissive="#ed8936" emissiveIntensity={0.4} />
+        </mesh>
+      )}
+      
+      {step.type === "reset_trap" && (
+        <group position={[0, 0.35, 0]}>
+          <mesh rotation={[0, 0, Math.PI]}>
+            <coneGeometry args={[0.18, 0.25, 3]} />
+            <meshStandardMaterial color="#6b21a8" emissive="#9333ea" emissiveIntensity={0.7} />
+          </mesh>
+          <mesh position={[0, -0.15, 0]}>
+            <sphereGeometry args={[0.12, 8, 8]} />
+            <meshStandardMaterial color="#7c3aed" emissive="#a855f7" emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      )}
+      
+      {step.type === "multiplier_15x" && (
+        <mesh position={[0, 0.4, 0]} rotation={[0, 0, 0]}>
+          <octahedronGeometry args={[0.2]} />
+          <meshStandardMaterial color="#ec4899" emissive="#f472b6" emissiveIntensity={0.6} />
         </mesh>
       )}
     </group>

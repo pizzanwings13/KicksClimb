@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
 import { Button } from "@/components/ui/button";
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw, Shield, Zap, SkipForward, Gift } from "lucide-react";
+import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw, Shield, Zap, SkipForward, Gift, Flame } from "lucide-react";
 
 const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
 
@@ -28,6 +28,9 @@ export function GameHUD() {
     collectedPowerUps,
     activePowerUps,
     usePowerUp,
+    streak,
+    isOnFire,
+    wasReset,
   } = useGameState();
   const { kicksBalance } = useWallet();
   const [diceValue, setDiceValue] = useState<number>(1);
@@ -74,6 +77,8 @@ export function GameHUD() {
     switch (lastStepType) {
       case "hazard":
         return { text: "HAZARD!", color: "text-red-500", bg: "bg-red-500/20" };
+      case "reset_trap":
+        return { text: "RESET TRAP! BACK TO START!", color: "text-purple-500", bg: "bg-purple-500/20" };
       case "multiplier_2x":
         return { text: "2x MULTIPLIER!", color: "text-green-400", bg: "bg-green-500/20" };
       case "multiplier_3x":
@@ -82,6 +87,8 @@ export function GameHUD() {
         return { text: "5x MULTIPLIER!", color: "text-blue-400", bg: "bg-blue-500/20" };
       case "multiplier_10x":
         return { text: "10x MULTIPLIER!", color: "text-purple-400", bg: "bg-purple-500/20" };
+      case "multiplier_15x":
+        return { text: "15x MULTIPLIER!", color: "text-pink-400", bg: "bg-pink-500/20" };
       case "finish":
         return { text: "FINISH! 20x!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
       case "powerup_shield":
@@ -152,13 +159,39 @@ export function GameHUD() {
           )}
         </div>
 
-        <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30 text-right">
-          <div className="text-sm text-gray-400 mb-1">Current Multiplier</div>
-          <div className="text-3xl font-bold text-yellow-400">
-            {currentMultiplier.toFixed(2)}x
-          </div>
-          <div className="text-sm text-gray-400 mt-1">
-            Bet: {parseFloat(betAmount).toLocaleString()} KICKS
+        <div className="flex gap-3">
+          {isOnFire && (
+            <div className="bg-gradient-to-r from-orange-600/80 to-red-600/80 backdrop-blur-sm rounded-xl p-4 border border-orange-400/50 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Flame className="w-8 h-8 text-orange-300 animate-bounce" />
+                <div>
+                  <div className="text-sm text-orange-200">ON FIRE!</div>
+                  <div className="text-2xl font-bold text-white">{streak} streak</div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {wasReset && !isOnFire && (
+            <div className="bg-purple-900/80 backdrop-blur-sm rounded-xl p-4 border border-purple-400/50 animate-pulse">
+              <div className="text-sm text-purple-200">RESET!</div>
+              <div className="text-lg font-bold text-white">Back to start</div>
+            </div>
+          )}
+          
+          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30 text-right">
+            <div className="text-sm text-gray-400 mb-1">Current Multiplier</div>
+            <div className="text-3xl font-bold text-yellow-400">
+              {currentMultiplier.toFixed(2)}x
+            </div>
+            <div className="text-sm text-gray-400 mt-1">
+              Bet: {parseFloat(betAmount).toLocaleString()} KICKS
+            </div>
+            {streak > 0 && !isOnFire && (
+              <div className="text-sm text-orange-400 mt-1">
+                Streak: {streak}
+              </div>
+            )}
           </div>
         </div>
       </div>

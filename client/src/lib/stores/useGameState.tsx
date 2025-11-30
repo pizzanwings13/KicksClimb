@@ -3,7 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { apiRequest } from "../queryClient";
 
 export type GamePhase = "menu" | "betting" | "playing" | "won" | "lost" | "cashed_out";
-export type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "hazard" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+export type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "multiplier_15x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 export interface BoardStep {
   position: number;
@@ -65,6 +65,9 @@ interface GameState {
   weeklyLeaderboard: LeaderboardEntry[];
   activePowerUps: PowerUp[];
   collectedPowerUps: string[];
+  streak: number;
+  isOnFire: boolean;
+  wasReset: boolean;
   
   setPhase: (phase: GamePhase) => void;
   setUser: (user: User | null) => void;
@@ -97,6 +100,9 @@ export const useGameState = create<GameState>()(
     weeklyLeaderboard: [],
     activePowerUps: [],
     collectedPowerUps: [],
+    streak: 0,
+    isOnFire: false,
+    wasReset: false,
 
     setPhase: (phase) => set({ phase }),
     setUser: (user) => set({ user }),
@@ -148,6 +154,9 @@ export const useGameState = create<GameState>()(
           lastStepType: null,
           activePowerUps: [],
           collectedPowerUps: [],
+          streak: 0,
+          isOnFire: false,
+          wasReset: false,
         });
         
         return true;
@@ -158,21 +167,23 @@ export const useGameState = create<GameState>()(
     },
 
     makeMove: async (steps) => {
-      const { currentGame, isMoving, board, collectedPowerUps, activePowerUps } = get();
+      const { currentGame, isMoving, board, collectedPowerUps, activePowerUps, streak } = get();
       
       if (!currentGame || isMoving) return null;
       
-      set({ isMoving: true });
+      set({ isMoving: true, wasReset: false });
       
       try {
         const res = await apiRequest("POST", `/api/game/${currentGame.id}/move`, { steps });
         const data = await res.json();
         
-        const newPosition = data.game.finalPosition;
+        let newPosition = data.game.finalPosition;
         const landedStep = data.landedStep as BoardStep;
         
         let newCollectedPowerUps = [...collectedPowerUps];
         let newActivePowerUps = [...activePowerUps];
+        let newStreak = streak;
+        let wasReset = false;
         
         if (landedStep.type.startsWith("powerup_")) {
           const powerupType = landedStep.powerup as "shield" | "double" | "skip";
@@ -186,7 +197,21 @@ export const useGameState = create<GameState>()(
         if (landedStep.type === "hazard" && hasShield) {
           newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "shield" && p.active));
           data.game.gameStatus = "active";
+          newStreak = 0;
+        } else if (landedStep.type === "hazard") {
+          newStreak = 0;
+        } else if (landedStep.type === "reset_trap") {
+          newPosition = 0;
+          wasReset = true;
+          newStreak = 0;
+          data.game.gameStatus = "active";
+        } else if (landedStep.type.startsWith("multiplier_") || landedStep.type === "finish") {
+          newStreak = newStreak + 1;
+        } else if (landedStep.type === "safe") {
+          newStreak = Math.max(0, newStreak);
         }
+        
+        const isOnFire = newStreak >= 3;
         
         set({
           currentGame: data.game,
@@ -197,6 +222,9 @@ export const useGameState = create<GameState>()(
           isMoving: false,
           collectedPowerUps: newCollectedPowerUps,
           activePowerUps: newActivePowerUps,
+          streak: newStreak,
+          isOnFire,
+          wasReset,
         });
         
         if (data.game.gameStatus === "lost") {
@@ -297,6 +325,9 @@ export const useGameState = create<GameState>()(
         lastStepType: null,
         activePowerUps: [],
         collectedPowerUps: [],
+        streak: 0,
+        isOnFire: false,
+        wasReset: false,
       });
     },
   }))

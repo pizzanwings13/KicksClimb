@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
@@ -18,9 +18,66 @@ function getPositionFromStep(stepIndex: number): [number, number, number] {
   return [x, y, z];
 }
 
+function FireEffect({ isOnFire, streak }: { isOnFire: boolean; streak: number }) {
+  const flameRefs = useRef<THREE.Mesh[]>([]);
+  
+  const flamePositions = useMemo(() => [
+    { x: 0.3, z: 0, delay: 0 },
+    { x: -0.3, z: 0, delay: 0.3 },
+    { x: 0, z: 0.3, delay: 0.6 },
+    { x: 0, z: -0.3, delay: 0.9 },
+    { x: 0.2, z: 0.2, delay: 0.2 },
+    { x: -0.2, z: -0.2, delay: 0.5 },
+  ], []);
+  
+  useFrame((state) => {
+    if (!isOnFire) return;
+    
+    flameRefs.current.forEach((flame, i) => {
+      if (flame) {
+        const time = state.clock.elapsedTime + flamePositions[i].delay;
+        flame.position.y = 0.3 + Math.sin(time * 8) * 0.15;
+        flame.scale.setScalar(0.8 + Math.sin(time * 10) * 0.3);
+        flame.rotation.y = time * 3;
+      }
+    });
+  });
+  
+  if (!isOnFire) return null;
+  
+  const flameIntensity = Math.min(streak / 5, 1.5);
+  
+  return (
+    <group>
+      {flamePositions.map((pos, i) => (
+        <mesh
+          key={i}
+          ref={(el) => { if (el) flameRefs.current[i] = el; }}
+          position={[pos.x, 0.3, pos.z]}
+        >
+          <coneGeometry args={[0.08 * flameIntensity, 0.25 * flameIntensity, 8]} />
+          <meshStandardMaterial
+            color={i % 2 === 0 ? "#ff6b00" : "#ffaa00"}
+            emissive={i % 2 === 0 ? "#ff4400" : "#ff8800"}
+            emissiveIntensity={0.8 + flameIntensity * 0.5}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+      ))}
+      <pointLight
+        position={[0, 0.5, 0]}
+        intensity={flameIntensity * 2}
+        color="#ff6600"
+        distance={3}
+      />
+    </group>
+  );
+}
+
 export function Player() {
   const meshRef = useRef<THREE.Group>(null);
-  const { currentPosition, phase, isMoving, lastStepType } = useGameState();
+  const { currentPosition, phase, isMoving, lastStepType, isOnFire, streak, wasReset } = useGameState();
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>([0, 0.6, -5 * STEP_SIZE]);
   const [isJumping, setIsJumping] = useState(false);
   const jumpProgress = useRef(0);
@@ -86,6 +143,7 @@ export function Player() {
   
   let bodyColor = "#f6ad55";
   let emissiveColor = "#dd6b20";
+  let emissiveIntensity = 0.2;
   
   if (phase === "lost") {
     bodyColor = "#fc8181";
@@ -93,6 +151,13 @@ export function Player() {
   } else if (phase === "won" || phase === "cashed_out") {
     bodyColor = "#68d391";
     emissiveColor = "#38a169";
+  } else if (isOnFire) {
+    bodyColor = "#ff8c00";
+    emissiveColor = "#ff4500";
+    emissiveIntensity = 0.5;
+  } else if (wasReset) {
+    bodyColor = "#9f7aea";
+    emissiveColor = "#805ad5";
   }
   
   return (
@@ -102,7 +167,7 @@ export function Player() {
         <meshStandardMaterial 
           color={bodyColor}
           emissive={emissiveColor}
-          emissiveIntensity={0.2}
+          emissiveIntensity={emissiveIntensity}
           metalness={0.3}
           roughness={0.6}
         />
@@ -113,7 +178,7 @@ export function Player() {
         <meshStandardMaterial 
           color={bodyColor}
           emissive={emissiveColor}
-          emissiveIntensity={0.2}
+          emissiveIntensity={emissiveIntensity}
         />
       </mesh>
       
@@ -125,6 +190,8 @@ export function Player() {
         <sphereGeometry args={[0.05, 8, 8]} />
         <meshStandardMaterial color="#1a202c" />
       </mesh>
+      
+      <FireEffect isOnFire={isOnFire} streak={streak} />
       
       {(phase === "won" || phase === "cashed_out") && (
         <pointLight 
