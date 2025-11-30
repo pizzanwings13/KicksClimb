@@ -89,7 +89,7 @@ function WalletInitializer() {
 
   useEffect(() => {
     const defaultKicksAddress = "0x540F14c67c4B19C65F9177F1B5fddD1e16A1e0b6";
-    const defaultHouseAddress = "0xeF9951Ee779F2a8a6B458f0BC1b05cC98d0561F7";
+    const defaultHouseAddress = "0xb7AF40c853c20C806EA945EEb5F0f2447b2C02f5";
     const defaultVaultAddress = "0x6732551e002F88cc67b075bc521bBCf50087750d";
     
     const savedKicksAddress = localStorage.getItem('kicksTokenAddress') || defaultKicksAddress;
