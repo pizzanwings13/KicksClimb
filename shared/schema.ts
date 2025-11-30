@@ -1,17 +1,128 @@
-import { pgTable, text, serial, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  walletAddress: varchar("wallet_address", { length: 42 }).notNull().unique(),
+  username: text("username").notNull(),
+  avatarUrl: text("avatar_url"),
+  totalGamesPlayed: integer("total_games_played").default(0).notNull(),
+  totalKicksWon: decimal("total_kicks_won", { precision: 36, scale: 18 }).default("0").notNull(),
+  totalKicksLost: decimal("total_kicks_lost", { precision: 36, scale: 18 }).default("0").notNull(),
+  highestMultiplier: decimal("highest_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  gamesWon: integer("games_won").default(0).notNull(),
+  gamesLost: integer("games_lost").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const games = pgTable("games", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").notNull(),
+  oddseedHash: text("oddseed_hash").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  betAmount: decimal("bet_amount", { precision: 36, scale: 18 }).notNull(),
+  finalMultiplier: decimal("final_multiplier", { precision: 10, scale: 2 }),
+  payout: decimal("payout", { precision: 36, scale: 18 }),
+  finalPosition: integer("final_position").default(0).notNull(),
+  gameStatus: text("game_status").default("active").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export const gameSteps = pgTable("game_steps", {
+  id: serial("id").primaryKey(),
+  gameId: integer("game_id").notNull().references(() => games.id),
+  stepNumber: integer("step_number").notNull(),
+  stepType: text("step_type").notNull(),
+  multiplierValue: decimal("multiplier_value", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const dailyLeaderboard = pgTable("daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").notNull(),
+  oddseedHash: text("oddseed_hash").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  date: timestamp("date").defaultNow().notNull(),
+});
+
+export const weeklyLeaderboard = pgTable("weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").notNull(),
+  oddseedHash: text("oddseed_hash").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+export const usersRelations = relations(users, ({ many }) => ({
+  games: many(games),
+  dailyLeaderboard: many(dailyLeaderboard),
+  weeklyLeaderboard: many(weeklyLeaderboard),
+}));
+
+export const gamesRelations = relations(games, ({ one, many }) => ({
+  user: one(users, {
+    fields: [games.userId],
+    references: [users.id],
+  }),
+  steps: many(gameSteps),
+}));
+
+export const gameStepsRelations = relations(gameSteps, ({ one }) => ({
+  game: one(games, {
+    fields: [gameSteps.gameId],
+    references: [games.id],
+  }),
+}));
+
+export const dailyLeaderboardRelations = relations(dailyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [dailyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
+export const weeklyLeaderboardRelations = relations(weeklyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [weeklyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGameSchema = createInsertSchema(games).omit({
+  id: true,
+  startedAt: true,
+});
+
+export const insertGameStepSchema = createInsertSchema(gameSteps).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Game = typeof games.$inferSelect;
+export type InsertGame = z.infer<typeof insertGameSchema>;
+export type GameStep = typeof gameSteps.$inferSelect;
+export type InsertGameStep = z.infer<typeof insertGameStepSchema>;
+export type DailyLeaderboardEntry = typeof dailyLeaderboard.$inferSelect;
+export type WeeklyLeaderboardEntry = typeof weeklyLeaderboard.$inferSelect;
