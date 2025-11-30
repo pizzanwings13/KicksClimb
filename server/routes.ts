@@ -555,7 +555,9 @@ export async function registerRoutes(
           const kicksContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
           
           const decimals = await kicksContract.decimals();
-          const amountInWei = ethers.parseUnits(amount, decimals);
+          
+          const cleanAmount = parseFloat(amount).toString();
+          const amountInWei = ethers.parseUnits(cleanAmount, decimals);
           
           const houseBalance = await kicksContract.balanceOf(houseWallet.address);
           if (houseBalance < amountInWei) {
