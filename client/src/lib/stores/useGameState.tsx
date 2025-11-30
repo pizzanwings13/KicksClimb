@@ -205,10 +205,10 @@ export const useGameState = create<GameState>()(
           wasReset = true;
           newStreak = 0;
           data.game.gameStatus = "active";
-        } else if (landedStep.type.startsWith("multiplier_") || landedStep.type === "finish") {
+        } else if (landedStep.type.startsWith("multiplier_") || landedStep.type === "finish" || landedStep.type === "safe") {
           newStreak = newStreak + 1;
-        } else if (landedStep.type === "safe") {
-          newStreak = Math.max(0, newStreak);
+        } else if (landedStep.type.startsWith("powerup_") || landedStep.type === "bonus_chest") {
+          newStreak = newStreak + 1;
         }
         
         const isOnFire = newStreak >= 3;
