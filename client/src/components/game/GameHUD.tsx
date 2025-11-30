@@ -37,10 +37,12 @@ export function GameHUD() {
     kicksBalance, 
     signClaimMessage, 
     requestKicksFromHouse, 
+    claimFromVaultContract,
     transactionState, 
     resetTransactionState,
     kicksTokenAddress,
     houseWalletAddress,
+    vaultContractAddress,
     walletAddress
   } = useWallet();
   const [diceValue, setDiceValue] = useState<number>(1);
@@ -87,21 +89,30 @@ export function GameHUD() {
     resetTransactionState();
     
     try {
-      const nonceRes = await apiRequest("POST", `/api/game/${currentGame.id}/claim-nonce`, { walletAddress });
-      const { nonce, amount, gameId } = await nonceRes.json();
-      
-      const signature = await signClaimMessage(amount, gameId, nonce);
-      if (!signature) {
-        setClaimError("Failed to sign claim message");
-        setIsClaiming(false);
-        return;
-      }
-      
-      const success = await requestKicksFromHouse(amount, gameId, signature, nonce);
-      if (success) {
-        setHasClaimed(true);
+      if (vaultContractAddress) {
+        const success = await claimFromVaultContract(currentGame.id, vaultContractAddress);
+        if (success) {
+          setHasClaimed(true);
+        } else {
+          setClaimError("Failed to claim from vault");
+        }
       } else {
-        setClaimError("Failed to claim winnings");
+        const nonceRes = await apiRequest("POST", `/api/game/${currentGame.id}/claim-nonce`, { walletAddress });
+        const { nonce, amount, gameId } = await nonceRes.json();
+        
+        const signature = await signClaimMessage(amount, gameId, nonce);
+        if (!signature) {
+          setClaimError("Failed to sign claim message");
+          setIsClaiming(false);
+          return;
+        }
+        
+        const success = await requestKicksFromHouse(amount, gameId, signature, nonce);
+        if (success) {
+          setHasClaimed(true);
+        } else {
+          setClaimError("Failed to claim winnings");
+        }
       }
     } catch (err: any) {
       const message = err.code === "ACTION_REJECTED" 

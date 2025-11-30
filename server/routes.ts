@@ -3,6 +3,67 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
+import { ethers } from "ethers";
+
+const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
+const APECHAIN_CHAIN_ID = 33139;
+
+const EIP712_DOMAIN = {
+  name: "KicksClaimVault",
+  version: "1",
+  chainId: APECHAIN_CHAIN_ID,
+};
+
+const CLAIM_TYPES = {
+  Claim: [
+    { name: "player", type: "address" },
+    { name: "gameId", type: "uint256" },
+    { name: "amount", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "expiry", type: "uint256" },
+  ],
+};
+
+async function generateClaimSignature(
+  signerKey: string,
+  vaultAddress: string,
+  player: string,
+  gameId: number,
+  amount: string,
+  nonce: number,
+  expiry: number
+): Promise<{ signature: string; domain: any }> {
+  const cleanKey = signerKey.trim();
+  let wallet: ethers.Wallet;
+  
+  const wordCount = cleanKey.split(' ').length;
+  if (wordCount >= 12) {
+    const hdWallet = ethers.Wallet.fromPhrase(cleanKey);
+    wallet = new ethers.Wallet(hdWallet.privateKey);
+  } else {
+    const privateKey = cleanKey.startsWith('0x') ? cleanKey : `0x${cleanKey}`;
+    wallet = new ethers.Wallet(privateKey);
+  }
+  
+  const domain = {
+    ...EIP712_DOMAIN,
+    verifyingContract: vaultAddress,
+  };
+  
+  const amountWei = ethers.parseUnits(amount, 0);
+  
+  const message = {
+    player,
+    gameId: BigInt(gameId),
+    amount: amountWei,
+    nonce: BigInt(nonce),
+    expiry: BigInt(expiry),
+  };
+  
+  const signature = await wallet.signTypedData(domain, CLAIM_TYPES, message);
+  
+  return { signature, domain };
+}
 
 const TOTAL_STEPS = 100;
 
@@ -630,6 +691,114 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Claim error:", error);
       res.status(500).json({ error: "Failed to process claim" });
+    }
+  });
+
+  app.post("/api/claim/contract", async (req, res) => {
+    try {
+      const { walletAddress, gameId, vaultContractAddress } = req.body;
+      
+      if (!walletAddress || !gameId || !vaultContractAddress) {
+        return res.status(400).json({ error: "Missing required fields: walletAddress, gameId, vaultContractAddress" });
+      }
+      
+      const game = await storage.getGame(parseInt(gameId));
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+      
+      const user = await storage.getUser(game.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Wallet address does not match game owner" });
+      }
+      
+      if (game.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Game already claimed" });
+      }
+      
+      if (game.gameStatus !== "won" && game.gameStatus !== "cashed_out") {
+        return res.status(400).json({ error: "Game must be won or cashed out to claim" });
+      }
+      
+      if (!game.payout || parseFloat(game.payout) <= 0) {
+        return res.status(400).json({ error: "No payout available for this game" });
+      }
+      
+      const signerKey = process.env.HOUSE_WALLET_KEY;
+      if (!signerKey) {
+        return res.status(500).json({ error: "Claim signer not configured" });
+      }
+      
+      const nonce = Date.now();
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
+      
+      const amount = Math.round(parseFloat(game.payout)).toString();
+      
+      console.log(`Generating claim signature for game ${gameId}, player ${walletAddress}, amount ${amount}`);
+      
+      const { signature, domain } = await generateClaimSignature(
+        signerKey,
+        vaultContractAddress,
+        walletAddress,
+        game.id,
+        amount,
+        nonce,
+        expiry
+      );
+      
+      await storage.updateGame(game.id, {
+        claimNonce: nonce.toString(),
+      });
+      
+      res.json({
+        success: true,
+        signature,
+        claimData: {
+          gameId: game.id,
+          amount,
+          nonce,
+          expiry,
+          vaultAddress: vaultContractAddress,
+          domain,
+        },
+        message: "Claim signature generated. Use this to call claimWin() on the vault contract.",
+      });
+    } catch (error: any) {
+      console.error("Contract claim error:", error);
+      res.status(500).json({ error: `Failed to generate claim signature: ${error.message}` });
+    }
+  });
+
+  app.post("/api/claim/contract/confirm", async (req, res) => {
+    try {
+      const { gameId, txHash } = req.body;
+      
+      if (!gameId) {
+        return res.status(400).json({ error: "Missing gameId" });
+      }
+      
+      const game = await storage.getGame(parseInt(gameId));
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+      
+      if (game.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Game already claimed" });
+      }
+      
+      await storage.updateGame(game.id, {
+        claimStatus: "claimed",
+        claimNonce: null,
+      });
+      
+      res.json({
+        success: true,
+        message: "Claim confirmed",
+        txHash,
+      });
+    } catch (error) {
+      console.error("Claim confirm error:", error);
+      res.status(500).json({ error: "Failed to confirm claim" });
     }
   });
   

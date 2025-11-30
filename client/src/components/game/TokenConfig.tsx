@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, X, Coins, Building2, Check } from "lucide-react";
+import { Settings, X, Coins, Building2, Check, Shield } from "lucide-react";
 
 interface TokenConfigProps {
   isOpen: boolean;
@@ -10,22 +10,25 @@ interface TokenConfigProps {
 }
 
 export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
-  const { setTokenAddresses, kicksTokenAddress, houseWalletAddress, refreshBalance, isConnected } = useWallet();
+  const { setTokenAddresses, kicksTokenAddress, houseWalletAddress, vaultContractAddress, refreshBalance, isConnected } = useWallet();
   const [kicksAddress, setKicksAddress] = useState(kicksTokenAddress || "");
   const [houseAddress, setHouseAddress] = useState(houseWalletAddress || "");
+  const [vaultAddress, setVaultAddress] = useState(vaultContractAddress || "");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     setKicksAddress(kicksTokenAddress || "");
     setHouseAddress(houseWalletAddress || "");
-  }, [kicksTokenAddress, houseWalletAddress]);
+    setVaultAddress(vaultContractAddress || "");
+  }, [kicksTokenAddress, houseWalletAddress, vaultContractAddress]);
 
   if (!isOpen) return null;
 
   const handleSave = async () => {
     localStorage.setItem('kicksTokenAddress', kicksAddress);
     localStorage.setItem('houseWalletAddress', houseAddress);
-    setTokenAddresses(kicksAddress, houseAddress);
+    localStorage.setItem('vaultContractAddress', vaultAddress);
+    setTokenAddresses(kicksAddress, houseAddress, vaultAddress);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
     
@@ -90,6 +93,26 @@ export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
             )}
             <p className="text-gray-500 text-xs mt-2">
               Wallet that receives lost bets and sends winnings
+            </p>
+          </div>
+
+          <div className="bg-black/30 rounded-xl p-4 border border-green-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-5 h-5 text-green-400" />
+              <span className="text-white font-semibold">Claim Vault Contract</span>
+              <span className="text-xs text-gray-500">(Optional)</span>
+            </div>
+            <Input
+              value={vaultAddress}
+              onChange={(e) => setVaultAddress(e.target.value)}
+              placeholder="0x..."
+              className="bg-black/50 border-green-500/30 text-white font-mono text-sm"
+            />
+            {vaultAddress && !isValidAddress(vaultAddress) && (
+              <p className="text-red-400 text-xs mt-1">Invalid address format</p>
+            )}
+            <p className="text-gray-500 text-xs mt-2">
+              Secure smart contract for claiming winnings (leave empty for direct transfers)
             </p>
           </div>
 

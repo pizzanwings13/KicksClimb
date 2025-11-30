@@ -58,6 +58,13 @@ const KICKS_TOKEN_ABI = [
   "function allowance(address owner, address spender) view returns (uint256)",
 ];
 
+const KICKS_CLAIM_VAULT_ABI = [
+  "function claimWin(uint256 gameId, uint256 amount, uint256 nonce, uint256 expiry, bytes calldata signature) external",
+  "function getBalance() external view returns (uint256)",
+  "function isNonceUsed(uint256 nonce) external view returns (bool)",
+  "function getPlayerNonce(address player) external view returns (uint256)",
+];
+
 interface TransactionState {
   status: "idle" | "checking" | "approving" | "transferring" | "signing" | "claiming" | "success" | "error";
   message: string;
@@ -77,6 +84,7 @@ interface WalletState {
   error: string | null;
   kicksTokenAddress: string | null;
   houseWalletAddress: string | null;
+  vaultContractAddress: string | null;
   showWalletModal: boolean;
   glyphProvider: any | null;
   transactionState: TransactionState;
@@ -84,12 +92,13 @@ interface WalletState {
   connect: (walletType: WalletType) => Promise<void>;
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
-  setTokenAddresses: (kicks: string, house: string) => void;
+  setTokenAddresses: (kicks: string, house: string, vault?: string) => void;
   checkAllowance: () => Promise<bigint>;
   approveTokens: (amount: string) => Promise<string | null>;
   sendKicksToHouse: (amount: string) => Promise<string | null>;
   signClaimMessage: (amount: string, gameId: number, nonce: string) => Promise<string | null>;
   requestKicksFromHouse: (amount: string, gameId: number, signature: string, nonce: string) => Promise<boolean>;
+  claimFromVaultContract: (gameId: number, vaultContractAddress: string) => Promise<boolean>;
   setShowWalletModal: (show: boolean) => void;
   setGlyphProvider: (provider: any) => void;
   connectWithProvider: (externalProvider: any, walletType: WalletType) => Promise<void>;
@@ -307,6 +316,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   error: null,
   kicksTokenAddress: null,
   houseWalletAddress: null,
+  vaultContractAddress: null,
   showWalletModal: false,
   glyphProvider: null,
   transactionState: { status: "idle", message: "" },
@@ -319,8 +329,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     set({ glyphProvider: provider });
   },
 
-  setTokenAddresses: (kicks: string, house: string) => {
-    set({ kicksTokenAddress: kicks, houseWalletAddress: house });
+  setTokenAddresses: (kicks: string, house: string, vault?: string) => {
+    set({ kicksTokenAddress: kicks, houseWalletAddress: house, vaultContractAddress: vault || null });
   },
 
   setTransactionState: (state: Partial<TransactionState>) => {
@@ -621,6 +631,87 @@ export const useWallet = create<WalletState>((set, get) => ({
     } catch (error: any) {
       console.error("Claim error:", error);
       setTransactionState({ status: "error", message: error.message || "Failed to claim tokens" });
+      return false;
+    }
+  },
+
+  claimFromVaultContract: async (gameId: number, vaultContractAddress: string) => {
+    const { walletAddress, signer, setTransactionState } = get();
+    
+    if (!walletAddress || !signer) {
+      setTransactionState({ status: "error", message: "Wallet not connected" });
+      return false;
+    }
+
+    if (!vaultContractAddress) {
+      setTransactionState({ status: "error", message: "Vault contract address not configured" });
+      return false;
+    }
+
+    try {
+      setTransactionState({ status: "signing", message: "Requesting claim signature from server..." });
+      
+      const signatureResponse = await fetch("/api/claim/contract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress,
+          gameId,
+          vaultContractAddress,
+        }),
+      });
+      
+      if (!signatureResponse.ok) {
+        const error = await signatureResponse.json();
+        throw new Error(error.error || "Failed to get claim signature");
+      }
+      
+      const { signature, claimData } = await signatureResponse.json();
+      
+      setTransactionState({ status: "claiming", message: "Claiming KICKS from vault contract..." });
+      
+      const vaultContract = new ethers.Contract(
+        vaultContractAddress,
+        KICKS_CLAIM_VAULT_ABI,
+        signer
+      );
+      
+      const tx = await vaultContract.claimWin(
+        claimData.gameId,
+        claimData.amount,
+        claimData.nonce,
+        claimData.expiry,
+        signature
+      );
+      
+      setTransactionState({ status: "claiming", message: "Waiting for transaction confirmation..." });
+      
+      const receipt = await tx.wait();
+      
+      await fetch("/api/claim/contract/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId,
+          txHash: receipt.hash,
+        }),
+      });
+      
+      await get().refreshBalance();
+      
+      setTransactionState({ 
+        status: "success", 
+        message: `KICKS claimed! Transaction: ${receipt.hash.slice(0, 10)}...`,
+        txHash: receipt.hash 
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Contract claim error:", error);
+      const message = error.code === "ACTION_REJECTED" 
+        ? "Transaction rejected by user" 
+        : error.message || "Failed to claim from vault";
+      setTransactionState({ status: "error", message });
       return false;
     }
   },

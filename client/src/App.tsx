@@ -90,8 +90,9 @@ function WalletInitializer() {
   useEffect(() => {
     const savedKicksAddress = localStorage.getItem('kicksTokenAddress') || "";
     const savedHouseAddress = localStorage.getItem('houseWalletAddress') || "";
-    if (savedKicksAddress || savedHouseAddress) {
-      setTokenAddresses(savedKicksAddress, savedHouseAddress);
+    const savedVaultAddress = localStorage.getItem('vaultContractAddress') || "";
+    if (savedKicksAddress || savedHouseAddress || savedVaultAddress) {
+      setTokenAddresses(savedKicksAddress, savedHouseAddress, savedVaultAddress);
     }
   }, [setTokenAddresses]);
 
