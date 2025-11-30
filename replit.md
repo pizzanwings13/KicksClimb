@@ -30,17 +30,20 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 10. **Particle Effects**: Visual feedback for wins, losses, and multipliers
 
 ## Game Mechanics
-- **Steps 1-25**: 10% hazard, 25% multiplier chance (Easy)
-- **Steps 26-50**: 20% hazard, 20% multiplier chance (Medium)
-- **Steps 51-75**: 35% hazard, 15% multiplier chance (Hard)
-- **Steps 76-100**: 50% hazard, 10% multiplier chance (Expert)
+- **Steps 1-25**: 25% hazard, 25% multiplier chance (Easy)
+- **Steps 26-50**: 30% hazard, 20% multiplier chance (Medium)
+- **Steps 51-75**: 40% hazard, 15% multiplier chance (Hard)
+- **Steps 76-100**: 55% hazard, 10% multiplier chance (Expert)
 - **Finish (Step 100)**: 20x multiplier bonus
+- **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
+- **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
 
 ## Multiplier Types
 - 2x (50% of multipliers)
 - 3x (30% of multipliers)
 - 5x (15% of multipliers)
-- 10x (5% of multipliers)
+- 10x (5% of multipliers, rare in early zones)
+- 15x (rare in Expert zone only)
 
 ## Power-Up Types
 - **Shield**: Protects from one hazard
@@ -114,6 +117,12 @@ Wallet detection automatically identifies which wallets are installed and provid
 - Added all-time leaderboard with highest multipliers and biggest wins tabs
 - Implemented achievement badges system with 13 unlockable badges
 - Enhanced UI with Framer Motion animations
+- Increased hazard difficulty (25/30/40/55% across zones)
+- Added visual step numbers on each block
+- Added landscape with mountains, trees, and DashKids logo wall
+- Added x15 multiplier appearing rarely in Expert zone
+- Added reset trap spaces that send players back to step 0 (keep multiplier)
+- Implemented streak/on-fire system with animated flames around player
 
 ## User Preferences
 - Token: KICKS on ApeChain
