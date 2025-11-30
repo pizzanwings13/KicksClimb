@@ -45,8 +45,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     onClose();
   };
 
-  const handleSignOut = async () => {
-    await disconnect();
+  const handleSignOut = () => {
+    disconnect();
     setUser(null);
     reset();
     onClose();
