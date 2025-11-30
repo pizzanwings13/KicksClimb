@@ -3,12 +3,20 @@ import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Coins, Zap, AlertTriangle, Settings } from "lucide-react";
+import { ArrowLeft, Coins, Zap, AlertTriangle, Settings, Loader2, CheckCircle, XCircle } from "lucide-react";
 
 const QUICK_AMOUNTS = ["10", "50", "100", "500", "1000"];
 
 export function BettingScreen() {
-  const { walletAddress, kicksBalance, sendKicksToHouse, kicksTokenAddress, houseWalletAddress } = useWallet();
+  const { 
+    walletAddress, 
+    kicksBalance, 
+    sendKicksToHouse, 
+    kicksTokenAddress, 
+    houseWalletAddress,
+    transactionState,
+    resetTransactionState
+  } = useWallet();
   const { phase, setPhase, betAmount, setBetAmount, startGame } = useGameState();
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,17 +29,20 @@ export function BettingScreen() {
     const numValue = value.replace(/[^0-9.]/g, "");
     setBetAmount(numValue);
     setError(null);
+    resetTransactionState();
   };
 
   const handleQuickAmount = (amount: string) => {
     setBetAmount(amount);
     setError(null);
+    resetTransactionState();
   };
 
   const handleMaxBet = () => {
     const maxBet = Math.floor(parseFloat(kicksBalance) * 100) / 100;
     setBetAmount(maxBet.toString());
     setError(null);
+    resetTransactionState();
   };
 
   const handleStartGame = async () => {
@@ -50,17 +61,61 @@ export function BettingScreen() {
 
     setIsPlacingBet(true);
     setError(null);
+    resetTransactionState();
 
     try {
-      const success = await startGame(walletAddress!, betAmount);
+      let txHash: string | undefined;
+      
+      if (isTokenConfigured) {
+        txHash = await sendKicksToHouse(betAmount) || undefined;
+        if (!txHash) {
+          setError("Failed to transfer tokens. Please try again.");
+          setIsPlacingBet(false);
+          return;
+        }
+      }
+      
+      const success = await startGame(walletAddress!, betAmount, txHash);
       if (!success) {
         setError("Failed to start game. Please try again.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to place bet");
+      const message = err.code === "ACTION_REJECTED" 
+        ? "Transaction rejected" 
+        : err.message || "Failed to place bet";
+      setError(message);
     } finally {
       setIsPlacingBet(false);
     }
+  };
+
+  const getTransactionStatusUI = () => {
+    const { status, message } = transactionState;
+    
+    if (status === "idle") return null;
+    
+    const statusConfig = {
+      checking: { icon: Loader2, color: "text-blue-400", bg: "bg-blue-900/20", border: "border-blue-500/30" },
+      approving: { icon: Loader2, color: "text-yellow-400", bg: "bg-yellow-900/20", border: "border-yellow-500/30" },
+      transferring: { icon: Loader2, color: "text-purple-400", bg: "bg-purple-900/20", border: "border-purple-500/30" },
+      signing: { icon: Loader2, color: "text-blue-400", bg: "bg-blue-900/20", border: "border-blue-500/30" },
+      claiming: { icon: Loader2, color: "text-green-400", bg: "bg-green-900/20", border: "border-green-500/30" },
+      success: { icon: CheckCircle, color: "text-green-400", bg: "bg-green-900/20", border: "border-green-500/30" },
+      error: { icon: XCircle, color: "text-red-400", bg: "bg-red-900/20", border: "border-red-500/30" },
+    };
+    
+    const config = statusConfig[status];
+    if (!config) return null;
+    
+    const Icon = config.icon;
+    const isSpinning = status !== "success" && status !== "error";
+    
+    return (
+      <div className={`flex items-center gap-2 ${config.color} mb-4 p-3 ${config.bg} rounded-lg border ${config.border}`}>
+        <Icon className={`w-5 h-5 ${isSpinning ? "animate-spin" : ""}`} />
+        <span className="text-sm">{message}</span>
+      </div>
+    );
   };
 
   const betValue = parseFloat(betAmount) || 0;
@@ -143,7 +198,9 @@ export function BettingScreen() {
             </div>
           )}
 
-          {error && (
+          {getTransactionStatusUI()}
+
+          {error && transactionState.status !== "error" && (
             <div className="flex items-center gap-2 text-red-400 mb-4 p-3 bg-red-900/20 rounded-lg border border-red-500/30">
               <AlertTriangle className="w-5 h-5" />
               <span>{error}</span>

@@ -29,6 +29,10 @@ export const games = pgTable("games", {
   payout: decimal("payout", { precision: 36, scale: 18 }),
   finalPosition: integer("final_position").default(0).notNull(),
   gameStatus: text("game_status").default("active").notNull(),
+  depositTxHash: text("deposit_tx_hash"),
+  claimTxHash: text("claim_tx_hash"),
+  claimNonce: text("claim_nonce"),
+  claimStatus: text("claim_status").default("pending"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
 });

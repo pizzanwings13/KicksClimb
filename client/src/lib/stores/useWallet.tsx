@@ -58,6 +58,12 @@ const KICKS_TOKEN_ABI = [
   "function allowance(address owner, address spender) view returns (uint256)",
 ];
 
+interface TransactionState {
+  status: "idle" | "checking" | "approving" | "transferring" | "signing" | "claiming" | "success" | "error";
+  message: string;
+  txHash?: string;
+}
+
 interface WalletState {
   isConnected: boolean;
   isConnecting: boolean;
@@ -73,16 +79,22 @@ interface WalletState {
   houseWalletAddress: string | null;
   showWalletModal: boolean;
   glyphProvider: any | null;
+  transactionState: TransactionState;
   
   connect: (walletType: WalletType) => Promise<void>;
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
   setTokenAddresses: (kicks: string, house: string) => void;
+  checkAllowance: () => Promise<bigint>;
+  approveTokens: (amount: string) => Promise<string | null>;
   sendKicksToHouse: (amount: string) => Promise<string | null>;
-  requestKicksFromHouse: (amount: string) => Promise<boolean>;
+  signClaimMessage: (amount: string, gameId: number, nonce: string) => Promise<string | null>;
+  requestKicksFromHouse: (amount: string, gameId: number, signature: string, nonce: string) => Promise<boolean>;
   setShowWalletModal: (show: boolean) => void;
   setGlyphProvider: (provider: any) => void;
   connectWithProvider: (externalProvider: any, walletType: WalletType) => Promise<void>;
+  setTransactionState: (state: Partial<TransactionState>) => void;
+  resetTransactionState: () => void;
 }
 
 const isInIframe = (): boolean => {
@@ -297,6 +309,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   houseWalletAddress: null,
   showWalletModal: false,
   glyphProvider: null,
+  transactionState: { status: "idle", message: "" },
 
   setShowWalletModal: (show: boolean) => {
     set({ showWalletModal: show, error: null });
@@ -308,6 +321,14 @@ export const useWallet = create<WalletState>((set, get) => ({
 
   setTokenAddresses: (kicks: string, house: string) => {
     set({ kicksTokenAddress: kicks, houseWalletAddress: house });
+  },
+
+  setTransactionState: (state: Partial<TransactionState>) => {
+    set((prev) => ({ transactionState: { ...prev.transactionState, ...state } }));
+  },
+
+  resetTransactionState: () => {
+    set({ transactionState: { status: "idle", message: "" } });
   },
 
   connectWithProvider: async (externalProvider: any, walletType: WalletType) => {
@@ -446,33 +467,158 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  sendKicksToHouse: async (amount: string) => {
-    const { kicksContract, houseWalletAddress } = get();
+  checkAllowance: async () => {
+    const { kicksContract, walletAddress, houseWalletAddress } = get();
+    
+    if (!kicksContract || !walletAddress || !houseWalletAddress) {
+      return BigInt(0);
+    }
+
+    try {
+      const allowance = await kicksContract.allowance(walletAddress, houseWalletAddress);
+      return allowance;
+    } catch (error) {
+      console.error("Error checking allowance:", error);
+      return BigInt(0);
+    }
+  },
+
+  approveTokens: async (amount: string) => {
+    const { kicksContract, houseWalletAddress, setTransactionState } = get();
     
     if (!kicksContract || !houseWalletAddress) {
-      console.error("Contract or house wallet not configured");
+      setTransactionState({ status: "error", message: "Wallet not configured properly" });
       return null;
     }
 
     try {
+      setTransactionState({ status: "approving", message: "Approving KICKS tokens..." });
+      
       const decimals = await kicksContract.decimals();
       const amountInWei = ethers.parseUnits(amount, decimals);
+      
+      const tx = await kicksContract.approve(houseWalletAddress, amountInWei);
+      const receipt = await tx.wait();
+      
+      setTransactionState({ status: "success", message: "Approval successful", txHash: receipt.hash });
+      return receipt.hash;
+    } catch (error: any) {
+      console.error("Approval error:", error);
+      setTransactionState({ status: "error", message: error.message || "Failed to approve tokens" });
+      throw error;
+    }
+  },
+
+  sendKicksToHouse: async (amount: string) => {
+    const { kicksContract, houseWalletAddress, checkAllowance, approveTokens, setTransactionState } = get();
+    
+    if (!kicksContract || !houseWalletAddress) {
+      setTransactionState({ status: "error", message: "Token contract or house wallet not configured" });
+      return null;
+    }
+
+    try {
+      setTransactionState({ status: "checking", message: "Checking token allowance..." });
+      
+      const decimals = await kicksContract.decimals();
+      const amountInWei = ethers.parseUnits(amount, decimals);
+      
+      const currentAllowance = await checkAllowance();
+      
+      if (currentAllowance < amountInWei) {
+        await approveTokens(amount);
+      }
+      
+      setTransactionState({ status: "transferring", message: "Transferring KICKS to house wallet..." });
       
       const tx = await kicksContract.transfer(houseWalletAddress, amountInWei);
       const receipt = await tx.wait();
       
       await get().refreshBalance();
       
+      setTransactionState({ status: "success", message: "Transfer successful!", txHash: receipt.hash });
       return receipt.hash;
     } catch (error: any) {
       console.error("Transfer error:", error);
+      const message = error.code === "ACTION_REJECTED" 
+        ? "Transaction rejected by user" 
+        : error.message || "Failed to transfer tokens";
+      setTransactionState({ status: "error", message });
       throw error;
     }
   },
 
-  requestKicksFromHouse: async (amount: string) => {
-    console.log("Requesting KICKS from house:", amount);
-    return true;
+  signClaimMessage: async (amount: string, gameId: number, nonce: string) => {
+    const { signer, walletAddress, setTransactionState } = get();
+    
+    if (!signer || !walletAddress) {
+      setTransactionState({ status: "error", message: "Wallet not connected" });
+      return null;
+    }
+
+    try {
+      setTransactionState({ status: "signing", message: "Please sign the claim message..." });
+      
+      const message = `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      
+      const signature = await signer.signMessage(message);
+      
+      setTransactionState({ status: "success", message: "Message signed successfully" });
+      return signature;
+    } catch (error: any) {
+      console.error("Signing error:", error);
+      const message = error.code === "ACTION_REJECTED" 
+        ? "Signature rejected by user" 
+        : error.message || "Failed to sign message";
+      setTransactionState({ status: "error", message });
+      throw error;
+    }
+  },
+
+  requestKicksFromHouse: async (amount: string, gameId: number, signature: string, nonce: string) => {
+    const { walletAddress, setTransactionState } = get();
+    
+    if (!walletAddress) {
+      setTransactionState({ status: "error", message: "Wallet not connected" });
+      return false;
+    }
+
+    try {
+      setTransactionState({ status: "claiming", message: "Processing claim request..." });
+      
+      const response = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress: walletAddress,
+          amount: amount,
+          gameId: gameId,
+          signature: signature,
+          nonce: nonce,
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || "Claim failed");
+      }
+      
+      const data = await response.json();
+      
+      await get().refreshBalance();
+      
+      setTransactionState({ 
+        status: "success", 
+        message: "Claim verified! Your winnings have been recorded.",
+        txHash: data.txHash 
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Claim error:", error);
+      setTransactionState({ status: "error", message: error.message || "Failed to claim tokens" });
+      return false;
+    }
   },
 }));
 

@@ -217,7 +217,7 @@ export async function registerRoutes(
   
   app.post("/api/game/start", async (req, res) => {
     try {
-      const { walletAddress, betAmount } = req.body;
+      const { walletAddress, betAmount, txHash } = req.body;
       
       if (!walletAddress || !betAmount) {
         return res.status(400).json({ error: "Wallet address and bet amount required" });
@@ -240,6 +240,7 @@ export async function registerRoutes(
         betAmount: betAmount.toString(),
         gameStatus: "active",
         finalPosition: 0,
+        depositTxHash: txHash || null,
       });
       
       await storage.updateUser(user.id, {
@@ -409,6 +410,127 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get game error:", error);
       res.status(500).json({ error: "Failed to get game" });
+    }
+  });
+
+  app.post("/api/game/:gameId/claim-nonce", async (req, res) => {
+    try {
+      const { gameId } = req.params;
+      const { walletAddress } = req.body;
+      
+      if (!walletAddress) {
+        return res.status(400).json({ error: "Wallet address required" });
+      }
+      
+      const game = await storage.getGame(parseInt(gameId));
+      
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+      
+      const user = await storage.getUser(game.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Not authorized to claim this game" });
+      }
+      
+      if (game.gameStatus !== "won" && game.gameStatus !== "cashed_out") {
+        return res.status(400).json({ error: "Game must be won or cashed out to claim" });
+      }
+      
+      if (game.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Game already claimed" });
+      }
+      
+      if (!game.payout || parseFloat(game.payout) <= 0) {
+        return res.status(400).json({ error: "No payout available for this game" });
+      }
+      
+      const nonce = nanoid(32);
+      const nonceExpiry = new Date(Date.now() + 5 * 60 * 1000);
+      
+      await storage.updateGame(game.id, {
+        claimNonce: nonce,
+      });
+      
+      res.json({ 
+        nonce,
+        amount: game.payout,
+        gameId: game.id,
+        expiresAt: nonceExpiry.toISOString(),
+      });
+    } catch (error) {
+      console.error("Claim nonce error:", error);
+      res.status(500).json({ error: "Failed to generate claim nonce" });
+    }
+  });
+
+  app.post("/api/claim", async (req, res) => {
+    try {
+      const { walletAddress, amount, gameId, signature, nonce } = req.body;
+      
+      if (!walletAddress || !amount || !gameId || !signature || !nonce) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const game = await storage.getGame(parseInt(gameId));
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+      
+      const user = await storage.getUser(game.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Wallet address does not match game owner" });
+      }
+      
+      if (game.claimNonce !== nonce) {
+        return res.status(400).json({ error: "Invalid or expired nonce" });
+      }
+      
+      if (game.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Game already claimed" });
+      }
+      
+      if (game.gameStatus !== "won" && game.gameStatus !== "cashed_out") {
+        return res.status(400).json({ error: "Game must be won or cashed out to claim" });
+      }
+      
+      if (!game.payout || parseFloat(game.payout) <= 0) {
+        return res.status(400).json({ error: "No payout available" });
+      }
+      
+      if (game.payout !== amount) {
+        return res.status(400).json({ error: "Amount mismatch" });
+      }
+      
+      const expectedMessage = `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      
+      const { ethers } = await import("ethers");
+      let recoveredAddress: string;
+      
+      try {
+        recoveredAddress = ethers.verifyMessage(expectedMessage, signature);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid signature format" });
+      }
+      
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(400).json({ error: "Signature verification failed" });
+      }
+      
+      await storage.updateGame(game.id, {
+        claimStatus: "claimed",
+        claimNonce: null,
+      });
+      
+      res.json({ 
+        success: true,
+        message: "Claim verified successfully. The house will process your payout.",
+        amount: game.payout,
+        txHash: null,
+      });
+    } catch (error) {
+      console.error("Claim error:", error);
+      res.status(500).json({ error: "Failed to process claim" });
     }
   });
   

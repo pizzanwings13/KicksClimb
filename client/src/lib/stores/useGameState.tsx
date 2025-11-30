@@ -75,7 +75,7 @@ interface GameState {
   
   connectUser: (walletAddress: string, username?: string) => Promise<User | null>;
   updateProfile: (walletAddress: string, username: string, avatarUrl?: string) => Promise<User | null>;
-  startGame: (walletAddress: string, betAmount: string) => Promise<boolean>;
+  startGame: (walletAddress: string, betAmount: string, txHash?: string) => Promise<boolean>;
   makeMove: (steps: number) => Promise<BoardStep | null>;
   cashOut: () => Promise<{ payout: string; multiplier: number } | null>;
   fetchLeaderboards: () => Promise<void>;
@@ -142,9 +142,13 @@ export const useGameState = create<GameState>()(
       }
     },
 
-    startGame: async (walletAddress, betAmount) => {
+    startGame: async (walletAddress, betAmount, txHash?: string) => {
       try {
-        const res = await apiRequest("POST", "/api/game/start", { walletAddress, betAmount });
+        const res = await apiRequest("POST", "/api/game/start", { 
+          walletAddress, 
+          betAmount,
+          txHash 
+        });
         const data = await res.json();
         
         set({

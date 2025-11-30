@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
 import { Button } from "@/components/ui/button";
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw, Shield, Zap, SkipForward, Gift, Flame } from "lucide-react";
+import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw, Shield, Zap, SkipForward, Gift, Flame, Loader2, CheckCircle, Wallet } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
 
@@ -32,10 +33,24 @@ export function GameHUD() {
     isOnFire,
     wasReset,
   } = useGameState();
-  const { kicksBalance } = useWallet();
+  const { 
+    kicksBalance, 
+    signClaimMessage, 
+    requestKicksFromHouse, 
+    transactionState, 
+    resetTransactionState,
+    kicksTokenAddress,
+    houseWalletAddress,
+    walletAddress
+  } = useWallet();
   const [diceValue, setDiceValue] = useState<number>(1);
   const [isRolling, setIsRolling] = useState(false);
   const [isCashingOut, setIsCashingOut] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  const isTokenConfigured = kicksTokenAddress && houseWalletAddress;
 
   if (phase === "menu" || phase === "betting") return null;
 
@@ -64,7 +79,44 @@ export function GameHUD() {
     setIsCashingOut(false);
   };
 
+  const handleClaimWinnings = async () => {
+    if (!currentGame || !walletAddress || !isTokenConfigured) return;
+    
+    setIsClaiming(true);
+    setClaimError(null);
+    resetTransactionState();
+    
+    try {
+      const nonceRes = await apiRequest("POST", `/api/game/${currentGame.id}/claim-nonce`, { walletAddress });
+      const { nonce, amount, gameId } = await nonceRes.json();
+      
+      const signature = await signClaimMessage(amount, gameId, nonce);
+      if (!signature) {
+        setClaimError("Failed to sign claim message");
+        setIsClaiming(false);
+        return;
+      }
+      
+      const success = await requestKicksFromHouse(amount, gameId, signature, nonce);
+      if (success) {
+        setHasClaimed(true);
+      } else {
+        setClaimError("Failed to claim winnings");
+      }
+    } catch (err: any) {
+      const message = err.code === "ACTION_REJECTED" 
+        ? "Signature rejected" 
+        : err.message || "Failed to claim winnings";
+      setClaimError(message);
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   const handlePlayAgain = () => {
+    setHasClaimed(false);
+    setClaimError(null);
+    resetTransactionState();
     reset();
   };
 
@@ -294,6 +346,57 @@ export function GameHUD() {
                   </>
                 )}
               </div>
+
+              {phase !== "lost" && isTokenConfigured && !hasClaimed && (
+                <div className="mb-4">
+                  {transactionState.status !== "idle" && transactionState.status !== "success" && (
+                    <div className={`flex items-center gap-2 mb-3 p-3 rounded-lg ${
+                      transactionState.status === "error" 
+                        ? "bg-red-900/20 text-red-400 border border-red-500/30" 
+                        : "bg-blue-900/20 text-blue-400 border border-blue-500/30"
+                    }`}>
+                      {transactionState.status === "error" ? (
+                        <AlertTriangle className="w-5 h-5" />
+                      ) : (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      )}
+                      <span className="text-sm">{transactionState.message}</span>
+                    </div>
+                  )}
+                  
+                  {claimError && transactionState.status !== "error" && (
+                    <div className="flex items-center gap-2 mb-3 p-3 bg-red-900/20 text-red-400 border border-red-500/30 rounded-lg">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="text-sm">{claimError}</span>
+                    </div>
+                  )}
+                  
+                  <Button
+                    onClick={handleClaimWinnings}
+                    disabled={isClaiming}
+                    className="w-full py-6 text-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl mb-3"
+                  >
+                    {isClaiming ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Claiming...
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="mr-2 h-5 w-5" />
+                        Claim {parseFloat(currentGame?.payout || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {phase !== "lost" && isTokenConfigured && hasClaimed && (
+                <div className="flex items-center gap-2 mb-4 p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm">Claim submitted! KICKS will be sent to your wallet.</span>
+                </div>
+              )}
 
               <Button
                 onClick={handlePlayAgain}
