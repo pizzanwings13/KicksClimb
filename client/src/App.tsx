@@ -88,12 +88,15 @@ function WalletInitializer() {
   const { walletAddress, isConnected } = useWallet();
 
   useEffect(() => {
-    const savedKicksAddress = localStorage.getItem('kicksTokenAddress') || "";
-    const savedHouseAddress = localStorage.getItem('houseWalletAddress') || "";
-    const savedVaultAddress = localStorage.getItem('vaultContractAddress') || "";
-    if (savedKicksAddress || savedHouseAddress || savedVaultAddress) {
-      setTokenAddresses(savedKicksAddress, savedHouseAddress, savedVaultAddress);
-    }
+    const defaultKicksAddress = "0x540F14c67c4B19C65F9177F1B5fddD1e16A1e0b6";
+    const defaultHouseAddress = "0xeF9951Ee779F2a8a6B458f0BC1b05cC98d0561F7";
+    const defaultVaultAddress = "0x6732551e002F88cc67b075bc521bBCf50087750d";
+    
+    const savedKicksAddress = localStorage.getItem('kicksTokenAddress') || defaultKicksAddress;
+    const savedHouseAddress = localStorage.getItem('houseWalletAddress') || defaultHouseAddress;
+    const savedVaultAddress = localStorage.getItem('vaultContractAddress') || defaultVaultAddress;
+    
+    setTokenAddresses(savedKicksAddress, savedHouseAddress, savedVaultAddress);
   }, [setTokenAddresses]);
 
   useEffect(() => {

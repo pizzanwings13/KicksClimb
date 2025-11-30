@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
-import { Settings, X, Coins, Building2, Eye } from "lucide-react";
+import { Settings, X, Coins, Building2, Eye, Shield } from "lucide-react";
 
 interface TokenConfigProps {
   isOpen: boolean;
@@ -8,7 +8,7 @@ interface TokenConfigProps {
 }
 
 export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
-  const { kicksTokenAddress, houseWalletAddress } = useWallet();
+  const { kicksTokenAddress, houseWalletAddress, vaultContractAddress } = useWallet();
 
   if (!isOpen) return null;
 
@@ -64,6 +64,23 @@ export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
             {houseWalletAddress && (
               <p className="text-gray-500 text-xs mt-1.5 break-all font-mono">
                 {houseWalletAddress}
+              </p>
+            )}
+          </div>
+
+          <div className="bg-black/30 rounded-xl p-3 border border-green-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4 text-green-400" />
+              <span className="text-white font-semibold text-sm">Claim Vault Contract</span>
+            </div>
+            <div className="bg-black/50 rounded-lg px-3 py-2 border border-green-500/20">
+              <span className="text-green-300 font-mono text-sm">
+                {formatAddress(vaultContractAddress)}
+              </span>
+            </div>
+            {vaultContractAddress && (
+              <p className="text-gray-500 text-xs mt-1.5 break-all font-mono">
+                {vaultContractAddress}
               </p>
             )}
           </div>
