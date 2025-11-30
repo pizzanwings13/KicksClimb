@@ -98,30 +98,21 @@ export function GameHUD() {
     resetTransactionState();
     
     try {
-      if (vaultContractAddress) {
-        const success = await claimFromVaultContract(currentGame.id, vaultContractAddress);
-        if (success) {
-          setHasClaimed(true);
-        } else {
-          setClaimError("Failed to claim from vault");
-        }
+      const nonceRes = await apiRequest("POST", `/api/game/${currentGame.id}/claim-nonce`, { walletAddress });
+      const { nonce, amount, gameId } = await nonceRes.json();
+      
+      const signature = await signClaimMessage(amount, gameId, nonce);
+      if (!signature) {
+        setClaimError("Failed to sign claim message");
+        setIsClaiming(false);
+        return;
+      }
+      
+      const success = await requestKicksFromHouse(amount, gameId, signature, nonce);
+      if (success) {
+        setHasClaimed(true);
       } else {
-        const nonceRes = await apiRequest("POST", `/api/game/${currentGame.id}/claim-nonce`, { walletAddress });
-        const { nonce, amount, gameId } = await nonceRes.json();
-        
-        const signature = await signClaimMessage(amount, gameId, nonce);
-        if (!signature) {
-          setClaimError("Failed to sign claim message");
-          setIsClaiming(false);
-          return;
-        }
-        
-        const success = await requestKicksFromHouse(amount, gameId, signature, nonce);
-        if (success) {
-          setHasClaimed(true);
-        } else {
-          setClaimError("Failed to claim winnings");
-        }
+        setClaimError("Failed to claim winnings");
       }
     } catch (err: any) {
       const message = err.code === "ACTION_REJECTED" 
