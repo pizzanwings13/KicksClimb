@@ -303,7 +303,7 @@ export async function registerRoutes(
         }
       } else if (landedStep.type === "finish") {
         gameStatus = "won";
-        finalMultiplier = finalMultiplier * (landedStep.multiplier || 1);
+        finalMultiplier = 20;
         payout = (parseFloat(game.betAmount) * finalMultiplier).toString();
         
         const user = await storage.getUser(game.userId);
@@ -317,7 +317,8 @@ export async function registerRoutes(
           await storage.updateWeeklyLeaderboard(user.id, payout, finalMultiplier.toString());
         }
       } else if (landedStep.multiplier) {
-        finalMultiplier = finalMultiplier * landedStep.multiplier;
+        finalMultiplier = Math.max(finalMultiplier, landedStep.multiplier);
+        finalMultiplier = Math.min(finalMultiplier, 11);
       }
       
       const updatedGame = await storage.updateGame(game.id, {
