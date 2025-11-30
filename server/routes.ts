@@ -545,8 +545,8 @@ export async function registerRoutes(
       
       let txHash: string | null = null;
       
-      const houseWalletKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
-      console.log(`HOUSE_WALLET_PRIVATE_KEY exists: ${!!houseWalletKey}, length: ${houseWalletKey?.length || 0}, first 4 chars: ${houseWalletKey?.substring(0, 4) || 'N/A'}`);
+      const houseWalletKey = process.env.HOUSE_WALLET_KEY;
+      console.log(`HOUSE_WALLET_KEY exists: ${!!houseWalletKey}, length: ${houseWalletKey?.length || 0}, first 4 chars: ${houseWalletKey?.substring(0, 4) || 'N/A'}`);
       
       if (houseWalletKey && kicksTokenAddress) {
         try {
