@@ -732,9 +732,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No payout available for this game" });
       }
       
-      const signerKey = process.env.CLAIM_SIGNER_KEY;
+      const signerKey = process.env.CLAIM_SIGNER_KEY || process.env.HOUSE_WALLET_KEY;
       if (!signerKey) {
-        return res.status(500).json({ error: "Claim signer not configured. Set CLAIM_SIGNER_KEY environment variable." });
+        return res.status(500).json({ error: "Claim signer not configured. Set HOUSE_WALLET_KEY environment variable." });
       }
       
       const nonce = Date.now();
