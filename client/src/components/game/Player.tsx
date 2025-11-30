@@ -145,9 +145,9 @@ function WalkingLegs({ isWalking, bodyColor }: { isWalking: boolean; bodyColor: 
     if (!leftLegRef.current || !rightLegRef.current) return;
     
     if (isWalking) {
-      const walkCycle = state.clock.elapsedTime * 8;
-      leftLegRef.current.rotation.x = Math.sin(walkCycle) * 0.6;
-      rightLegRef.current.rotation.x = Math.sin(walkCycle + Math.PI) * 0.6;
+      const walkCycle = state.clock.elapsedTime * 6;
+      leftLegRef.current.rotation.x = Math.sin(walkCycle) * 0.5;
+      rightLegRef.current.rotation.x = Math.sin(walkCycle + Math.PI) * 0.5;
     } else {
       leftLegRef.current.rotation.x = THREE.MathUtils.lerp(leftLegRef.current.rotation.x, 0, 0.1);
       rightLegRef.current.rotation.x = THREE.MathUtils.lerp(rightLegRef.current.rotation.x, 0, 0.1);
@@ -222,7 +222,7 @@ export function Player() {
     const [px, py, pz] = previousPosition;
     
     if (isWalking) {
-      walkProgress.current += delta * 1.8;
+      walkProgress.current += delta * 1.0;
       
       if (walkProgress.current >= 1) {
         walkProgress.current = 1;
@@ -232,7 +232,7 @@ export function Player() {
       const t = walkProgress.current;
       const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       
-      const hopHeight = Math.sin(t * Math.PI * 2) * 0.08 + Math.sin(t * Math.PI) * 0.12;
+      const hopHeight = Math.sin(t * Math.PI * 4) * 0.04 + Math.sin(t * Math.PI) * 0.08;
       
       current.x = px + (tx - px) * easeT;
       current.z = pz + (tz - pz) * easeT;
