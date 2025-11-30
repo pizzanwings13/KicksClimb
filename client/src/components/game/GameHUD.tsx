@@ -2,9 +2,15 @@ import { useState } from "react";
 import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
 import { Button } from "@/components/ui/button";
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw } from "lucide-react";
+import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, HandCoins, AlertTriangle, Trophy, RotateCcw, Shield, Zap, SkipForward, Gift } from "lucide-react";
 
 const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
+
+const powerUpIcons: Record<string, { icon: typeof Shield; color: string; label: string }> = {
+  shield: { icon: Shield, color: "text-blue-400", label: "Shield (Blocks 1 hazard)" },
+  double: { icon: Zap, color: "text-yellow-400", label: "Double (2x next multiplier)" },
+  skip: { icon: SkipForward, color: "text-green-400", label: "Skip (Jump over hazard)" },
+};
 
 export function GameHUD() {
   const {
@@ -19,6 +25,9 @@ export function GameHUD() {
     cashOut,
     reset,
     currentGame,
+    collectedPowerUps,
+    activePowerUps,
+    usePowerUp,
   } = useGameState();
   const { kicksBalance } = useWallet();
   const [diceValue, setDiceValue] = useState<number>(1);
@@ -75,6 +84,14 @@ export function GameHUD() {
         return { text: "10x MULTIPLIER!", color: "text-purple-400", bg: "bg-purple-500/20" };
       case "finish":
         return { text: "FINISH! 20x!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
+      case "powerup_shield":
+        return { text: "SHIELD COLLECTED!", color: "text-blue-400", bg: "bg-blue-500/20" };
+      case "powerup_double":
+        return { text: "DOUBLE COLLECTED!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
+      case "powerup_skip":
+        return { text: "SKIP COLLECTED!", color: "text-green-400", bg: "bg-green-500/20" };
+      case "bonus_chest":
+        return { text: "BONUS CHEST!", color: "text-orange-400", bg: "bg-orange-500/20" };
       default:
         return null;
     }
@@ -96,6 +113,43 @@ export function GameHUD() {
               style={{ width: `${currentPosition}%` }}
             />
           </div>
+          
+          {(collectedPowerUps.length > 0 || activePowerUps.length > 0) && (
+            <div className="mt-3 pt-3 border-t border-purple-500/30">
+              <div className="text-xs text-gray-400 mb-2">Power-ups</div>
+              <div className="flex gap-2 flex-wrap">
+                {collectedPowerUps.map((powerup, idx) => {
+                  const config = powerUpIcons[powerup];
+                  if (!config) return null;
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={`${powerup}-${idx}`}
+                      onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
+                      className={`p-2 rounded-lg bg-black/50 border border-current/30 ${config.color} hover:bg-black/80 transition-colors`}
+                      title={`Use ${config.label}`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </button>
+                  );
+                })}
+                {activePowerUps.filter(p => p.active).map((powerup, idx) => {
+                  const config = powerUpIcons[powerup.type];
+                  if (!config) return null;
+                  const Icon = config.icon;
+                  return (
+                    <div
+                      key={`active-${powerup.type}-${idx}`}
+                      className={`p-2 rounded-lg bg-current/20 border border-current ${config.color} animate-pulse`}
+                      title={`${config.label} - ACTIVE`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30 text-right">

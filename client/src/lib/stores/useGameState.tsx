@@ -3,12 +3,18 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { apiRequest } from "../queryClient";
 
 export type GamePhase = "menu" | "betting" | "playing" | "won" | "lost" | "cashed_out";
-export type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "hazard" | "finish";
+export type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "hazard" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 export interface BoardStep {
   position: number;
   type: StepType;
   multiplier?: number;
+  powerup?: string;
+}
+
+export interface PowerUp {
+  type: "shield" | "double" | "skip";
+  active: boolean;
 }
 
 export interface User {
@@ -57,6 +63,8 @@ interface GameState {
   lastStepType: StepType | null;
   dailyLeaderboard: LeaderboardEntry[];
   weeklyLeaderboard: LeaderboardEntry[];
+  activePowerUps: PowerUp[];
+  collectedPowerUps: string[];
   
   setPhase: (phase: GamePhase) => void;
   setUser: (user: User | null) => void;
@@ -68,6 +76,7 @@ interface GameState {
   makeMove: (steps: number) => Promise<BoardStep | null>;
   cashOut: () => Promise<{ payout: string; multiplier: number } | null>;
   fetchLeaderboards: () => Promise<void>;
+  usePowerUp: (type: "shield" | "double" | "skip") => void;
   reset: () => void;
 }
 
@@ -85,6 +94,8 @@ export const useGameState = create<GameState>()(
     lastStepType: null,
     dailyLeaderboard: [],
     weeklyLeaderboard: [],
+    activePowerUps: [],
+    collectedPowerUps: [],
 
     setPhase: (phase) => set({ phase }),
     setUser: (user) => set({ user }),
@@ -134,6 +145,8 @@ export const useGameState = create<GameState>()(
           potentialPayout: betAmount,
           phase: "playing",
           lastStepType: null,
+          activePowerUps: [],
+          collectedPowerUps: [],
         });
         
         return true;
@@ -144,7 +157,7 @@ export const useGameState = create<GameState>()(
     },
 
     makeMove: async (steps) => {
-      const { currentGame, isMoving, board } = get();
+      const { currentGame, isMoving, board, collectedPowerUps, activePowerUps } = get();
       
       if (!currentGame || isMoving) return null;
       
@@ -157,6 +170,23 @@ export const useGameState = create<GameState>()(
         const newPosition = data.game.finalPosition;
         const landedStep = data.landedStep as BoardStep;
         
+        let newCollectedPowerUps = [...collectedPowerUps];
+        let newActivePowerUps = [...activePowerUps];
+        
+        if (landedStep.type.startsWith("powerup_")) {
+          const powerupType = landedStep.powerup as "shield" | "double" | "skip";
+          if (powerupType) {
+            newCollectedPowerUps.push(powerupType);
+          }
+        }
+        
+        const hasShield = newActivePowerUps.some(p => p.type === "shield" && p.active);
+        
+        if (landedStep.type === "hazard" && hasShield) {
+          newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "shield" && p.active));
+          data.game.gameStatus = "active";
+        }
+        
         set({
           currentGame: data.game,
           currentPosition: newPosition,
@@ -164,6 +194,8 @@ export const useGameState = create<GameState>()(
           potentialPayout: data.potentialPayout,
           lastStepType: landedStep.type,
           isMoving: false,
+          collectedPowerUps: newCollectedPowerUps,
+          activePowerUps: newActivePowerUps,
         });
         
         if (data.game.gameStatus === "lost") {
@@ -225,6 +257,21 @@ export const useGameState = create<GameState>()(
       }
     },
 
+    usePowerUp: (type) => {
+      const { collectedPowerUps, activePowerUps } = get();
+      const powerUpIndex = collectedPowerUps.indexOf(type);
+      
+      if (powerUpIndex === -1) return;
+      
+      const newCollected = [...collectedPowerUps];
+      newCollected.splice(powerUpIndex, 1);
+      
+      set({
+        collectedPowerUps: newCollected,
+        activePowerUps: [...activePowerUps, { type, active: true }],
+      });
+    },
+
     reset: () => {
       set({
         phase: "menu",
@@ -236,6 +283,8 @@ export const useGameState = create<GameState>()(
         potentialPayout: "10",
         isMoving: false,
         lastStepType: null,
+        activePowerUps: [],
+        collectedPowerUps: [],
       });
     },
   }))

@@ -6,12 +6,13 @@ import crypto from "crypto";
 
 const TOTAL_STEPS = 100;
 
-type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "hazard" | "finish";
+type StepType = "safe" | "multiplier_2x" | "multiplier_3x" | "multiplier_5x" | "multiplier_10x" | "hazard" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 interface BoardStep {
   position: number;
   type: StepType;
   multiplier?: number;
+  powerup?: string;
 }
 
 function generateBoard(seed: string): BoardStep[] {
@@ -39,19 +40,27 @@ function generateBoard(seed: string): BoardStep[] {
     
     let hazardChance: number;
     let multiplierChance: number;
+    let powerupChance: number = 0.05;
+    let bonusChance: number = 0.02;
     
     if (i <= 25) {
       hazardChance = 0.10;
       multiplierChance = 0.25;
+      powerupChance = 0.08;
     } else if (i <= 50) {
       hazardChance = 0.20;
       multiplierChance = 0.20;
+      powerupChance = 0.06;
     } else if (i <= 75) {
       hazardChance = 0.35;
       multiplierChance = 0.15;
+      powerupChance = 0.04;
+      bonusChance = 0.03;
     } else {
       hazardChance = 0.50;
       multiplierChance = 0.10;
+      powerupChance = 0.03;
+      bonusChance = 0.04;
     }
     
     const roll = getNextRandom();
@@ -69,6 +78,18 @@ function generateBoard(seed: string): BoardStep[] {
       } else {
         board.push({ position: i, type: "multiplier_10x", multiplier: 10 });
       }
+    } else if (roll < hazardChance + multiplierChance + powerupChance) {
+      const powerupRoll = getNextRandom();
+      if (powerupRoll < 0.4) {
+        board.push({ position: i, type: "powerup_shield", powerup: "shield" });
+      } else if (powerupRoll < 0.7) {
+        board.push({ position: i, type: "powerup_double", powerup: "double" });
+      } else {
+        board.push({ position: i, type: "powerup_skip", powerup: "skip" });
+      }
+    } else if (roll < hazardChance + multiplierChance + powerupChance + bonusChance) {
+      const bonusMultiplier = Math.floor(getNextRandom() * 3) + 2;
+      board.push({ position: i, type: "bonus_chest", multiplier: bonusMultiplier });
     } else {
       board.push({ position: i, type: "safe" });
     }
@@ -366,6 +387,85 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Weekly leaderboard error:", error);
       res.status(500).json({ error: "Failed to get weekly leaderboard" });
+    }
+  });
+
+  app.get("/api/user/:walletAddress/games", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const games = await storage.getUserGames(user.id, limit);
+      res.json({ games });
+    } catch (error) {
+      console.error("Get user games error:", error);
+      res.status(500).json({ error: "Failed to get user games" });
+    }
+  });
+
+  app.get("/api/user/:walletAddress/stats", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const recentGames = await storage.getUserGames(user.id, 100);
+      
+      const stats = {
+        totalGamesPlayed: user.totalGamesPlayed,
+        gamesWon: user.gamesWon,
+        gamesLost: user.gamesLost,
+        totalKicksWon: user.totalKicksWon,
+        totalKicksLost: user.totalKicksLost,
+        highestMultiplier: user.highestMultiplier,
+        winRate: user.totalGamesPlayed > 0 
+          ? ((user.gamesWon / user.totalGamesPlayed) * 100).toFixed(1)
+          : "0",
+        netProfit: (parseFloat(user.totalKicksWon) - parseFloat(user.totalKicksLost)).toString(),
+        averageBet: recentGames.length > 0
+          ? (recentGames.reduce((sum, g) => sum + parseFloat(g.betAmount), 0) / recentGames.length).toFixed(2)
+          : "0",
+        biggestWin: recentGames.length > 0
+          ? Math.max(...recentGames.filter(g => g.payout).map(g => parseFloat(g.payout || "0"))).toString()
+          : "0",
+      };
+      
+      res.json({ stats });
+    } catch (error) {
+      console.error("Get user stats error:", error);
+      res.status(500).json({ error: "Failed to get user stats" });
+    }
+  });
+
+  app.get("/api/leaderboard/alltime", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const type = req.query.type as string || "winnings";
+      
+      const leaderboard = await storage.getAllTimeLeaderboard(limit, type);
+      res.json({ leaderboard });
+    } catch (error) {
+      console.error("All-time leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get all-time leaderboard" });
+    }
+  });
+
+  app.get("/api/leaderboard/biggest-wins", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const biggestWins = await storage.getBiggestWins(limit);
+      res.json({ biggestWins });
+    } catch (error) {
+      console.error("Biggest wins error:", error);
+      res.status(500).json({ error: "Failed to get biggest wins" });
     }
   });
 

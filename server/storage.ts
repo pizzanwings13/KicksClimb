@@ -24,6 +24,9 @@ export interface IStorage {
   getWeeklyLeaderboard(limit?: number): Promise<(WeeklyLeaderboardEntry & { user: User })[]>;
   updateDailyLeaderboard(userId: number, winnings: string, multiplier: string): Promise<void>;
   updateWeeklyLeaderboard(userId: number, winnings: string, multiplier: string): Promise<void>;
+  
+  getAllTimeLeaderboard(limit?: number, type?: string): Promise<User[]>;
+  getBiggestWins(limit?: number): Promise<(Game & { user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -210,6 +213,33 @@ export class DatabaseStorage implements IStorage {
         weekEnd,
       });
     }
+  }
+
+  async getAllTimeLeaderboard(limit: number = 10, type: string = "winnings"): Promise<User[]> {
+    if (type === "multiplier") {
+      return db.select()
+        .from(users)
+        .orderBy(desc(users.highestMultiplier))
+        .limit(limit);
+    }
+    return db.select()
+      .from(users)
+      .orderBy(desc(users.totalKicksWon))
+      .limit(limit);
+  }
+
+  async getBiggestWins(limit: number = 10): Promise<(Game & { user: User })[]> {
+    const results = await db.select()
+      .from(games)
+      .innerJoin(users, eq(games.userId, users.id))
+      .where(and(
+        sql`${games.payout} IS NOT NULL`,
+        sql`CAST(${games.payout} AS DECIMAL) > 0`
+      ))
+      .orderBy(desc(sql`CAST(${games.payout} AS DECIMAL)`))
+      .limit(limit);
+
+    return results.map(r => ({ ...r.games, user: r.users }));
   }
 }
 

@@ -8,15 +8,19 @@ import { GameBoard } from "./components/game/GameBoard";
 import { Player } from "./components/game/Player";
 import { Lights } from "./components/game/Lights";
 import { GameCamera } from "./components/game/GameCamera";
+import { ParticleEffectsManager } from "./components/game/ParticleEffects";
 import { MenuScreen } from "./components/game/MenuScreen";
 import { BettingScreen } from "./components/game/BettingScreen";
 import { GameHUD } from "./components/game/GameHUD";
 import { LeaderboardButton } from "./components/game/Leaderboard";
 import { ProfileButton } from "./components/game/ProfileModal";
 import { TokenConfigButton } from "./components/game/TokenConfig";
+import { SoundControls } from "./components/game/SoundControls";
+import { StatsButton } from "./components/game/StatsModal";
 import { useGameState } from "./lib/stores/useGameState";
 import { useWallet } from "./lib/stores/useWallet";
 import { useAudio } from "./lib/stores/useAudio";
+import { useSoundEffects } from "./lib/hooks/useSoundEffects";
 
 function LoadingScreen() {
   return (
@@ -42,6 +46,7 @@ function GameScene() {
         <Suspense fallback={null}>
           <GameBoard />
           <Player />
+          <ParticleEffectsManager />
         </Suspense>
       )}
     </>
@@ -96,6 +101,11 @@ function WalletInitializer() {
   return null;
 }
 
+function SoundEffectsManager() {
+  useSoundEffects();
+  return null;
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const { phase } = useGameState();
@@ -118,6 +128,7 @@ function App() {
       <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
         <WalletInitializer />
         <SoundManager />
+        <SoundEffectsManager />
         
         {showCanvas && (
           <Canvas
@@ -146,8 +157,10 @@ function App() {
         <BettingScreen />
         <GameHUD />
         <ProfileButton />
+        <StatsButton />
         <LeaderboardButton />
         <TokenConfigButton />
+        <SoundControls />
       </div>
     </QueryClientProvider>
   );
