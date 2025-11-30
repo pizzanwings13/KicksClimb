@@ -526,12 +526,25 @@ export async function registerRoutes(
       
       let txHash: string | null = null;
       
-      const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
-      if (housePrivateKey && kicksTokenAddress) {
+      const houseWalletKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+      if (houseWalletKey && kicksTokenAddress) {
         try {
           const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
           const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
-          const houseWallet = new ethers.Wallet(housePrivateKey, provider);
+          
+          const cleanKey = houseWalletKey.trim();
+          let houseWallet;
+          
+          if (cleanKey.split(' ').length >= 12) {
+            const mnemonic = cleanKey.startsWith('0x') ? cleanKey.slice(2) : cleanKey;
+            const hdWallet = ethers.Wallet.fromPhrase(mnemonic);
+            houseWallet = new ethers.Wallet(hdWallet.privateKey, provider);
+          } else {
+            const privateKey = cleanKey.startsWith('0x') ? cleanKey : `0x${cleanKey}`;
+            houseWallet = new ethers.Wallet(privateKey, provider);
+          }
+          
+          console.log(`House wallet address: ${houseWallet.address}`);
           
           const erc20Abi = [
             "function transfer(address to, uint256 amount) returns (bool)",
