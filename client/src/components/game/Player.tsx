@@ -168,24 +168,43 @@ function WalkingLegs({ isWalking, bodyColor }: { isWalking: boolean; bodyColor: 
   );
 }
 
+const START_POSITION = getPositionFromStep(0);
+
 export function Player() {
   const meshRef = useRef<THREE.Group>(null);
   const { currentPosition, phase, isMoving, lastStepType, isOnFire, streak, wasReset, user } = useGameState();
-  const [targetPosition, setTargetPosition] = useState<[number, number, number]>([0, 0.6, -5 * STEP_SIZE]);
+  const [targetPosition, setTargetPosition] = useState<[number, number, number]>(START_POSITION);
   const [isWalking, setIsWalking] = useState(false);
   const walkProgress = useRef(0);
-  const [previousPosition, setPreviousPosition] = useState<[number, number, number]>([0, 0.6, -5 * STEP_SIZE]);
-  const lastPosition = useRef(0);
+  const [previousPosition, setPreviousPosition] = useState<[number, number, number]>(START_POSITION);
+  const lastPosition = useRef(-1);
+  const initializedRef = useRef(false);
+  
+  useEffect(() => {
+    if (!initializedRef.current && meshRef.current) {
+      meshRef.current.position.set(...START_POSITION);
+      meshRef.current.rotation.y = 0;
+      initializedRef.current = true;
+    }
+  }, []);
   
   useEffect(() => {
     if (phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out") {
       const newPos = getPositionFromStep(currentPosition);
       
       if (currentPosition !== lastPosition.current) {
-        setPreviousPosition(targetPosition);
-        setTargetPosition(newPos);
-        setIsWalking(true);
-        walkProgress.current = 0;
+        if (lastPosition.current === -1) {
+          setPreviousPosition(newPos);
+          setTargetPosition(newPos);
+          if (meshRef.current) {
+            meshRef.current.position.set(...newPos);
+          }
+        } else {
+          setPreviousPosition(targetPosition);
+          setTargetPosition(newPos);
+          setIsWalking(true);
+          walkProgress.current = 0;
+        }
         lastPosition.current = currentPosition;
       }
     }
@@ -269,7 +288,7 @@ export function Player() {
   const avatarUrl = user?.avatarUrl || null;
   
   return (
-    <group ref={meshRef} position={[0, 0.6, -5 * STEP_SIZE]}>
+    <group ref={meshRef} position={START_POSITION}>
       <mesh castShadow>
         <capsuleGeometry args={[0.2, 0.4, 8, 16]} />
         <meshStandardMaterial 
