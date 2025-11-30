@@ -134,7 +134,7 @@ export function BettingScreen() {
         </button>
 
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">Place Your Bet</h2>
+          <h2 className="text-3xl font-bold text-white mb-2">Place Your Wager</h2>
           <p className="text-gray-400">How many KICKS will you risk?</p>
         </div>
 
@@ -213,7 +213,7 @@ export function BettingScreen() {
             className="w-full py-6 text-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 disabled:shadow-none"
           >
             <Zap className="mr-2 h-5 w-5" />
-            {isPlacingBet ? "Starting Game..." : `Bet ${betValue.toLocaleString()} KICKS`}
+            {isPlacingBet ? "Starting Game..." : `Wager ${betValue.toLocaleString()} KICKS`}
           </Button>
         </div>
 

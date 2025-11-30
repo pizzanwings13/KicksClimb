@@ -35,7 +35,7 @@ export function MenuScreen() {
           <ul className="text-gray-300 text-sm text-left space-y-2">
             <li className="flex items-start gap-2">
               <span className="text-green-400">1.</span>
-              <span>Connect your ApeChain wallet and bet KICKS tokens</span>
+              <span>Connect your ApeChain wallet and wager KICKS tokens</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-green-400">2.</span>
@@ -47,11 +47,11 @@ export function MenuScreen() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-red-400">4.</span>
-              <span>Avoid hazards or lose your bet!</span>
+              <span>Avoid hazards or lose what you wager!</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-yellow-400">5.</span>
-              <span>Cash out anytime or reach step 100 for 20x!</span>
+              <span>Claim any time or reach step 100 for 20x!</span>
             </li>
           </ul>
         </div>
