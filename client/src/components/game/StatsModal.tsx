@@ -277,7 +277,7 @@ export function StatsButton() {
   const { isConnected } = useWallet();
   const { phase } = useGameState();
 
-  const showButton = isConnected && (phase === "menu" || phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out");
+  const showButton = isConnected && (phase === "menu" || phase === "betting");
 
   if (!showButton) return null;
 

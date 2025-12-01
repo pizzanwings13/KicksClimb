@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
+import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
 import { 
   X, Trophy, Medal, Award, Target, Flame, Crown, 
@@ -288,10 +289,12 @@ export function AchievementsModal({ isOpen, onClose }: AchievementsModalProps) {
 
 export function AchievementsButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const { walletAddress } = useWallet();
-  const { isConnected } = useWallet();
+  const { walletAddress, isConnected } = useWallet();
+  const { phase } = useGameState();
 
-  if (!isConnected || !walletAddress) return null;
+  const showButton = isConnected && walletAddress && (phase === "menu" || phase === "betting");
+
+  if (!showButton) return null;
 
   return (
     <>
