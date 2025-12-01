@@ -229,7 +229,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ 
+        width: '100vw', 
+        height: '100dvh', 
+        position: 'relative', 
+        overflow: 'hidden',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      }}>
         <WalletInitializer />
         <SoundManager />
         <SoundEffectsManager />
@@ -239,8 +245,8 @@ function App() {
           <Canvas
             shadows
             camera={{
-              position: isMobile ? [0, 25, 25] : [0, 12, 15],
-              fov: isMobile ? 70 : 50,
+              position: isMobile ? [0, 35, 30] : [0, 12, 15],
+              fov: isMobile ? 65 : 50,
               near: 0.1,
               far: 1000
             }}
@@ -253,7 +259,7 @@ function App() {
             }}
           >
             <color attach="background" args={["#0f0f23"]} />
-            <fog attach="fog" args={["#0f0f23", 30, 60]} />
+            <fog attach="fog" args={["#0f0f23", 40, 80]} />
             <GameScene />
           </Canvas>
         )}

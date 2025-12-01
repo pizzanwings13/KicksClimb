@@ -189,42 +189,6 @@ export function GameHUD() {
               style={{ width: `${currentPosition}%` }}
             />
           </div>
-          
-          {(collectedPowerUps.length > 0 || activePowerUps.length > 0) && (
-            <div className="mt-2 pt-2 border-t border-purple-500/30">
-              <div className="flex gap-1.5 flex-wrap">
-                {collectedPowerUps.map((powerup, idx) => {
-                  const config = powerUpIcons[powerup];
-                  if (!config) return null;
-                  const Icon = config.icon;
-                  return (
-                    <button
-                      key={`${powerup}-${idx}`}
-                      onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
-                      className={`p-1.5 rounded-lg bg-black/50 border border-current/30 ${config.color} hover:bg-black/80 transition-colors`}
-                      title={`Use ${config.label}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  );
-                })}
-                {activePowerUps.filter(p => p.active).map((powerup, idx) => {
-                  const config = powerUpIcons[powerup.type];
-                  if (!config) return null;
-                  const Icon = config.icon;
-                  return (
-                    <div
-                      key={`active-${powerup.type}-${idx}`}
-                      className={`p-1.5 rounded-lg bg-current/20 border border-current ${config.color} animate-pulse`}
-                      title={`${config.label} - ACTIVE`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
@@ -263,15 +227,51 @@ export function GameHUD() {
         </div>
       </div>
 
+      {(collectedPowerUps.length > 0 || activePowerUps.filter(p => p.active).length > 0) && (
+        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-auto">
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-purple-500/30 flex gap-2">
+            {collectedPowerUps.map((powerup, idx) => {
+              const config = powerUpIcons[powerup];
+              if (!config) return null;
+              const Icon = config.icon;
+              return (
+                <button
+                  key={`${powerup}-${idx}`}
+                  onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
+                  className={`p-2 sm:p-2.5 rounded-lg bg-black/50 border-2 border-current/50 ${config.color} hover:bg-black/80 hover:scale-110 transition-all active:scale-95`}
+                  title={`Use ${config.label}`}
+                >
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              );
+            })}
+            {activePowerUps.filter(p => p.active).map((powerup, idx) => {
+              const config = powerUpIcons[powerup.type];
+              if (!config) return null;
+              const Icon = config.icon;
+              return (
+                <div
+                  key={`active-${powerup.type}-${idx}`}
+                  className={`p-2 sm:p-2.5 rounded-lg bg-current/20 border-2 border-current ${config.color} animate-pulse`}
+                  title={`${config.label} - ACTIVE`}
+                >
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {stepLabel && (
-        <div className="absolute top-20 sm:top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className={`${stepLabel.bg} ${stepLabel.color} px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-lg sm:text-2xl font-bold animate-bounce border border-current/30`}>
+        <div className="absolute top-28 sm:top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className={`${stepLabel.bg} ${stepLabel.color} px-3 sm:px-6 py-1.5 sm:py-3 rounded-xl text-base sm:text-2xl font-bold animate-bounce border border-current/30`}>
             {stepLabel.text}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 pointer-events-auto">
+      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 pointer-events-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto">
           {isGameActive && (
             <div className="bg-black/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-purple-500/30">
