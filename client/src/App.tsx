@@ -202,7 +202,17 @@ function AchievementsManager() {
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const { phase } = useGameState();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -229,14 +239,14 @@ function App() {
           <Canvas
             shadows
             camera={{
-              position: [0, 12, 15],
-              fov: 50,
+              position: isMobile ? [0, 18, 20] : [0, 12, 15],
+              fov: isMobile ? 60 : 50,
               near: 0.1,
               far: 1000
             }}
             gl={{
-              antialias: true,
-              powerPreference: "default"
+              antialias: !isMobile,
+              powerPreference: isMobile ? "low-power" : "default"
             }}
             style={{
               background: 'linear-gradient(to bottom, #1a1a2e, #16213e, #0f0f23)'

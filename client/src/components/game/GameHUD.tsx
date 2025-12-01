@@ -177,23 +177,22 @@ export function GameHUD() {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
-      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-auto">
-        <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
-          <div className="text-sm text-gray-400 mb-1">Current Position</div>
-          <div className="text-3xl font-bold text-white">
-            Step {currentPosition} <span className="text-gray-500">/ 100</span>
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-start pointer-events-auto gap-2">
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-purple-500/30 flex-shrink-0">
+          <div className="text-xs sm:text-sm text-gray-400">Current Position</div>
+          <div className="text-lg sm:text-2xl font-bold text-white">
+            Step {currentPosition} <span className="text-gray-500 text-sm sm:text-lg">/ 100</span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+          <div className="w-20 sm:w-full bg-gray-700 rounded-full h-1.5 sm:h-2 mt-1">
             <div
-              className="bg-gradient-to-r from-green-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-green-500 to-emerald-400 h-1.5 sm:h-2 rounded-full transition-all duration-500"
               style={{ width: `${currentPosition}%` }}
             />
           </div>
           
           {(collectedPowerUps.length > 0 || activePowerUps.length > 0) && (
-            <div className="mt-3 pt-3 border-t border-purple-500/30">
-              <div className="text-xs text-gray-400 mb-2">Power-ups</div>
-              <div className="flex gap-2 flex-wrap">
+            <div className="mt-2 pt-2 border-t border-purple-500/30">
+              <div className="flex gap-1.5 flex-wrap">
                 {collectedPowerUps.map((powerup, idx) => {
                   const config = powerUpIcons[powerup];
                   if (!config) return null;
@@ -202,10 +201,10 @@ export function GameHUD() {
                     <button
                       key={`${powerup}-${idx}`}
                       onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
-                      className={`p-2 rounded-lg bg-black/50 border border-current/30 ${config.color} hover:bg-black/80 transition-colors`}
+                      className={`p-1.5 rounded-lg bg-black/50 border border-current/30 ${config.color} hover:bg-black/80 transition-colors`}
                       title={`Use ${config.label}`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4" />
                     </button>
                   );
                 })}
@@ -216,10 +215,10 @@ export function GameHUD() {
                   return (
                     <div
                       key={`active-${powerup.type}-${idx}`}
-                      className={`p-2 rounded-lg bg-current/20 border border-current ${config.color} animate-pulse`}
+                      className={`p-1.5 rounded-lg bg-current/20 border border-current ${config.color} animate-pulse`}
                       title={`${config.label} - ACTIVE`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4" />
                     </div>
                   );
                 })}
@@ -228,36 +227,35 @@ export function GameHUD() {
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2 flex-shrink-0">
           {isOnFire && (
-            <div className="bg-gradient-to-r from-orange-600/80 to-red-600/80 backdrop-blur-sm rounded-xl p-4 border border-orange-400/50 animate-pulse">
-              <div className="flex items-center gap-2">
-                <Flame className="w-8 h-8 text-orange-300 animate-bounce" />
+            <div className="bg-gradient-to-r from-orange-600/80 to-red-600/80 backdrop-blur-sm rounded-lg p-2 border border-orange-400/50 animate-pulse">
+              <div className="flex items-center gap-1">
+                <Flame className="w-5 h-5 text-orange-300 animate-bounce" />
                 <div>
-                  <div className="text-sm text-orange-200">ON FIRE!</div>
-                  <div className="text-2xl font-bold text-white">{streak} streak</div>
+                  <div className="text-xs text-orange-200">ON FIRE!</div>
+                  <div className="text-sm font-bold text-white">{streak}x</div>
                 </div>
               </div>
             </div>
           )}
           
           {wasReset && !isOnFire && (
-            <div className="bg-purple-900/80 backdrop-blur-sm rounded-xl p-4 border border-purple-400/50 animate-pulse">
-              <div className="text-sm text-purple-200">RESET!</div>
-              <div className="text-lg font-bold text-white">Back to start</div>
+            <div className="bg-purple-900/80 backdrop-blur-sm rounded-lg p-2 border border-purple-400/50 animate-pulse">
+              <div className="text-xs text-purple-200">RESET!</div>
             </div>
           )}
           
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30 text-right">
-            <div className="text-sm text-gray-400 mb-1">Current Multiplier</div>
-            <div className="text-3xl font-bold text-yellow-400">
+          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-yellow-500/30 text-right">
+            <div className="text-xs sm:text-sm text-gray-400">Multiplier</div>
+            <div className="text-xl sm:text-2xl font-bold text-yellow-400">
               {currentMultiplier.toFixed(2)}x
             </div>
-            <div className="text-sm text-gray-400 mt-1">
+            <div className="text-xs sm:text-sm text-gray-400">
               Bet: {parseFloat(betAmount).toLocaleString()} KICKS
             </div>
             {streak > 0 && !isOnFire && (
-              <div className="text-sm text-orange-400 mt-1">
+              <div className="text-xs text-orange-400">
                 Streak: {streak}
               </div>
             )}
@@ -266,90 +264,92 @@ export function GameHUD() {
       </div>
 
       {stepLabel && (
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className={`${stepLabel.bg} ${stepLabel.color} px-6 py-3 rounded-xl text-2xl font-bold animate-bounce border border-current/30`}>
+        <div className="absolute top-20 sm:top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className={`${stepLabel.bg} ${stepLabel.color} px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-lg sm:text-2xl font-bold animate-bounce border border-current/30`}>
             {stepLabel.text}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 right-4 pointer-events-auto">
+      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 pointer-events-auto">
         <div className="max-w-lg mx-auto">
           {isGameActive && (
-            <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-black/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-purple-500/30">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div>
-                  <div className="text-sm text-gray-400">Potential Payout</div>
-                  <div className="text-2xl font-bold text-green-400">
+                  <div className="text-xs sm:text-sm text-gray-400">Potential Payout</div>
+                  <div className="text-lg sm:text-2xl font-bold text-green-400">
                     {parseFloat(potentialPayout).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                   </div>
                 </div>
-                <div className="flex items-center justify-center w-16 h-16 bg-white rounded-xl shadow-lg">
-                  <DiceIcon className={`w-12 h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />
+                <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-xl shadow-lg">
+                  <DiceIcon className={`w-8 h-8 sm:w-12 sm:h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <Button
                   onClick={handleRollDice}
                   disabled={isMoving || isRolling}
-                  className="py-6 text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
+                  className="py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
                 >
                   {isRolling ? "Rolling..." : isMoving ? "Moving..." : "Roll Dice"}
                 </Button>
                 <Button
                   onClick={handleCashOut}
                   disabled={isMoving || isRolling || isCashingOut || currentMultiplier <= 1}
-                  className="py-6 text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
+                  className="py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
                 >
-                  <HandCoins className="mr-2 h-5 w-5" />
-                  {isCashingOut ? "Cashing Out..." : "Cash Out"}
+                  <HandCoins className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  {isCashingOut ? "Cashing..." : "Cash Out"}
                 </Button>
               </div>
 
               {currentPosition >= 75 && (
-                <div className="mt-4 flex items-center gap-2 text-yellow-400 text-sm bg-yellow-500/10 p-2 rounded-lg">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Expert zone! 50% hazard chance. Consider cashing out!</span>
+                <div className="mt-2 sm:mt-4 flex items-center gap-2 text-yellow-400 text-xs sm:text-sm bg-yellow-500/10 p-2 rounded-lg">
+                  <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Expert zone! 50% hazard chance.</span>
                 </div>
               )}
             </div>
           )}
 
           {isGameOver && (
-            <div className={`bg-black/80 backdrop-blur-sm rounded-2xl p-6 border ${
+            <div className={`bg-black/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border ${
               phase === "lost" ? "border-red-500/50" : "border-green-500/50"
             }`}>
-              <div className="text-center mb-6">
+              <div className="text-center mb-4 sm:mb-6">
                 {phase === "lost" ? (
                   <>
-                    <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold text-red-400 mb-2">Game Over!</h2>
-                    <p className="text-gray-400">You hit a hazard at step {currentPosition}</p>
-                    <p className="text-xl text-red-400 mt-2">
+                    <AlertTriangle className="w-10 h-10 sm:w-16 sm:h-16 text-red-500 mx-auto mb-2 sm:mb-4" />
+                    <h2 className="text-xl sm:text-3xl font-bold text-red-400 mb-1 sm:mb-2">Game Over!</h2>
+                    <p className="text-sm sm:text-base text-gray-400">Hazard at step {currentPosition}</p>
+                    <p className="text-lg sm:text-xl text-red-400 mt-1 sm:mt-2">
                       Lost {parseFloat(betAmount).toLocaleString()} KICKS
                     </p>
                   </>
                 ) : (
                   <>
-                    <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold text-green-400 mb-2">
+                    <Trophy className="w-10 h-10 sm:w-16 sm:h-16 text-yellow-400 mx-auto mb-2 sm:mb-4" />
+                    <h2 className="text-xl sm:text-3xl font-bold text-green-400 mb-1 sm:mb-2">
                       {phase === "won" ? "Victory!" : "Cashed Out!"}
                     </h2>
-                    <p className="text-gray-400">
+                    <p className="text-sm sm:text-base text-gray-400">
                       {phase === "won" 
-                        ? `You reached step ${currentPosition}!`
-                        : `Smart move at step ${currentPosition}`
+                        ? `Reached step ${currentPosition}!`
+                        : `Step ${currentPosition}`
                       }
                     </p>
-                    <div className="mt-4">
-                      <div className="text-sm text-gray-400">Final Multiplier</div>
-                      <div className="text-2xl font-bold text-yellow-400">{currentMultiplier.toFixed(2)}x</div>
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-sm text-gray-400">Winnings</div>
-                      <div className="text-3xl font-bold text-green-400">
-                        +{parseFloat(currentGame?.payout || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
+                    <div className="mt-2 sm:mt-4 flex justify-center gap-6">
+                      <div>
+                        <div className="text-xs sm:text-sm text-gray-400">Multiplier</div>
+                        <div className="text-lg sm:text-2xl font-bold text-yellow-400">{currentMultiplier.toFixed(2)}x</div>
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm text-gray-400">Winnings</div>
+                        <div className="text-lg sm:text-2xl font-bold text-green-400">
+                          +{parseFloat(currentGame?.payout || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
+                        </div>
                       </div>
                     </div>
                   </>
@@ -357,42 +357,42 @@ export function GameHUD() {
               </div>
 
               {phase !== "lost" && isTokenConfigured && !hasClaimed && (
-                <div className="mb-4">
+                <div className="mb-3 sm:mb-4">
                   {transactionState.status !== "idle" && transactionState.status !== "success" && (
-                    <div className={`flex items-center gap-2 mb-3 p-3 rounded-lg ${
+                    <div className={`flex items-center gap-2 mb-2 sm:mb-3 p-2 sm:p-3 rounded-lg ${
                       transactionState.status === "error" 
                         ? "bg-red-900/20 text-red-400 border border-red-500/30" 
                         : "bg-blue-900/20 text-blue-400 border border-blue-500/30"
                     }`}>
                       {transactionState.status === "error" ? (
-                        <AlertTriangle className="w-5 h-5" />
+                        <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                       ) : (
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin flex-shrink-0" />
                       )}
-                      <span className="text-sm">{transactionState.message}</span>
+                      <span className="text-xs sm:text-sm">{transactionState.message}</span>
                     </div>
                   )}
                   
                   {claimError && transactionState.status !== "error" && (
-                    <div className="flex items-center gap-2 mb-3 p-3 bg-red-900/20 text-red-400 border border-red-500/30 rounded-lg">
-                      <AlertTriangle className="w-5 h-5" />
-                      <span className="text-sm">{claimError}</span>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3 p-2 sm:p-3 bg-red-900/20 text-red-400 border border-red-500/30 rounded-lg">
+                      <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm">{claimError}</span>
                     </div>
                   )}
                   
                   <Button
                     onClick={handleClaimWinnings}
                     disabled={isClaiming}
-                    className="w-full py-6 text-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl mb-3"
+                    className="w-full py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl mb-2 sm:mb-3"
                   >
                     {isClaiming ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                         Claiming...
                       </>
                     ) : (
                       <>
-                        <Wallet className="mr-2 h-5 w-5" />
+                        <Wallet className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                         Claim {parseFloat(currentGame?.payout || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                       </>
                     )}
@@ -401,17 +401,17 @@ export function GameHUD() {
               )}
 
               {phase !== "lost" && isTokenConfigured && hasClaimed && (
-                <div className="flex items-center gap-2 mb-4 p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-lg">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="text-sm">Claim submitted! KICKS will be sent to your wallet.</span>
+                <div className="flex items-center gap-2 mb-3 sm:mb-4 p-2 sm:p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-lg">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm">KICKS will be sent to your wallet.</span>
                 </div>
               )}
 
               <Button
                 onClick={handlePlayAgain}
-                className="w-full py-6 text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl"
+                className="w-full py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl"
               >
-                <RotateCcw className="mr-2 h-5 w-5" />
+                <RotateCcw className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                 Play Again
               </Button>
             </div>
