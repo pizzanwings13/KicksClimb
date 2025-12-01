@@ -178,17 +178,52 @@ export function GameHUD() {
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-start pointer-events-auto gap-2">
-        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-purple-500/30 flex-shrink-0">
-          <div className="text-xs sm:text-sm text-gray-400">Current Position</div>
-          <div className="text-lg sm:text-2xl font-bold text-white">
-            Step {currentPosition} <span className="text-gray-500 text-sm sm:text-lg">/ 100</span>
+        <div className="flex-shrink-0">
+          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-purple-500/30">
+            <div className="text-xs sm:text-sm text-gray-400">Current Position</div>
+            <div className="text-lg sm:text-2xl font-bold text-white">
+              Step {currentPosition} <span className="text-gray-500 text-sm sm:text-lg">/ 100</span>
+            </div>
+            <div className="w-20 sm:w-full bg-gray-700 rounded-full h-1.5 sm:h-2 mt-1">
+              <div
+                className="bg-gradient-to-r from-green-500 to-emerald-400 h-1.5 sm:h-2 rounded-full transition-all duration-500"
+                style={{ width: `${currentPosition}%` }}
+              />
+            </div>
           </div>
-          <div className="w-20 sm:w-full bg-gray-700 rounded-full h-1.5 sm:h-2 mt-1">
-            <div
-              className="bg-gradient-to-r from-green-500 to-emerald-400 h-1.5 sm:h-2 rounded-full transition-all duration-500"
-              style={{ width: `${currentPosition}%` }}
-            />
-          </div>
+          {(collectedPowerUps.length > 0 || activePowerUps.filter(p => p.active).length > 0) && (
+            <div className="bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-purple-500/30 mt-1 flex gap-1.5">
+              {collectedPowerUps.map((powerup, idx) => {
+                const config = powerUpIcons[powerup];
+                if (!config) return null;
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={`${powerup}-${idx}`}
+                    onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
+                    className={`p-1.5 rounded-lg bg-black/50 border border-current/50 ${config.color} hover:bg-black/80 active:scale-95 transition-all`}
+                    title={`Use ${config.label}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                );
+              })}
+              {activePowerUps.filter(p => p.active).map((powerup, idx) => {
+                const config = powerUpIcons[powerup.type];
+                if (!config) return null;
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={`active-${powerup.type}-${idx}`}
+                    className={`p-1.5 rounded-lg bg-current/20 border border-current ${config.color} animate-pulse`}
+                    title={`${config.label} - ACTIVE`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
@@ -227,44 +262,9 @@ export function GameHUD() {
         </div>
       </div>
 
-      {(collectedPowerUps.length > 0 || activePowerUps.filter(p => p.active).length > 0) && (
-        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-auto">
-          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-purple-500/30 flex gap-2">
-            {collectedPowerUps.map((powerup, idx) => {
-              const config = powerUpIcons[powerup];
-              if (!config) return null;
-              const Icon = config.icon;
-              return (
-                <button
-                  key={`${powerup}-${idx}`}
-                  onClick={() => usePowerUp(powerup as "shield" | "double" | "skip")}
-                  className={`p-2 sm:p-2.5 rounded-lg bg-black/50 border-2 border-current/50 ${config.color} hover:bg-black/80 hover:scale-110 transition-all active:scale-95`}
-                  title={`Use ${config.label}`}
-                >
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              );
-            })}
-            {activePowerUps.filter(p => p.active).map((powerup, idx) => {
-              const config = powerUpIcons[powerup.type];
-              if (!config) return null;
-              const Icon = config.icon;
-              return (
-                <div
-                  key={`active-${powerup.type}-${idx}`}
-                  className={`p-2 sm:p-2.5 rounded-lg bg-current/20 border-2 border-current ${config.color} animate-pulse`}
-                  title={`${config.label} - ACTIVE`}
-                >
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {stepLabel && (
-        <div className="absolute top-28 sm:top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="absolute top-20 sm:top-1/4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className={`${stepLabel.bg} ${stepLabel.color} px-3 sm:px-6 py-1.5 sm:py-3 rounded-xl text-base sm:text-2xl font-bold animate-bounce border border-current/30`}>
             {stepLabel.text}
           </div>

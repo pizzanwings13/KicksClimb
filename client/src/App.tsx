@@ -245,8 +245,8 @@ function App() {
           <Canvas
             shadows
             camera={{
-              position: isMobile ? [0, 35, 30] : [0, 12, 15],
-              fov: isMobile ? 65 : 50,
+              position: isMobile ? [0, 55, 40] : [0, 12, 15],
+              fov: isMobile ? 75 : 50,
               near: 0.1,
               far: 1000
             }}
@@ -259,7 +259,7 @@ function App() {
             }}
           >
             <color attach="background" args={["#0f0f23"]} />
-            <fog attach="fog" args={["#0f0f23", 40, 80]} />
+            <fog attach="fog" args={["#0f0f23", 60, 120]} />
             <GameScene />
           </Canvas>
         )}
