@@ -32,6 +32,7 @@ export function GameHUD() {
     streak,
     isOnFire,
     wasReset,
+    bonusChestReward,
   } = useGameState();
   const { 
     kicksBalance, 
@@ -167,6 +168,13 @@ export function GameHUD() {
       case "powerup_skip":
         return { text: "SKIP COLLECTED!", color: "text-green-400", bg: "bg-green-500/20" };
       case "bonus_chest":
+        if (bonusChestReward) {
+          if (bonusChestReward.type === "kicks") {
+            return { text: `BONUS CHEST! +${bonusChestReward.multiplierBonus}x & +${bonusChestReward.amount} KICKS!`, color: "text-orange-400", bg: "bg-orange-500/20" };
+          } else {
+            return { text: `BONUS CHEST! ${bonusChestReward.multiplierBonus}x MULTIPLIER!`, color: "text-orange-400", bg: "bg-orange-500/20" };
+          }
+        }
         return { text: "BONUS CHEST!", color: "text-orange-400", bg: "bg-orange-500/20" };
       default:
         return null;

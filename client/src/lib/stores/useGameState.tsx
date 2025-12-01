@@ -17,6 +17,12 @@ export interface PowerUp {
   active: boolean;
 }
 
+export interface BonusChestReward {
+  type: "kicks" | "multiplier";
+  amount?: number;
+  multiplierBonus: number;
+}
+
 export interface User {
   id: number;
   walletAddress: string;
@@ -68,6 +74,7 @@ interface GameState {
   streak: number;
   isOnFire: boolean;
   wasReset: boolean;
+  bonusChestReward: BonusChestReward | null;
   
   setPhase: (phase: GamePhase) => void;
   setUser: (user: User | null) => void;
@@ -103,6 +110,7 @@ export const useGameState = create<GameState>()(
     streak: 0,
     isOnFire: false,
     wasReset: false,
+    bonusChestReward: null,
 
     setPhase: (phase) => set({ phase }),
     setUser: (user) => set({ user }),
@@ -165,6 +173,7 @@ export const useGameState = create<GameState>()(
           streak: 0,
           isOnFire: false,
           wasReset: false,
+          bonusChestReward: null,
         });
         
         return true;
@@ -229,6 +238,8 @@ export const useGameState = create<GameState>()(
         
         const isOnFire = newStreak >= 3;
         
+        const bonusChestReward = data.bonusChestReward || null;
+        
         set({
           currentGame: data.game,
           currentPosition: newPosition,
@@ -241,6 +252,7 @@ export const useGameState = create<GameState>()(
           streak: newStreak,
           isOnFire,
           wasReset,
+          bonusChestReward,
         });
         
         if (data.game.gameStatus === "lost") {
@@ -344,6 +356,7 @@ export const useGameState = create<GameState>()(
         streak: 0,
         isOnFire: false,
         wasReset: false,
+        bonusChestReward: null,
       });
     },
   }))

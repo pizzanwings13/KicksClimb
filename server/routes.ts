@@ -364,6 +364,57 @@ export async function registerRoutes(
             resetToStart: true,
           });
         }
+      } else if (landedStep.type === "bonus_chest") {
+        const bonusMultiplier = landedStep.multiplier || 2;
+        finalMultiplier = finalMultiplier * bonusMultiplier;
+        finalMultiplier = Math.min(finalMultiplier, 20);
+        
+        const givesBonusKicks = Math.random() < 0.3;
+        if (givesBonusKicks) {
+          const updatedGame = await storage.updateGame(game.id, {
+            finalPosition: newPosition,
+            gameStatus,
+            finalMultiplier: finalMultiplier.toString(),
+            payout,
+          });
+          
+          return res.json({
+            game: updatedGame,
+            landedStep,
+            currentMultiplier: finalMultiplier,
+            potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+            shieldUsed,
+            skipUsed,
+            skippedPosition,
+            bonusChestReward: {
+              type: "kicks",
+              amount: 5,
+              multiplierBonus: bonusMultiplier,
+            },
+          });
+        }
+        
+        const updatedGame = await storage.updateGame(game.id, {
+          finalPosition: newPosition,
+          gameStatus,
+          finalMultiplier: finalMultiplier.toString(),
+          payout,
+        });
+        
+        return res.json({
+          game: updatedGame,
+          landedStep,
+          currentMultiplier: finalMultiplier,
+          potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+          shieldUsed,
+          skipUsed,
+          skippedPosition,
+          bonusChestReward: {
+            type: "multiplier",
+            amount: 0,
+            multiplierBonus: bonusMultiplier,
+          },
+        });
       } else if (landedStep.multiplier) {
         finalMultiplier = Math.max(finalMultiplier, landedStep.multiplier);
         finalMultiplier = Math.min(finalMultiplier, 11);
