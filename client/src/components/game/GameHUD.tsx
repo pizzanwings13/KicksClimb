@@ -282,33 +282,33 @@ export function GameHUD() {
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 pointer-events-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto">
           {isGameActive && (
-            <div className="bg-black/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-purple-500/30">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-2xl p-2 sm:p-6 border border-purple-500/30">
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
                 <div>
-                  <div className="text-xs sm:text-sm text-gray-400">Potential Payout</div>
-                  <div className="text-lg sm:text-2xl font-bold text-green-400">
+                  <div className="text-[10px] sm:text-sm text-gray-400">Potential Payout</div>
+                  <div className="text-base sm:text-2xl font-bold text-green-400">
                     {parseFloat(potentialPayout).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                   </div>
                 </div>
-                <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-xl shadow-lg">
-                  <DiceIcon className={`w-8 h-8 sm:w-12 sm:h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />
+                <div className="flex items-center justify-center w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-lg sm:rounded-xl shadow-lg">
+                  <DiceIcon className={`w-6 h-6 sm:w-12 sm:h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
                 <Button
                   onClick={handleRollDice}
                   disabled={isMoving || isRolling}
-                  className="py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
+                  className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
                 >
                   {isRolling ? "Rolling..." : isMoving ? "Moving..." : "Roll Dice"}
                 </Button>
                 <Button
                   onClick={handleCashOut}
                   disabled={isMoving || isRolling || isCashingOut || currentMultiplier <= 1}
-                  className="py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl"
+                  className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
                 >
-                  <HandCoins className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  <HandCoins className="mr-1 sm:mr-2 h-3 w-3 sm:h-5 sm:w-5" />
                   {isCashingOut ? "Cashing..." : "Cash Out"}
                 </Button>
               </div>

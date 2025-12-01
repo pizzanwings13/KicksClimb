@@ -23,7 +23,7 @@ export function GameCamera() {
     const isGameActive = phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out";
     
     if (isMobile && isGameActive) {
-      targetRef.current.set(0, 18, 12);
+      targetRef.current.set(0, 15, 10);
       lookAtRef.current.set(0, 0, BOARD_CENTER_Z);
     } else if (isGameActive) {
       const row = Math.floor(currentPosition / BOARD_COLS);
