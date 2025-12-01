@@ -186,15 +186,15 @@ export function GameHUD() {
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-start pointer-events-auto gap-2">
-        <div className="flex-shrink-0">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-purple-500/30">
-            <div className="text-xs sm:text-sm text-gray-400">Current Position</div>
-            <div className="text-lg sm:text-2xl font-bold text-white">
-              Step {currentPosition} <span className="text-gray-500 text-sm sm:text-lg">/ 100</span>
+        <div className="flex-shrink-0 w-[120px] sm:w-auto">
+          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-purple-500/30">
+            <div className="text-[10px] sm:text-sm text-gray-400">Current Position</div>
+            <div className="text-sm sm:text-2xl font-bold text-white whitespace-nowrap">
+              Step {currentPosition} <span className="text-gray-500 text-xs sm:text-lg">/ 100</span>
             </div>
-            <div className="w-20 sm:w-full bg-gray-700 rounded-full h-1.5 sm:h-2 mt-1">
+            <div className="w-full bg-gray-700 rounded-full h-1 sm:h-2 mt-1">
               <div
-                className="bg-gradient-to-r from-green-500 to-emerald-400 h-1.5 sm:h-2 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-green-500 to-emerald-400 h-1 sm:h-2 rounded-full transition-all duration-500"
                 style={{ width: `${currentPosition}%` }}
               />
             </div>
@@ -234,35 +234,35 @@ export function GameHUD() {
           )}
         </div>
 
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-1 sm:gap-2 flex-shrink-0">
           {isOnFire && (
-            <div className="bg-gradient-to-r from-orange-600/80 to-red-600/80 backdrop-blur-sm rounded-lg p-2 border border-orange-400/50 animate-pulse">
+            <div className="bg-gradient-to-r from-orange-600/80 to-red-600/80 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-orange-400/50 animate-pulse">
               <div className="flex items-center gap-1">
-                <Flame className="w-5 h-5 text-orange-300 animate-bounce" />
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-300 animate-bounce" />
                 <div>
-                  <div className="text-xs text-orange-200">ON FIRE!</div>
-                  <div className="text-sm font-bold text-white">{streak}x</div>
+                  <div className="text-[10px] sm:text-xs text-orange-200">ON FIRE!</div>
+                  <div className="text-xs sm:text-sm font-bold text-white">{streak}x</div>
                 </div>
               </div>
             </div>
           )}
           
           {wasReset && !isOnFire && (
-            <div className="bg-purple-900/80 backdrop-blur-sm rounded-lg p-2 border border-purple-400/50 animate-pulse">
-              <div className="text-xs text-purple-200">RESET!</div>
+            <div className="bg-purple-900/80 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-purple-400/50 animate-pulse">
+              <div className="text-[10px] sm:text-xs text-purple-200">RESET!</div>
             </div>
           )}
           
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-yellow-500/30 text-right">
-            <div className="text-xs sm:text-sm text-gray-400">Multiplier</div>
-            <div className="text-xl sm:text-2xl font-bold text-yellow-400">
+          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-yellow-500/30 text-right w-[90px] sm:w-auto">
+            <div className="text-[10px] sm:text-sm text-gray-400">Multiplier</div>
+            <div className="text-base sm:text-2xl font-bold text-yellow-400">
               {currentMultiplier.toFixed(2)}x
             </div>
-            <div className="text-xs sm:text-sm text-gray-400">
+            <div className="text-[10px] sm:text-sm text-gray-400 whitespace-nowrap">
               Bet: {parseFloat(betAmount).toLocaleString()} KICKS
             </div>
             {streak > 0 && !isOnFire && (
-              <div className="text-xs text-orange-400">
+              <div className="text-[10px] sm:text-xs text-orange-400">
                 Streak: {streak}
               </div>
             )}
