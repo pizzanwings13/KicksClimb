@@ -38,12 +38,22 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
 
-## Multiplier Types (progressive by zone)
-- **Steps 1-25 (Easy)**: 1x, 1.5x, 2x, 2.5x
-- **Steps 26-50 (Medium)**: 1.5x, 2x, 2.5x, 3x
-- **Steps 51-75 (Hard)**: 2x, 2.5x, 3x, 5x, 8x
-- **Steps 76-99 (Expert)**: 3x, 5x, 8x, 10x, 11x
-- **Step 100 (Finish)**: 20x (guaranteed)
+## Multiplier System (Replacement-Based)
+When landing on a multiplier tile, your current multiplier is **replaced** (not stacked):
+- Example: 3x → land on 4x → becomes 4x
+- Example: 7x → land on 2x → becomes 2x
+
+### Multiplier Types by Zone
+- **Steps 1-25 (Easy)**: 1.5x, 2x, 2.5x, 3x, 4x, 5x
+- **Steps 26-50 (Medium)**: 2x, 2.5x, 3x, 4x, 5x, 6x, 8x
+- **Steps 51-75 (Hard)**: 3x, 4x, 5x, 6x, 7x, 8x, 10x, 12x
+- **Steps 76-99 (Expert)**: 5x, 6x, 7x, 8x, 10x, 12x, 15x, 18x, 20x
+- **Step 100 (Finish)**: Automatically becomes 20x
+
+### Multiplier Rules
+- Maximum cap: 20x (no multiplier can exceed this)
+- Variety system avoids back-to-back same low multipliers
+- Win condition: Reaching step 100 automatically sets multiplier to 20x
 
 ## Power-Up Types
 - **Shield**: Protects from one hazard

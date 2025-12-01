@@ -10,7 +10,7 @@ const APECHAIN_CHAIN_ID = 33139;
 
 const TOTAL_STEPS = 100;
 
-type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_5x" | "multiplier_8x" | "multiplier_10x" | "multiplier_11x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_4x" | "multiplier_5x" | "multiplier_6x" | "multiplier_7x" | "multiplier_8x" | "multiplier_10x" | "multiplier_12x" | "multiplier_15x" | "multiplier_18x" | "multiplier_20x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 interface BoardStep {
   position: number;
@@ -74,57 +74,123 @@ function generateBoard(seed: string): BoardStep[] {
     
     const roll = getNextRandom();
     
+    const lastStep = board.length > 0 ? board[board.length - 1] : null;
+    const lastMultiplier = lastStep?.multiplier || 0;
+    
     if (roll < resetTrapChance) {
       board.push({ position: i, type: "reset_trap" });
     } else if (roll < resetTrapChance + hazardChance) {
       board.push({ position: i, type: "hazard" });
     } else if (roll < resetTrapChance + hazardChance + multiplierChance) {
-      const multiplierRoll = getNextRandom();
+      let multiplierRoll = getNextRandom();
+      let selectedMultiplier: number;
+      let stepType: StepType;
+      
       if (i >= 76) {
-        if (multiplierRoll < 0.15) {
-          board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
-        } else if (multiplierRoll < 0.35) {
-          board.push({ position: i, type: "multiplier_5x", multiplier: 5 });
-        } else if (multiplierRoll < 0.55) {
-          board.push({ position: i, type: "multiplier_8x", multiplier: 8 });
-        } else if (multiplierRoll < 0.75) {
-          board.push({ position: i, type: "multiplier_10x", multiplier: 10 });
-        } else {
-          board.push({ position: i, type: "multiplier_11x", multiplier: 11 });
+        const options = [
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.12 },
+          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.12 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.12 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.15 },
+          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.15 },
+          { mult: 12, type: "multiplier_12x" as StepType, weight: 0.12 },
+          { mult: 15, type: "multiplier_15x" as StepType, weight: 0.10 },
+          { mult: 18, type: "multiplier_18x" as StepType, weight: 0.07 },
+          { mult: 20, type: "multiplier_20x" as StepType, weight: 0.05 },
+        ];
+        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 10);
+        if (filtered.length === 0) filtered = options;
+        const totalWeight = filtered.reduce((sum, o) => sum + o.weight, 0);
+        let cumulative = 0;
+        const pick = multiplierRoll * totalWeight;
+        for (const opt of filtered) {
+          cumulative += opt.weight;
+          if (pick <= cumulative) {
+            selectedMultiplier = opt.mult;
+            stepType = opt.type;
+            break;
+          }
         }
+        selectedMultiplier = selectedMultiplier! || 8;
+        stepType = stepType! || "multiplier_8x";
       } else if (i >= 51) {
-        if (multiplierRoll < 0.20) {
-          board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else if (multiplierRoll < 0.40) {
-          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
-        } else if (multiplierRoll < 0.60) {
-          board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
-        } else if (multiplierRoll < 0.80) {
-          board.push({ position: i, type: "multiplier_5x", multiplier: 5 });
-        } else {
-          board.push({ position: i, type: "multiplier_8x", multiplier: 8 });
+        const options = [
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.12 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.15 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.18 },
+          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.15 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.12 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.12 },
+          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.10 },
+          { mult: 12, type: "multiplier_12x" as StepType, weight: 0.06 },
+        ];
+        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 6);
+        if (filtered.length === 0) filtered = options;
+        const totalWeight = filtered.reduce((sum, o) => sum + o.weight, 0);
+        let cumulative = 0;
+        const pick = multiplierRoll * totalWeight;
+        for (const opt of filtered) {
+          cumulative += opt.weight;
+          if (pick <= cumulative) {
+            selectedMultiplier = opt.mult;
+            stepType = opt.type;
+            break;
+          }
         }
+        selectedMultiplier = selectedMultiplier! || 5;
+        stepType = stepType! || "multiplier_5x";
       } else if (i >= 26) {
-        if (multiplierRoll < 0.25) {
-          board.push({ position: i, type: "multiplier_1_5x", multiplier: 1.5 });
-        } else if (multiplierRoll < 0.50) {
-          board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else if (multiplierRoll < 0.75) {
-          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
-        } else {
-          board.push({ position: i, type: "multiplier_3x", multiplier: 3 });
+        const options = [
+          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.15 },
+          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.15 },
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.20 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.18 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.15 },
+          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.10 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.07 },
+        ];
+        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 4);
+        if (filtered.length === 0) filtered = options;
+        const totalWeight = filtered.reduce((sum, o) => sum + o.weight, 0);
+        let cumulative = 0;
+        const pick = multiplierRoll * totalWeight;
+        for (const opt of filtered) {
+          cumulative += opt.weight;
+          if (pick <= cumulative) {
+            selectedMultiplier = opt.mult;
+            stepType = opt.type;
+            break;
+          }
         }
+        selectedMultiplier = selectedMultiplier! || 3;
+        stepType = stepType! || "multiplier_3x";
       } else {
-        if (multiplierRoll < 0.35) {
-          board.push({ position: i, type: "multiplier_1x", multiplier: 1 });
-        } else if (multiplierRoll < 0.65) {
-          board.push({ position: i, type: "multiplier_1_5x", multiplier: 1.5 });
-        } else if (multiplierRoll < 0.90) {
-          board.push({ position: i, type: "multiplier_2x", multiplier: 2 });
-        } else {
-          board.push({ position: i, type: "multiplier_2_5x", multiplier: 2.5 });
+        const options = [
+          { mult: 1.5, type: "multiplier_1_5x" as StepType, weight: 0.15 },
+          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.25 },
+          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.20 },
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.18 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.12 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.10 },
+        ];
+        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 3);
+        if (filtered.length === 0) filtered = options;
+        const totalWeight = filtered.reduce((sum, o) => sum + o.weight, 0);
+        let cumulative = 0;
+        const pick = multiplierRoll * totalWeight;
+        for (const opt of filtered) {
+          cumulative += opt.weight;
+          if (pick <= cumulative) {
+            selectedMultiplier = opt.mult;
+            stepType = opt.type;
+            break;
+          }
         }
+        selectedMultiplier = selectedMultiplier! || 2;
+        stepType = stepType! || "multiplier_2x";
       }
+      
+      board.push({ position: i, type: stepType, multiplier: selectedMultiplier });
     } else if (roll < resetTrapChance + hazardChance + multiplierChance + powerupChance) {
       const powerupRoll = getNextRandom();
       if (powerupRoll < 0.4) {
@@ -416,8 +482,8 @@ export async function registerRoutes(
           },
         });
       } else if (landedStep.multiplier) {
-        finalMultiplier = Math.max(finalMultiplier, landedStep.multiplier);
-        finalMultiplier = Math.min(finalMultiplier, 11);
+        finalMultiplier = landedStep.multiplier;
+        finalMultiplier = Math.min(finalMultiplier, 20);
       }
       
       const updatedGame = await storage.updateGame(game.id, {
