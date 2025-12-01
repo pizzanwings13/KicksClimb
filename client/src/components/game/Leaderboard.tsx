@@ -335,7 +335,7 @@ export function LeaderboardButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 p-3 bg-black/50 hover:bg-black/70 rounded-full border border-yellow-500/30 transition-all z-50"
+        className="hidden sm:block fixed top-4 right-4 p-3 bg-black/50 hover:bg-black/70 rounded-full border border-yellow-500/30 transition-all z-50"
       >
         <Trophy className="w-6 h-6 text-yellow-400" />
       </button>
@@ -343,3 +343,16 @@ export function LeaderboardButton() {
     </>
   );
 }
+
+export function LeaderboardButtonMobile({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 p-2"
+    >
+      <Trophy className="w-5 h-5 text-yellow-400" />
+      <span className="text-[10px] text-gray-400">Ranks</span>
+    </button>
+  );
+}
+

@@ -20,6 +20,7 @@ import { StatsButton } from "./components/game/StatsModal";
 import { AchievementsButton } from "./components/game/AchievementsModal";
 import { AchievementNotification } from "./components/game/AchievementNotification";
 import { WalletConnectModal } from "./components/game/WalletConnectModal";
+import { MobileNavigation } from "./components/game/MobileNavigation";
 import { useGameState } from "./lib/stores/useGameState";
 import { useWallet } from "./lib/stores/useWallet";
 import { useAudio } from "./lib/stores/useAudio";
@@ -274,6 +275,7 @@ function App() {
         <TokenConfigButton />
         <SoundControls />
         <WalletModalManager />
+        <MobileNavigation />
       </div>
     </QueryClientProvider>
   );

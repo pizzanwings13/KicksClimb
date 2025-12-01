@@ -99,7 +99,7 @@ export function MenuScreen() {
 
             <Button
               variant="outline"
-              className="w-full py-4 border-purple-500/50 text-purple-300 hover:bg-purple-500/20"
+              className="hidden sm:flex w-full py-4 border-purple-500/50 text-purple-300 hover:bg-purple-500/20"
               onClick={() => fetchLeaderboards()}
             >
               <Trophy className="mr-2 h-5 w-5" />

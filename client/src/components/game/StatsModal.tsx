@@ -285,7 +285,7 @@ export function StatsButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-48 z-50 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-purple-500/30 hover:bg-purple-900/50 transition-all"
+        className="hidden sm:flex fixed top-4 right-48 z-50 items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-purple-500/30 hover:bg-purple-900/50 transition-all"
       >
         <BarChart2 className="w-5 h-5 text-purple-400" />
         <span className="text-white font-semibold">Stats</span>
@@ -294,3 +294,16 @@ export function StatsButton() {
     </>
   );
 }
+
+export function StatsButtonMobile({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 p-2"
+    >
+      <BarChart2 className="w-5 h-5 text-purple-400" />
+      <span className="text-[10px] text-gray-400">Stats</span>
+    </button>
+  );
+}
+
