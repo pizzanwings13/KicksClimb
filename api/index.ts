@@ -327,11 +327,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const url = req.url || '';
+  const rawUrl = req.url || '';
+  const url = rawUrl.split('?')[0];
   const method = req.method || 'GET';
+  
+  console.log('[API Request]', method, url);
 
   try {
-    if (url.startsWith('/api/auth/connect') && method === 'POST') {
+    if ((url === '/api/auth/connect' || url.endsWith('/api/auth/connect')) && method === 'POST') {
       const { walletAddress, username } = req.body;
       if (!walletAddress) return res.status(400).json({ error: "Wallet address is required" });
       let user = await getUserByWallet(walletAddress);
@@ -342,15 +345,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ user });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+$/) && method === 'GET') {
-      const walletAddress = url.split('/')[3];
+    const userMatch = url.match(/\/api\/user\/([^\/]+)$/);
+    if (userMatch && method === 'GET') {
+      const walletAddress = userMatch[1];
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
       return res.json({ user });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+$/) && method === 'PUT') {
-      const walletAddress = url.split('/')[3];
+    if (userMatch && method === 'PUT') {
+      const walletAddress = userMatch[1];
       const { username, avatarUrl } = req.body;
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -358,7 +362,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ user: updatedUser });
     }
 
-    if (url.startsWith('/api/game/start') && method === 'POST') {
+    if ((url === '/api/game/start' || url.endsWith('/api/game/start')) && method === 'POST') {
       const { walletAddress, betAmount, txHash } = req.body;
       if (!walletAddress || !betAmount) return res.status(400).json({ error: "Wallet address and bet amount required" });
       const user = await getUserByWallet(walletAddress);
@@ -371,8 +375,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ game: { ...game, oddseed: undefined }, oddseedHash, board });
     }
 
-    if (url.match(/^\/api\/game\/\d+\/move$/) && method === 'POST') {
-      const gameId = parseInt(url.split('/')[3]);
+    const moveMatch = url.match(/\/api\/game\/(\d+)\/move$/);
+    if (moveMatch && method === 'POST') {
+      const gameId = parseInt(moveMatch[1]);
       const { steps, useShield, useSkip } = req.body;
       const game = await getGame(gameId);
       if (!game) return res.status(404).json({ error: "Game not found" });
@@ -424,8 +429,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ game: updatedGame, landedStep, currentMultiplier: finalMultiplier, potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(), shieldUsed, skipUsed });
     }
 
-    if (url.match(/^\/api\/game\/\d+\/cashout$/) && method === 'POST') {
-      const gameId = parseInt(url.split('/')[3]);
+    const cashoutMatch = url.match(/\/api\/game\/(\d+)\/cashout$/);
+    if (cashoutMatch && method === 'POST') {
+      const gameId = parseInt(cashoutMatch[1]);
       const game = await getGame(gameId);
       if (!game) return res.status(404).json({ error: "Game not found" });
       if (game.gameStatus !== "active") return res.status(400).json({ error: "Game is not active" });
@@ -441,8 +447,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ game: { ...updatedGame, oddseed: game.oddseed }, payout, multiplier: currentMultiplier });
     }
 
-    if (url.match(/^\/api\/game\/\d+\/claim-nonce$/) && method === 'POST') {
-      const gameId = parseInt(url.split('/')[3]);
+    const claimNonceMatch = url.match(/\/api\/game\/(\d+)\/claim-nonce$/);
+    if (claimNonceMatch && method === 'POST') {
+      const gameId = parseInt(claimNonceMatch[1]);
       const { walletAddress } = req.body;
       if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
       const game = await getGame(gameId);
@@ -457,7 +464,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ nonce, amount: game.payout, gameId: game.id, expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
     }
 
-    if (url.startsWith('/api/claim') && method === 'POST') {
+    if ((url === '/api/claim' || url.endsWith('/api/claim')) && method === 'POST') {
       const { walletAddress, amount, gameId, signature, nonce, kicksTokenAddress } = req.body;
       if (!walletAddress || !amount || !gameId || !signature || !nonce) return res.status(400).json({ error: "Missing required fields" });
       const game = await getGame(parseInt(gameId));
@@ -505,38 +512,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ success: true, message: txHash ? "KICKS sent!" : "Claim verified", amount: game.payout, txHash });
     }
 
-    if (url.startsWith('/api/leaderboard/daily') && method === 'GET') {
+    if ((url === '/api/leaderboard/daily' || url.endsWith('/api/leaderboard/daily')) && method === 'GET') {
       const leaderboard = await getDailyLeaderboard(10);
       return res.json({ leaderboard });
     }
 
-    if (url.startsWith('/api/leaderboard/weekly') && method === 'GET') {
+    if ((url === '/api/leaderboard/weekly' || url.endsWith('/api/leaderboard/weekly')) && method === 'GET') {
       const leaderboard = await getWeeklyLeaderboard(10);
       return res.json({ leaderboard });
     }
 
-    if (url.startsWith('/api/leaderboard/alltime') && method === 'GET') {
-      const urlParams = new URL(url, 'http://localhost');
+    if ((url === '/api/leaderboard/alltime' || url.endsWith('/api/leaderboard/alltime')) && method === 'GET') {
+      const urlParams = new URL(rawUrl, 'http://localhost');
       const type = urlParams.searchParams.get('type') || 'winnings';
       const leaderboard = await getAllTimeLeaderboard(10, type);
       return res.json({ leaderboard });
     }
 
-    if (url.startsWith('/api/leaderboard/biggest-wins') && method === 'GET') {
+    if ((url === '/api/leaderboard/biggest-wins' || url.endsWith('/api/leaderboard/biggest-wins')) && method === 'GET') {
       const biggestWins = await getBiggestWins(10);
       return res.json({ biggestWins });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+\/games/) && method === 'GET') {
-      const walletAddress = url.split('/')[3];
+    const userGamesMatch = url.match(/\/api\/user\/([^\/]+)\/games$/);
+    if (userGamesMatch && method === 'GET') {
+      const walletAddress = userGamesMatch[1];
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
       const userGames = await getUserGames(user.id, 20);
       return res.json({ games: userGames });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+\/stats/) && method === 'GET') {
-      const walletAddress = url.split('/')[3];
+    const userStatsMatch = url.match(/\/api\/user\/([^\/]+)\/stats$/);
+    if (userStatsMatch && method === 'GET') {
+      const walletAddress = userStatsMatch[1];
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
       const recentGames = await getUserGames(user.id, 100);
@@ -551,16 +560,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ stats });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+\/achievements$/) && method === 'GET') {
-      const walletAddress = url.split('/')[3];
+    const userAchievementsMatch = url.match(/\/api\/user\/([^\/]+)\/achievements$/);
+    if (userAchievementsMatch && method === 'GET') {
+      const walletAddress = userAchievementsMatch[1];
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
       const achievements = await getUserAchievements(user.id);
       return res.json({ achievements });
     }
 
-    if (url.match(/^\/api\/user\/[^\/]+\/achievements\/check/) && method === 'POST') {
-      const walletAddress = url.split('/')[3];
+    const achievementsCheckMatch = url.match(/\/api\/user\/([^\/]+)\/achievements\/check$/);
+    if (achievementsCheckMatch && method === 'POST') {
+      const walletAddress = achievementsCheckMatch[1];
       const user = await getUserByWallet(walletAddress);
       if (!user) return res.status(404).json({ error: "User not found" });
       const newAchievements: string[] = [];
