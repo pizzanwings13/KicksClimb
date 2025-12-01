@@ -12,13 +12,68 @@ interface ProfileModalProps {
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { walletAddress, kicksBalance, disconnect } = useWallet();
-  const { user, updateProfile, reset, setUser } = useGameState();
+  const { user, updateProfile, reset, setUser, connectUser } = useGameState();
   const [username, setUsername] = useState(user?.username || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatarUrl || null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen || !user) return null;
+  const handleRetryConnect = async () => {
+    if (!walletAddress) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await connectUser(walletAddress);
+      if (!result) {
+        setError("Failed to connect. Please try again.");
+      }
+    } catch (err) {
+      setError("Connection error. Please try again.");
+    }
+    setIsLoading(false);
+  };
+
+  if (!isOpen) return null;
+
+  if (!user) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 p-4">
+        <div className="bg-gradient-to-b from-purple-900/90 to-indigo-900/90 rounded-xl p-4 max-w-sm w-full border border-purple-500/30">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <User className="w-5 h-5 text-purple-400" />
+              Profile
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="text-center py-6">
+            {isLoading ? (
+              <p className="text-gray-300">Loading profile...</p>
+            ) : (
+              <>
+                <p className="text-gray-300 mb-4">
+                  {error || "Unable to load profile. Please try again."}
+                </p>
+                <Button
+                  onClick={handleRetryConnect}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                >
+                  Retry Connection
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -206,7 +261,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 export function ProfileButton() {
   const [isOpen, setIsOpen] = useState(false);
   const { isConnected } = useWallet();
-  const { phase } = useGameState();
+  const { phase, user } = useGameState();
 
   if (!isConnected || phase !== "menu") return null;
 
