@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
+import { useGameState } from "@/lib/stores/useGameState";
 import { Settings, X, Coins, Building2, Eye } from "lucide-react";
 
 interface TokenConfigProps {
@@ -87,15 +88,22 @@ export function TokenConfig({ isOpen, onClose }: TokenConfigProps) {
 
 export function TokenConfigButton() {
   const [isOpen, setIsOpen] = useState(false);
+  const { phase } = useGameState();
+  
+  const isGameActive = phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out";
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 p-3 bg-black/50 hover:bg-black/70 rounded-full border border-purple-500/30 transition-all z-50"
+        className={`fixed p-2 sm:p-3 bg-black/70 hover:bg-black/80 rounded-full border border-purple-500/30 transition-all z-50 ${
+          isGameActive 
+            ? "top-24 sm:top-auto sm:bottom-4 right-2 sm:right-4" 
+            : "bottom-4 right-4"
+        }`}
         title="Token Settings"
       >
-        <Settings className="w-5 h-5 text-purple-400" />
+        <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
       </button>
       <TokenConfig isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>
