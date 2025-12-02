@@ -31,49 +31,23 @@ function generateBoard(seed: string): BoardStep[] {
     return parseInt(hex, 16) / 0xffffffff;
   };
   
-  const MIN_HAZARD_SPACING = 2;
-  
   const precomputeHazardPositions = (): Set<number> => {
     const hazardPositions = new Set<number>();
-    const zones = [
-      { start: 1, end: 25, count: 6 },
-      { start: 26, end: 50, count: 7 },
-      { start: 51, end: 75, count: 10 },
-      { start: 76, end: 99, count: 13 },
-    ];
+    const MIN_GAP = 4;
+    const TOTAL_HAZARDS = 22;
     
-    for (const zone of zones) {
-      const zoneSize = zone.end - zone.start + 1;
-      const candidates: number[] = [];
-      
-      for (let i = zone.start; i <= zone.end; i++) {
-        candidates.push(i);
-      }
-      
-      let placed = 0;
-      let attempts = 0;
-      const maxAttempts = 100;
-      
-      while (placed < zone.count && attempts < maxAttempts) {
-        const randomIndex = Math.floor(getNextRandom() * candidates.length);
-        const pos = candidates[randomIndex];
-        
-        let tooClose = false;
-        const existingHazards = Array.from(hazardPositions);
-        for (let j = 0; j < existingHazards.length; j++) {
-          if (Math.abs(pos - existingHazards[j]) < MIN_HAZARD_SPACING) {
-            tooClose = true;
-            break;
-          }
-        }
-        
-        if (!tooClose) {
-          hazardPositions.add(pos);
-          candidates.splice(randomIndex, 1);
-          placed++;
-        }
-        attempts++;
-      }
+    const basePositions: number[] = [];
+    for (let pos = 2; pos <= 98; pos += MIN_GAP) {
+      basePositions.push(pos);
+    }
+    
+    for (let i = basePositions.length - 1; i > 0; i--) {
+      const j = Math.floor(getNextRandom() * (i + 1));
+      [basePositions[i], basePositions[j]] = [basePositions[j], basePositions[i]];
+    }
+    
+    for (let i = 0; i < Math.min(TOTAL_HAZARDS, basePositions.length); i++) {
+      hazardPositions.add(basePositions[i]);
     }
     
     return hazardPositions;

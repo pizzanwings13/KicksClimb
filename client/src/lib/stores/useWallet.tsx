@@ -387,7 +387,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       }
 
       const accounts = await provider.send("eth_requestAccounts", []);
-      const walletAddress = accounts[0];
+      const walletAddress = accounts[0].toLowerCase();
       const signer = await provider.getSigner();
       
       let kicksContract = null;
@@ -421,7 +421,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         if (accounts.length === 0) {
           get().disconnect();
         } else {
-          set({ walletAddress: accounts[0] });
+          set({ walletAddress: accounts[0].toLowerCase() });
           get().refreshBalance();
         }
       });
