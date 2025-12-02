@@ -491,14 +491,13 @@ export async function registerRoutes(
           },
         });
       } else if (landedStep.multiplier) {
-        let multiplierValue = landedStep.multiplier;
-        
-        if (useDouble) {
-          multiplierValue = multiplierValue * 2;
-          doubleUsed = true;
-        }
-        
-        finalMultiplier = Math.min(multiplierValue, 20);
+        finalMultiplier = landedStep.multiplier;
+        finalMultiplier = Math.min(finalMultiplier, 20);
+      }
+      
+      if (useDouble && !doubleUsed) {
+        finalMultiplier = Math.min(finalMultiplier * 2, 20);
+        doubleUsed = true;
       }
       
       const updatedGame = await storage.updateGame(game.id, {

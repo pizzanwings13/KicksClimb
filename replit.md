@@ -58,7 +58,7 @@ When landing on a multiplier tile, your current multiplier is **replaced** (not 
 
 ## Power-Up Types
 - **Shield** (Blue): Protects from one hazard - activate before rolling to survive a hazard
-- **Double** (Yellow): Doubles the next multiplier tile value - activate before rolling, if you land on a 5x tile you get 10x (capped at 20x)
+- **Double** (Yellow): Doubles your current multiplier when activated - if you have 5x it becomes 10x (capped at 20x)
 - **Skip** (Green): Skip over a hazard or reset trap - activate before rolling to jump past danger
 - **Bonus Chest**: Random reward - 30% chance for +5 KICKS bonus, always replaces multiplier with chest value
 
