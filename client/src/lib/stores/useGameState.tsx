@@ -197,11 +197,13 @@ export const useGameState = create<GameState>()(
       try {
         const hasActiveShield = activePowerUps.some(p => p.type === "shield" && p.active);
         const hasActiveSkip = activePowerUps.some(p => p.type === "skip" && p.active);
+        const hasActiveDouble = activePowerUps.some(p => p.type === "double" && p.active);
         
         const res = await apiRequest("POST", `/api/game/${currentGame.id}/move`, { 
           steps,
           useShield: hasActiveShield,
           useSkip: hasActiveSkip,
+          useDouble: hasActiveDouble,
         });
         const data = await res.json();
         
@@ -223,6 +225,10 @@ export const useGameState = create<GameState>()(
         if (data.skipUsed) {
           newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "skip" && p.active));
           newStreak = newStreak + 1;
+        }
+        
+        if (data.doubleUsed) {
+          newActivePowerUps = newActivePowerUps.filter(p => !(p.type === "double" && p.active));
         }
         
         if (data.shieldUsed) {

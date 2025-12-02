@@ -334,7 +334,7 @@ export async function registerRoutes(
   app.post("/api/game/:gameId/move", async (req, res) => {
     try {
       const { gameId } = req.params;
-      const { steps, useShield, useSkip } = req.body;
+      const { steps, useShield, useSkip, useDouble } = req.body;
       
       const game = await storage.getGame(parseInt(gameId));
       if (!game) {
@@ -361,6 +361,7 @@ export async function registerRoutes(
       let payout = game.payout;
       let shieldUsed = false;
       let skipUsed = false;
+      let doubleUsed = false;
       let skippedPosition: number | null = null;
       
       if (landedStep.type === "hazard" || landedStep.type === "reset_trap") {
@@ -468,8 +469,14 @@ export async function registerRoutes(
           },
         });
       } else if (landedStep.multiplier) {
-        finalMultiplier = landedStep.multiplier;
-        finalMultiplier = Math.min(finalMultiplier, 20);
+        let multiplierValue = landedStep.multiplier;
+        
+        if (useDouble) {
+          multiplierValue = multiplierValue * 2;
+          doubleUsed = true;
+        }
+        
+        finalMultiplier = Math.min(multiplierValue, 20);
       }
       
       const updatedGame = await storage.updateGame(game.id, {
@@ -492,6 +499,7 @@ export async function registerRoutes(
         bonusKicks: currentBonusKicks,
         shieldUsed,
         skipUsed,
+        doubleUsed,
         skippedPosition,
       });
     } catch (error) {

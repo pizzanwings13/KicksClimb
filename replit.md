@@ -56,10 +56,10 @@ When landing on a multiplier tile, your current multiplier is **replaced** (not 
 - Win condition: Reaching step 100 automatically sets multiplier to 20x
 
 ## Power-Up Types
-- **Shield**: Protects from one hazard
-- **Double Multiplier**: Doubles current multiplier for one step
-- **Skip**: Skip current step (avoid hazards)
-- **Bonus Chest**: Random KICKS reward
+- **Shield** (Blue): Protects from one hazard - activate before rolling to survive a hazard
+- **Double** (Yellow): Doubles the next multiplier tile value - activate before rolling, if you land on a 5x tile you get 10x (capped at 20x)
+- **Skip** (Green): Skip over a hazard or reset trap - activate before rolling to jump past danger
+- **Bonus Chest**: Random reward - 30% chance for +5 KICKS bonus, always replaces multiplier with chest value
 
 ## Achievement Categories
 - **Games Played**: First Climb (1), Veteran (10), Dedicated (50), Master (100)
