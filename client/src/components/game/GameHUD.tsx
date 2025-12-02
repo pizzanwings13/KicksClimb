@@ -20,6 +20,7 @@ export function GameHUD() {
     currentMultiplier,
     betAmount,
     potentialPayout,
+    bonusKicks,
     isMoving,
     lastStepType,
     makeMove,
@@ -301,6 +302,11 @@ export function GameHUD() {
                   <div className="text-base sm:text-2xl font-bold text-green-400">
                     {parseFloat(potentialPayout).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                   </div>
+                  {bonusKicks > 0 && (
+                    <div className="text-[10px] sm:text-xs text-purple-400">
+                      (includes +{bonusKicks} bonus KICKS)
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-center w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-lg sm:rounded-xl shadow-lg">
                   <DiceIcon className={`w-6 h-6 sm:w-12 sm:h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />

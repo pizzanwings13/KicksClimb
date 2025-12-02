@@ -432,52 +432,38 @@ export async function registerRoutes(
         }
       } else if (landedStep.type === "bonus_chest") {
         const bonusMultiplier = landedStep.multiplier || 2;
-        finalMultiplier = finalMultiplier * bonusMultiplier;
+        finalMultiplier = bonusMultiplier;
         finalMultiplier = Math.min(finalMultiplier, 20);
         
         const givesBonusKicks = Math.random() < 0.3;
-        if (givesBonusKicks) {
-          const updatedGame = await storage.updateGame(game.id, {
-            finalPosition: newPosition,
-            gameStatus,
-            finalMultiplier: finalMultiplier.toString(),
-            payout,
-          });
-          
-          return res.json({
-            game: updatedGame,
-            landedStep,
-            currentMultiplier: finalMultiplier,
-            potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
-            shieldUsed,
-            skipUsed,
-            skippedPosition,
-            bonusChestReward: {
-              type: "kicks",
-              amount: 5,
-              multiplierBonus: bonusMultiplier,
-            },
-          });
-        }
+        const bonusKicksAmount = givesBonusKicks ? 5 : 0;
+        
+        const currentBonusKicks = game.bonusKicks ? parseFloat(game.bonusKicks) : 0;
+        const newBonusKicks = currentBonusKicks + bonusKicksAmount;
         
         const updatedGame = await storage.updateGame(game.id, {
           finalPosition: newPosition,
           gameStatus,
           finalMultiplier: finalMultiplier.toString(),
           payout,
+          bonusKicks: newBonusKicks.toString(),
         });
+        
+        const basePayout = parseFloat(game.betAmount) * finalMultiplier;
+        const totalPotentialPayout = basePayout + newBonusKicks;
         
         return res.json({
           game: updatedGame,
           landedStep,
           currentMultiplier: finalMultiplier,
-          potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+          potentialPayout: totalPotentialPayout.toString(),
+          bonusKicks: newBonusKicks,
           shieldUsed,
           skipUsed,
           skippedPosition,
           bonusChestReward: {
-            type: "multiplier",
-            amount: 0,
+            type: givesBonusKicks ? "kicks" : "multiplier",
+            amount: bonusKicksAmount,
             multiplierBonus: bonusMultiplier,
           },
         });
@@ -494,11 +480,16 @@ export async function registerRoutes(
         ...(gameStatus !== "active" && { endedAt: new Date() }),
       });
       
+      const currentBonusKicks = game.bonusKicks ? parseFloat(game.bonusKicks) : 0;
+      const basePayout = parseFloat(game.betAmount) * finalMultiplier;
+      const totalPotentialPayout = basePayout + currentBonusKicks;
+      
       res.json({
         game: updatedGame,
         landedStep,
         currentMultiplier: finalMultiplier,
-        potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(),
+        potentialPayout: totalPotentialPayout.toString(),
+        bonusKicks: currentBonusKicks,
         shieldUsed,
         skipUsed,
         skippedPosition,
@@ -523,11 +514,13 @@ export async function registerRoutes(
       }
       
       const currentMultiplier = game.finalMultiplier ? parseFloat(game.finalMultiplier) : 1;
-      const payout = (parseFloat(game.betAmount) * currentMultiplier).toString();
+      const bonusKicks = game.bonusKicks ? parseFloat(game.bonusKicks) : 0;
+      const basePayout = parseFloat(game.betAmount) * currentMultiplier;
+      const totalPayout = (basePayout + bonusKicks).toString();
       
       const updatedGame = await storage.updateGame(game.id, {
         gameStatus: "cashed_out",
-        payout,
+        payout: totalPayout,
         endedAt: new Date(),
       });
       
@@ -535,11 +528,11 @@ export async function registerRoutes(
       if (user) {
         await storage.updateUser(user.id, {
           gamesWon: user.gamesWon + 1,
-          totalKicksWon: (parseFloat(user.totalKicksWon) + parseFloat(payout)).toString(),
+          totalKicksWon: (parseFloat(user.totalKicksWon) + parseFloat(totalPayout)).toString(),
           highestMultiplier: Math.max(parseFloat(user.highestMultiplier), currentMultiplier).toString(),
         });
-        await storage.updateDailyLeaderboard(user.id, payout, currentMultiplier.toString());
-        await storage.updateWeeklyLeaderboard(user.id, payout, currentMultiplier.toString());
+        await storage.updateDailyLeaderboard(user.id, totalPayout, currentMultiplier.toString());
+        await storage.updateWeeklyLeaderboard(user.id, totalPayout, currentMultiplier.toString());
       }
       
       res.json({
@@ -547,7 +540,8 @@ export async function registerRoutes(
           ...updatedGame,
           oddseed: game.oddseed,
         },
-        payout,
+        payout: totalPayout,
+        bonusKicks,
         multiplier: currentMultiplier,
       });
     } catch (error) {

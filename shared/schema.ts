@@ -27,6 +27,7 @@ export const games = pgTable("games", {
   betAmount: decimal("bet_amount", { precision: 36, scale: 18 }).notNull(),
   finalMultiplier: decimal("final_multiplier", { precision: 10, scale: 2 }),
   payout: decimal("payout", { precision: 36, scale: 18 }),
+  bonusKicks: decimal("bonus_kicks", { precision: 36, scale: 18 }).default("0"),
   finalPosition: integer("final_position").default(0).notNull(),
   gameStatus: text("game_status").default("active").notNull(),
   depositTxHash: text("deposit_tx_hash"),

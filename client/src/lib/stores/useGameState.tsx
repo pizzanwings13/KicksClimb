@@ -42,6 +42,7 @@ export interface Game {
   betAmount: string;
   finalMultiplier?: string;
   payout?: string;
+  bonusKicks?: string;
   finalPosition: number;
   gameStatus: string;
   oddseedHash: string;
@@ -65,6 +66,7 @@ interface GameState {
   currentMultiplier: number;
   betAmount: string;
   potentialPayout: string;
+  bonusKicks: number;
   isMoving: boolean;
   lastStepType: StepType | null;
   dailyLeaderboard: LeaderboardEntry[];
@@ -101,6 +103,7 @@ export const useGameState = create<GameState>()(
     currentMultiplier: 1,
     betAmount: "10",
     potentialPayout: "10",
+    bonusKicks: 0,
     isMoving: false,
     lastStepType: null,
     dailyLeaderboard: [],
@@ -166,6 +169,7 @@ export const useGameState = create<GameState>()(
           currentMultiplier: 1,
           betAmount,
           potentialPayout: betAmount,
+          bonusKicks: 0,
           phase: "playing",
           lastStepType: null,
           activePowerUps: [],
@@ -245,6 +249,7 @@ export const useGameState = create<GameState>()(
           currentPosition: newPosition,
           currentMultiplier: data.currentMultiplier,
           potentialPayout: data.potentialPayout,
+          bonusKicks: data.bonusKicks || 0,
           lastStepType: landedStep.type,
           isMoving: false,
           collectedPowerUps: newCollectedPowerUps,
