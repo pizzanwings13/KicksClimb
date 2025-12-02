@@ -31,6 +31,56 @@ function generateBoard(seed: string): BoardStep[] {
     return parseInt(hex, 16) / 0xffffffff;
   };
   
+  const MIN_HAZARD_SPACING = 2;
+  
+  const precomputeHazardPositions = (): Set<number> => {
+    const hazardPositions = new Set<number>();
+    const zones = [
+      { start: 1, end: 25, count: 6 },
+      { start: 26, end: 50, count: 7 },
+      { start: 51, end: 75, count: 10 },
+      { start: 76, end: 99, count: 13 },
+    ];
+    
+    for (const zone of zones) {
+      const zoneSize = zone.end - zone.start + 1;
+      const candidates: number[] = [];
+      
+      for (let i = zone.start; i <= zone.end; i++) {
+        candidates.push(i);
+      }
+      
+      let placed = 0;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      while (placed < zone.count && attempts < maxAttempts) {
+        const randomIndex = Math.floor(getNextRandom() * candidates.length);
+        const pos = candidates[randomIndex];
+        
+        let tooClose = false;
+        const existingHazards = Array.from(hazardPositions);
+        for (let j = 0; j < existingHazards.length; j++) {
+          if (Math.abs(pos - existingHazards[j]) < MIN_HAZARD_SPACING) {
+            tooClose = true;
+            break;
+          }
+        }
+        
+        if (!tooClose) {
+          hazardPositions.add(pos);
+          candidates.splice(randomIndex, 1);
+          placed++;
+        }
+        attempts++;
+      }
+    }
+    
+    return hazardPositions;
+  };
+  
+  const hazardPositions = precomputeHazardPositions();
+  
   for (let i = 0; i <= TOTAL_STEPS; i++) {
     if (i === 0) {
       board.push({ position: i, type: "safe" });
@@ -42,31 +92,31 @@ function generateBoard(seed: string): BoardStep[] {
       continue;
     }
     
-    let hazardChance: number;
+    if (hazardPositions.has(i)) {
+      board.push({ position: i, type: "hazard" });
+      continue;
+    }
+    
     let multiplierChance: number;
     let powerupChance: number = 0.05;
     let bonusChance: number = 0.02;
     let resetTrapChance: number = 0;
     
     if (i <= 25) {
-      hazardChance = 0.25;
-      multiplierChance = 0.20;
+      multiplierChance = 0.25;
       powerupChance = 0.08;
       resetTrapChance = 0.03;
     } else if (i <= 50) {
-      hazardChance = 0.30;
-      multiplierChance = 0.18;
+      multiplierChance = 0.22;
       powerupChance = 0.06;
       resetTrapChance = 0.04;
     } else if (i <= 75) {
-      hazardChance = 0.40;
-      multiplierChance = 0.15;
+      multiplierChance = 0.20;
       powerupChance = 0.04;
       bonusChance = 0.03;
       resetTrapChance = 0.05;
     } else {
-      hazardChance = 0.55;
-      multiplierChance = 0.12;
+      multiplierChance = 0.18;
       powerupChance = 0.03;
       bonusChance = 0.04;
       resetTrapChance = 0.06;
@@ -79,9 +129,7 @@ function generateBoard(seed: string): BoardStep[] {
     
     if (roll < resetTrapChance) {
       board.push({ position: i, type: "reset_trap" });
-    } else if (roll < resetTrapChance + hazardChance) {
-      board.push({ position: i, type: "hazard" });
-    } else if (roll < resetTrapChance + hazardChance + multiplierChance) {
+    } else if (roll < resetTrapChance + multiplierChance) {
       let multiplierRoll = getNextRandom();
       let selectedMultiplier: number;
       let stepType: StepType;
@@ -191,7 +239,7 @@ function generateBoard(seed: string): BoardStep[] {
       }
       
       board.push({ position: i, type: stepType, multiplier: selectedMultiplier });
-    } else if (roll < resetTrapChance + hazardChance + multiplierChance + powerupChance) {
+    } else if (roll < resetTrapChance + multiplierChance + powerupChance) {
       const powerupRoll = getNextRandom();
       if (powerupRoll < 0.4) {
         board.push({ position: i, type: "powerup_shield", powerup: "shield" });
@@ -200,7 +248,7 @@ function generateBoard(seed: string): BoardStep[] {
       } else {
         board.push({ position: i, type: "powerup_skip", powerup: "skip" });
       }
-    } else if (roll < resetTrapChance + hazardChance + multiplierChance + powerupChance + bonusChance) {
+    } else if (roll < resetTrapChance + multiplierChance + powerupChance + bonusChance) {
       const bonusMultiplier = Math.floor(getNextRandom() * 3) + 2;
       board.push({ position: i, type: "bonus_chest", multiplier: bonusMultiplier });
     } else {

@@ -30,10 +30,11 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 10. **Particle Effects**: Visual feedback for wins, losses, and multipliers
 
 ## Game Mechanics
-- **Steps 1-25**: 25% hazard, 25% multiplier chance (Easy)
-- **Steps 26-50**: 30% hazard, 20% multiplier chance (Medium)
-- **Steps 51-75**: 40% hazard, 15% multiplier chance (Hard)
-- **Steps 76-100**: 55% hazard, 10% multiplier chance (Expert)
+- **Hazard Distribution**: Pre-computed with minimum 2-step spacing (no clusters)
+  - Steps 1-25 (Easy): 6 hazards spread evenly
+  - Steps 26-50 (Medium): 7 hazards spread evenly
+  - Steps 51-75 (Hard): 10 hazards spread evenly
+  - Steps 76-99 (Expert): 13 hazards spread evenly
 - **Finish (Step 100)**: 20x multiplier bonus
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
