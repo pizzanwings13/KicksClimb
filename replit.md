@@ -30,11 +30,13 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 10. **Particle Effects**: Visual feedback for wins, losses, and multipliers
 
 ## Game Mechanics
-- **Hazard Distribution**: Pre-computed with minimum 3-step spacing (no clusters)
-  - 22 total hazards placed on a grid of positions spaced 4 apart
-  - Grid positions: 2, 6, 10, 14, 18... up to 98 (25 possible slots)
-  - Random selection of 22 slots ensures even distribution across all 100 steps
-  - Guaranteed minimum 3 safe tiles between any two hazards
+- **Hazard Distribution**: Zone-based with minimum 4-step spacing (no clusters)
+  - 15 total hazards distributed evenly across 4 zones
+  - Zone 1 (steps 3-25): 3 hazards
+  - Zone 2 (steps 26-50): 4 hazards
+  - Zone 3 (steps 51-75): 4 hazards
+  - Zone 4 (steps 76-97): 4 hazards
+  - Guaranteed minimum 4 safe tiles between any two hazards
 - **Finish (Step 100)**: 20x multiplier bonus
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
