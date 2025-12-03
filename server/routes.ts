@@ -33,51 +33,42 @@ function generateBoard(seed: string): BoardStep[] {
   
   const precomputeHazardPositions = (): Set<number> => {
     const hazardPositions = new Set<number>();
-    const MIN_GAP = 5;
+    const isHazard: boolean[] = new Array(101).fill(false);
     
-    const zones = [
-      { start: 3, end: 25, count: 3 },
-      { start: 26, end: 50, count: 4 },
-      { start: 51, end: 75, count: 4 },
-      { start: 76, end: 97, count: 4 },
-    ];
+    const WINDOW_SIZE = 6;
+    const MAX_HAZARDS_IN_WINDOW = 1;
+    const MIN_GAP_AFTER_HAZARD = 3;
+    const HAZARD_CHANCE = 0.18;
+    const TARGET_HAZARDS = 15;
     
-    let lastHazardPosition = -MIN_GAP;
+    let lastHazardPos = -MIN_GAP_AFTER_HAZARD;
+    let totalHazards = 0;
     
-    for (const zone of zones) {
-      const zoneLength = zone.end - zone.start + 1;
-      const spacing = Math.floor(zoneLength / (zone.count + 1));
-      
-      const candidates: number[] = [];
-      for (let pos = zone.start; pos <= zone.end; pos++) {
-        if (pos - lastHazardPosition >= MIN_GAP) {
-          candidates.push(pos);
-        }
+    for (let pos = 3; pos <= 97; pos++) {
+      if (pos - lastHazardPos < MIN_GAP_AFTER_HAZARD) {
+        continue;
       }
       
-      for (let i = candidates.length - 1; i > 0; i--) {
-        const j = Math.floor(getNextRandom() * (i + 1));
-        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      let hazardsInWindow = 0;
+      for (let w = Math.max(1, pos - WINDOW_SIZE + 1); w < pos; w++) {
+        if (isHazard[w]) hazardsInWindow++;
       }
       
-      let placed = 0;
-      for (const pos of candidates) {
-        if (placed >= zone.count) break;
-        
-        let tooClose = false;
-        const existingArray = Array.from(hazardPositions);
-        for (let j = 0; j < existingArray.length; j++) {
-          if (Math.abs(pos - existingArray[j]) < MIN_GAP) {
-            tooClose = true;
-            break;
-          }
-        }
-        
-        if (!tooClose) {
-          hazardPositions.add(pos);
-          lastHazardPosition = pos;
-          placed++;
-        }
+      if (hazardsInWindow >= MAX_HAZARDS_IN_WINDOW) {
+        continue;
+      }
+      
+      const remainingSteps = 97 - pos;
+      const remainingNeeded = TARGET_HAZARDS - totalHazards;
+      const adjustedChance = remainingNeeded > 0 && remainingSteps > 0
+        ? Math.min(0.35, HAZARD_CHANCE + (remainingNeeded / remainingSteps) * 0.1)
+        : HAZARD_CHANCE;
+      
+      if (totalHazards < TARGET_HAZARDS && getNextRandom() < adjustedChance) {
+        hazardPositions.add(pos);
+        isHazard[pos] = true;
+        lastHazardPos = pos;
+        totalHazards++;
       }
     }
     
