@@ -33,42 +33,59 @@ function generateBoard(seed: string): BoardStep[] {
   
   const precomputeHazardPositions = (): Set<number> => {
     const hazardPositions = new Set<number>();
-    const isHazard: boolean[] = new Array(101).fill(false);
-    
-    const WINDOW_SIZE = 6;
-    const MAX_HAZARDS_IN_WINDOW = 1;
-    const MIN_GAP_AFTER_HAZARD = 3;
-    const HAZARD_CHANCE = 0.18;
+    const BOARD_COLS = 10;
     const TARGET_HAZARDS = 15;
+    const MIN_VISUAL_DISTANCE = 2;
+    const MIN_PATH_GAP = 4;
     
-    let lastHazardPos = -MIN_GAP_AFTER_HAZARD;
-    let totalHazards = 0;
+    const stepToGrid = (pos: number): { row: number; col: number } => {
+      const row = Math.floor(pos / BOARD_COLS);
+      const colInRow = pos % BOARD_COLS;
+      const col = row % 2 === 0 ? colInRow : BOARD_COLS - 1 - colInRow;
+      return { row, col };
+    };
     
-    for (let pos = 3; pos <= 97; pos++) {
-      if (pos - lastHazardPos < MIN_GAP_AFTER_HAZARD) {
-        continue;
+    const getVisualDistance = (pos1: number, pos2: number): number => {
+      const grid1 = stepToGrid(pos1);
+      const grid2 = stepToGrid(pos2);
+      return Math.abs(grid1.row - grid2.row) + Math.abs(grid1.col - grid2.col);
+    };
+    
+    const isTooCloseVisually = (pos: number): boolean => {
+      const existingArray = Array.from(hazardPositions);
+      for (let i = 0; i < existingArray.length; i++) {
+        if (getVisualDistance(pos, existingArray[i]) < MIN_VISUAL_DISTANCE) {
+          return true;
+        }
       }
-      
-      let hazardsInWindow = 0;
-      for (let w = Math.max(1, pos - WINDOW_SIZE + 1); w < pos; w++) {
-        if (isHazard[w]) hazardsInWindow++;
+      return false;
+    };
+    
+    const isTooCloseOnPath = (pos: number): boolean => {
+      const existingArray = Array.from(hazardPositions);
+      for (let i = 0; i < existingArray.length; i++) {
+        if (Math.abs(pos - existingArray[i]) < MIN_PATH_GAP) {
+          return true;
+        }
       }
+      return false;
+    };
+    
+    const candidates: number[] = [];
+    for (let pos = 5; pos <= 95; pos++) {
+      candidates.push(pos);
+    }
+    
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(getNextRandom() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    
+    for (const pos of candidates) {
+      if (hazardPositions.size >= TARGET_HAZARDS) break;
       
-      if (hazardsInWindow >= MAX_HAZARDS_IN_WINDOW) {
-        continue;
-      }
-      
-      const remainingSteps = 97 - pos;
-      const remainingNeeded = TARGET_HAZARDS - totalHazards;
-      const adjustedChance = remainingNeeded > 0 && remainingSteps > 0
-        ? Math.min(0.35, HAZARD_CHANCE + (remainingNeeded / remainingSteps) * 0.1)
-        : HAZARD_CHANCE;
-      
-      if (totalHazards < TARGET_HAZARDS && getNextRandom() < adjustedChance) {
+      if (!isTooCloseVisually(pos) && !isTooCloseOnPath(pos)) {
         hazardPositions.add(pos);
-        isHazard[pos] = true;
-        lastHazardPos = pos;
-        totalHazards++;
       }
     }
     
