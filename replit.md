@@ -40,10 +40,11 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
 
-## Multiplier System (Replacement-Based)
-When landing on a multiplier tile, your current multiplier is **replaced** (not stacked):
-- Example: 3x → land on 4x → becomes 4x
-- Example: 7x → land on 2x → becomes 2x
+## Multiplier System (Additive Stacking)
+When landing on a multiplier tile, its value is **added** to your current multiplier:
+- Example: Start at 1x → land on 2x tile → total becomes 3x
+- Example: Have 3x → land on 1.5x tile → total becomes 4.5x
+- Multipliers stack additively throughout the game
 
 ### Multiplier Types by Zone
 - **Steps 1-25 (Easy)**: 1.5x, 2x, 2.5x, 3x, 4x, 5x
@@ -54,6 +55,7 @@ When landing on a multiplier tile, your current multiplier is **replaced** (not 
 
 ### Multiplier Rules
 - Maximum cap: 20x (no multiplier can exceed this)
+- Multipliers ADD to your total (e.g., 3x + 2x tile = 5x total)
 - Variety system avoids back-to-back same low multipliers
 - Win condition: Reaching step 100 automatically sets multiplier to 20x
 
@@ -61,7 +63,7 @@ When landing on a multiplier tile, your current multiplier is **replaced** (not 
 - **Shield** (Blue): Protects from one hazard - activate before rolling to survive a hazard
 - **Double** (Yellow): Doubles your current multiplier when activated - if you have 5x it becomes 10x (capped at 20x)
 - **Skip** (Green): Skip over a hazard or reset trap - activate before rolling to jump past danger
-- **Bonus Chest**: Random reward - 30% chance for +5 KICKS bonus, always replaces multiplier with chest value
+- **Bonus Chest**: Random reward - adds multiplier to total + 30% chance for +5 KICKS bonus
 
 ## Achievement Categories
 - **Games Played**: First Climb (1), Veteran (10), Dedicated (50), Master (100)

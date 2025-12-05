@@ -494,14 +494,18 @@ export async function registerRoutes(
         }
       } else if (landedStep.type === "bonus_chest") {
         const bonusMultiplier = landedStep.multiplier || 2;
-        finalMultiplier = bonusMultiplier;
-        finalMultiplier = Math.min(finalMultiplier, 20);
+        finalMultiplier = Math.min(finalMultiplier + bonusMultiplier, 20);
         
         const givesBonusKicks = Math.random() < 0.3;
         const bonusKicksAmount = givesBonusKicks ? 5 : 0;
         
         const currentBonusKicks = game.bonusKicks ? parseFloat(game.bonusKicks) : 0;
         const newBonusKicks = currentBonusKicks + bonusKicksAmount;
+        
+        if (useDouble && !doubleUsed) {
+          finalMultiplier = Math.min(finalMultiplier * 2, 20);
+          doubleUsed = true;
+        }
         
         const updatedGame = await storage.updateGame(game.id, {
           finalPosition: newPosition,
@@ -522,6 +526,7 @@ export async function registerRoutes(
           bonusKicks: newBonusKicks,
           shieldUsed,
           skipUsed,
+          doubleUsed,
           skippedPosition,
           bonusChestReward: {
             type: givesBonusKicks ? "kicks" : "multiplier",
@@ -530,8 +535,7 @@ export async function registerRoutes(
           },
         });
       } else if (landedStep.multiplier) {
-        finalMultiplier = landedStep.multiplier;
-        finalMultiplier = Math.min(finalMultiplier, 20);
+        finalMultiplier = Math.min(finalMultiplier + landedStep.multiplier, 20);
       }
       
       if (useDouble && !doubleUsed) {
