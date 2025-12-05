@@ -10,7 +10,7 @@ const APECHAIN_CHAIN_ID = 33139;
 
 const TOTAL_STEPS = 100;
 
-type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_4x" | "multiplier_5x" | "multiplier_6x" | "multiplier_7x" | "multiplier_8x" | "multiplier_10x" | "multiplier_12x" | "multiplier_15x" | "multiplier_18x" | "multiplier_20x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_4x" | "multiplier_5x" | "multiplier_6x" | "multiplier_7x" | "multiplier_8x" | "multiplier_10x" | "multiplier_12x" | "multiplier_15x" | "multiplier_18x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 interface BoardStep {
   position: number;
@@ -22,12 +22,18 @@ interface BoardStep {
 function generateBoard(seed: string): BoardStep[] {
   const board: BoardStep[] = [];
   
-  const seedHash = crypto.createHash('sha256').update(seed).digest('hex');
-  let hashIndex = 0;
+  let hashSeed = seed;
+  let hashBuffer = '';
+  let bufferIndex = 0;
   
   const getNextRandom = (): number => {
-    const hex = seedHash.substring(hashIndex % 64, (hashIndex % 64) + 8);
-    hashIndex += 8;
+    if (bufferIndex >= hashBuffer.length - 7) {
+      hashBuffer = crypto.createHash('sha256').update(hashSeed + bufferIndex.toString()).digest('hex');
+      hashSeed = hashBuffer;
+      bufferIndex = 0;
+    }
+    const hex = hashBuffer.substring(bufferIndex, bufferIndex + 8);
+    bufferIndex += 8;
     return parseInt(hex, 16) / 0xffffffff;
   };
   
@@ -86,6 +92,26 @@ function generateBoard(seed: string): BoardStep[] {
       
       if (!isTooCloseVisually(pos) && !isTooCloseOnPath(pos)) {
         hazardPositions.add(pos);
+      }
+    }
+    
+    if (hazardPositions.size < TARGET_HAZARDS) {
+      for (const pos of candidates) {
+        if (hazardPositions.size >= TARGET_HAZARDS) break;
+        if (hazardPositions.has(pos)) continue;
+        
+        let tooClose = false;
+        const existingArray = Array.from(hazardPositions);
+        for (const existing of existingArray) {
+          if (Math.abs(pos - existing) < 3) {
+            tooClose = true;
+            break;
+          }
+        }
+        
+        if (!tooClose) {
+          hazardPositions.add(pos);
+        }
       }
     }
     
@@ -151,13 +177,12 @@ function generateBoard(seed: string): BoardStep[] {
         const options = [
           { mult: 5, type: "multiplier_5x" as StepType, weight: 0.12 },
           { mult: 6, type: "multiplier_6x" as StepType, weight: 0.12 },
-          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.12 },
-          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.15 },
-          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.15 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.14 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.16 },
+          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.16 },
           { mult: 12, type: "multiplier_12x" as StepType, weight: 0.12 },
           { mult: 15, type: "multiplier_15x" as StepType, weight: 0.10 },
-          { mult: 18, type: "multiplier_18x" as StepType, weight: 0.07 },
-          { mult: 20, type: "multiplier_20x" as StepType, weight: 0.05 },
+          { mult: 18, type: "multiplier_18x" as StepType, weight: 0.08 },
         ];
         let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 10);
         if (filtered.length === 0) filtered = options;
