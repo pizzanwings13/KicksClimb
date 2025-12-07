@@ -102,7 +102,7 @@ const ACHIEVEMENTS: Achievement[] = [
   {
     id: "legendary_multiplier",
     name: "Legendary Multiplier",
-    description: "Reach a 20x multiplier",
+    description: "Reach the 10x maximum multiplier",
     icon: Star,
     color: "text-pink-400",
     bgColor: "bg-pink-500/20",

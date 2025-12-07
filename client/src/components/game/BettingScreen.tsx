@@ -181,9 +181,9 @@ export function BettingScreen() {
 
           <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 mb-6 border border-green-500/30">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-400">Potential Win (20x)</span>
+              <span className="text-gray-400">Potential Win (10x)</span>
               <span className="text-xl font-bold text-green-400">
-                {(betValue * 20).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
+                {(betValue * 10).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
               </span>
             </div>
             <p className="text-xs text-gray-500">

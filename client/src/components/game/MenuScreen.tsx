@@ -51,7 +51,7 @@ export function MenuScreen() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-yellow-400">5.</span>
-              <span>Claim any time or reach step 100 for 20x!</span>
+              <span>Claim any time or reach step 100 for 10x!</span>
             </li>
           </ul>
         </div>
