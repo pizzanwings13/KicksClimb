@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Coins, Zap, AlertTriangle, Settings, Loader2, CheckCircle, XCircle } from "lucide-react";
 
-const QUICK_AMOUNTS = ["10", "50", "100", "500", "1000"];
+const QUICK_AMOUNTS = ["50", "100", "500", "1000", "2500"];
+const MAX_BET = 5000;
 
 export function BettingScreen() {
   const { 
@@ -39,7 +40,8 @@ export function BettingScreen() {
   };
 
   const handleMaxBet = () => {
-    const maxBet = Math.floor(parseFloat(kicksBalance) * 100) / 100;
+    const balance = Math.floor(parseFloat(kicksBalance) * 100) / 100;
+    const maxBet = Math.min(balance, MAX_BET);
     setBetAmount(maxBet.toString());
     setError(null);
     resetTransactionState();
@@ -56,6 +58,16 @@ export function BettingScreen() {
 
     if (betValue > balance) {
       setError("Insufficient KICKS balance");
+      return;
+    }
+
+    if (betValue > MAX_BET) {
+      setError(`Maximum bet is ${MAX_BET.toLocaleString()} KICKS`);
+      return;
+    }
+
+    if (betValue < 50) {
+      setError("Minimum bet is 50 KICKS");
       return;
     }
 
