@@ -101,7 +101,7 @@ type Game = typeof games.$inferSelect;
 type GameStep = typeof gameSteps.$inferSelect;
 
 const TOTAL_STEPS = 100;
-type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_4x" | "multiplier_5x" | "multiplier_6x" | "multiplier_7x" | "multiplier_8x" | "multiplier_10x" | "multiplier_12x" | "multiplier_15x" | "multiplier_18x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
+type StepType = "safe" | "multiplier_1x" | "multiplier_1_5x" | "multiplier_2x" | "multiplier_2_5x" | "multiplier_3x" | "multiplier_4x" | "multiplier_5x" | "multiplier_6x" | "multiplier_7x" | "multiplier_8x" | "multiplier_9x" | "multiplier_10x" | "hazard" | "reset_trap" | "finish" | "powerup_shield" | "powerup_double" | "powerup_skip" | "bonus_chest";
 
 interface BoardStep {
   position: number;
@@ -139,7 +139,7 @@ function generateBoard(seed: string): BoardStep[] {
     return parseInt(hex, 16) / 0xffffffff;
   };
   
-  const TOTAL_HAZARDS = 15;
+  const TOTAL_HAZARDS = 20;
   const MIN_PATH_GAP = 4;
   const MIN_VISUAL_DISTANCE = 2;
   
@@ -200,7 +200,7 @@ function generateBoard(seed: string): BoardStep[] {
       continue;
     }
     if (i === TOTAL_STEPS) {
-      board.push({ position: i, type: "finish", multiplier: 20 });
+      board.push({ position: i, type: "finish", multiplier: 10 });
       continue;
     }
     
@@ -234,16 +234,15 @@ function generateBoard(seed: string): BoardStep[] {
       
       if (i >= 76) {
         const options = [
-          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.12 },
-          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.12 },
-          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.14 },
-          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.16 },
-          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.16 },
-          { mult: 12, type: "multiplier_12x" as StepType, weight: 0.12 },
-          { mult: 15, type: "multiplier_15x" as StepType, weight: 0.10 },
-          { mult: 18, type: "multiplier_18x" as StepType, weight: 0.08 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.10 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.14 },
+          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.16 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.16 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.14 },
+          { mult: 9, type: "multiplier_9x" as StepType, weight: 0.12 },
+          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.18 },
         ];
-        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 10);
+        let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 7);
         if (filtered.length === 0) filtered = options;
         const totalWeight = filtered.reduce((sum, o) => sum + o.weight, 0);
         let cumulative = 0;
@@ -256,18 +255,18 @@ function generateBoard(seed: string): BoardStep[] {
             break;
           }
         }
-        selectedMultiplier = selectedMultiplier! || 8;
-        stepType = stepType! || "multiplier_8x";
+        selectedMultiplier = selectedMultiplier! || 7;
+        stepType = stepType! || "multiplier_7x";
       } else if (i >= 51) {
         const options = [
-          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.12 },
-          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.15 },
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.10 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.14 },
           { mult: 5, type: "multiplier_5x" as StepType, weight: 0.18 },
-          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.15 },
-          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.12 },
+          { mult: 6, type: "multiplier_6x" as StepType, weight: 0.18 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.14 },
           { mult: 8, type: "multiplier_8x" as StepType, weight: 0.12 },
-          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.10 },
-          { mult: 12, type: "multiplier_12x" as StepType, weight: 0.06 },
+          { mult: 9, type: "multiplier_9x" as StepType, weight: 0.08 },
+          { mult: 10, type: "multiplier_10x" as StepType, weight: 0.06 },
         ];
         let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 6);
         if (filtered.length === 0) filtered = options;
@@ -286,13 +285,14 @@ function generateBoard(seed: string): BoardStep[] {
         stepType = stepType! || "multiplier_5x";
       } else if (i >= 26) {
         const options = [
-          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.15 },
-          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.15 },
-          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.20 },
+          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.14 },
+          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.14 },
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.18 },
           { mult: 4, type: "multiplier_4x" as StepType, weight: 0.18 },
-          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.15 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.14 },
           { mult: 6, type: "multiplier_6x" as StepType, weight: 0.10 },
-          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.07 },
+          { mult: 7, type: "multiplier_7x" as StepType, weight: 0.07 },
+          { mult: 8, type: "multiplier_8x" as StepType, weight: 0.05 },
         ];
         let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 4);
         if (filtered.length === 0) filtered = options;
@@ -311,12 +311,13 @@ function generateBoard(seed: string): BoardStep[] {
         stepType = stepType! || "multiplier_3x";
       } else {
         const options = [
-          { mult: 1.5, type: "multiplier_1_5x" as StepType, weight: 0.15 },
-          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.25 },
-          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.20 },
-          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.18 },
-          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.12 },
-          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.10 },
+          { mult: 1, type: "multiplier_1x" as StepType, weight: 0.18 },
+          { mult: 1.5, type: "multiplier_1_5x" as StepType, weight: 0.18 },
+          { mult: 2, type: "multiplier_2x" as StepType, weight: 0.20 },
+          { mult: 2.5, type: "multiplier_2_5x" as StepType, weight: 0.16 },
+          { mult: 3, type: "multiplier_3x" as StepType, weight: 0.14 },
+          { mult: 4, type: "multiplier_4x" as StepType, weight: 0.08 },
+          { mult: 5, type: "multiplier_5x" as StepType, weight: 0.06 },
         ];
         let filtered = options.filter(o => o.mult !== lastMultiplier || o.mult >= 3);
         if (filtered.length === 0) filtered = options;
@@ -569,7 +570,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (user) await updateUser(user.id, { gamesLost: user.gamesLost + 1, totalKicksLost: (parseFloat(user.totalKicksLost) + parseFloat(game.betAmount)).toString() });
         }
       } else if (landedStep.type === "finish") {
-        gameStatus = "won"; finalMultiplier = 20; payout = (parseFloat(game.betAmount) * finalMultiplier).toString();
+        gameStatus = "won"; finalMultiplier = 10; payout = (parseFloat(game.betAmount) * finalMultiplier).toString();
         const user = await getUser(game.userId);
         if (user) {
           await updateUser(user.id, { gamesWon: user.gamesWon + 1, totalKicksWon: (parseFloat(user.totalKicksWon) + parseFloat(payout)).toString(), highestMultiplier: Math.max(parseFloat(user.highestMultiplier), finalMultiplier).toString() });
@@ -583,7 +584,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.json({ game: updatedGame, landedStep, currentMultiplier: finalMultiplier, potentialPayout: (parseFloat(game.betAmount) * finalMultiplier).toString(), shieldUsed: false, resetToStart: true });
         }
       } else if (landedStep.multiplier) {
-        finalMultiplier = Math.min(finalMultiplier + landedStep.multiplier, 20);
+        finalMultiplier = Math.min(landedStep.multiplier, 10);
       }
       
       const updatedGame = await updateGame(game.id, { finalPosition: newPosition, gameStatus, finalMultiplier: finalMultiplier.toString(), payout, ...(gameStatus !== "active" && { endedAt: new Date() }) });

@@ -31,44 +31,44 @@ A 3D betting game on ApeChain where players connect their wallets to bet KICKS t
 
 ## Game Mechanics
 - **Hazard Distribution**: Visual-aware algorithm prevents clustering
-  - ~15 hazards total, randomly placed across steps 5-95
+  - 20 hazards total, randomly placed across steps 5-95
   - Checks VISUAL distance on the 10x10 grid (accounts for serpentine layout)
   - Minimum 2 tiles visual distance between hazards (no adjacent hazards)
   - Minimum 4 steps path distance between hazards
   - Randomized placement ensures variety while maintaining fairness
-- **Finish (Step 100)**: 20x multiplier bonus
+- **Finish (Step 100)**: 10x multiplier bonus
 - **Reset Traps**: Special spaces that send player back to step 0 (keeps multiplier)
 - **Streak System**: Land 3+ consecutive safe/multiplier steps to trigger "On Fire" status
 
-## Multiplier System (Additive Stacking)
-When landing on a multiplier tile, its value is **added** to your current multiplier:
-- Example: Start at 1x → land on 2x tile → total becomes 3x
-- Example: Have 3x → land on 1.5x tile → total becomes 4.5x
-- Multipliers stack additively throughout the game
+## Multiplier System (Replacement)
+When landing on a multiplier tile, your multiplier is **replaced** with the tile's value:
+- Example: Start at 1x → land on 3x tile → multiplier becomes 3x
+- Example: Have 5x → land on 2x tile → multiplier becomes 2x
+- Your multiplier always equals the last multiplier tile you landed on
 
 ### Multiplier Types by Zone
-- **Steps 1-25 (Easy)**: 1.5x, 2x, 2.5x, 3x, 4x, 5x
-- **Steps 26-50 (Medium)**: 2x, 2.5x, 3x, 4x, 5x, 6x, 8x
-- **Steps 51-75 (Hard)**: 3x, 4x, 5x, 6x, 7x, 8x, 10x, 12x
-- **Steps 76-99 (Expert)**: 5x, 6x, 7x, 8x, 10x, 12x, 15x, 18x, 20x
-- **Step 100 (Finish)**: Automatically becomes 20x
+- **Steps 1-25 (Easy)**: 1x, 1.5x, 2x, 2.5x, 3x, 4x, 5x
+- **Steps 26-50 (Medium)**: 2x, 2.5x, 3x, 4x, 5x, 6x, 7x, 8x
+- **Steps 51-75 (Hard)**: 3x, 4x, 5x, 6x, 7x, 8x, 9x, 10x
+- **Steps 76-99 (Expert)**: 4x, 5x, 6x, 7x, 8x, 9x, 10x
+- **Step 100 (Finish)**: Automatically becomes 10x
 
 ### Multiplier Rules
-- Maximum cap: 20x (no multiplier can exceed this)
-- Multipliers ADD to your total (e.g., 3x + 2x tile = 5x total)
+- Maximum cap: 10x (no multiplier can exceed this)
+- Multipliers REPLACE your current value (e.g., have 5x, land on 2x = 2x)
 - Variety system avoids back-to-back same low multipliers
-- Win condition: Reaching step 100 automatically sets multiplier to 20x
+- Win condition: Reaching step 100 automatically sets multiplier to 10x
 
 ## Power-Up Types
 - **Shield** (Blue): Protects from one hazard - activate before rolling to survive a hazard
-- **Double** (Yellow): Doubles your current multiplier when activated - if you have 5x it becomes 10x (capped at 20x)
+- **Double** (Yellow): Doubles your current multiplier when activated - if you have 5x it becomes 10x (capped at 10x)
 - **Skip** (Green): Skip over a hazard or reset trap - activate before rolling to jump past danger
-- **Bonus Chest**: Random reward - adds multiplier to total + 30% chance for +5 KICKS bonus
+- **Bonus Chest**: Random reward - sets multiplier + 30% chance for +5 KICKS bonus
 
 ## Achievement Categories
 - **Games Played**: First Climb (1), Veteran (10), Dedicated (50), Master (100)
 - **Wins**: First Victory (1), Winner (10), Champion (50)
-- **Multipliers**: Hunter (5x), Big (10x), Legendary (20x)
+- **Multipliers**: Hunter (5x), Big (8x), Legendary (10x)
 - **Winnings**: 1K, 10K, 100K KICKS total won
 
 ## Project Structure
@@ -130,7 +130,15 @@ npm run db:push      # Push database schema changes
 
 Wallet detection automatically identifies which wallets are installed and provides appropriate connection options through the WalletConnectModal component.
 
-## Recent Changes (November 30, 2025)
+## Recent Changes (December 7, 2025)
+- Increased hazards from 15 to 20 for more competitive gameplay
+- Reduced finish line multiplier from 20x to 10x
+- Changed multiplier system from additive stacking to replacement (landing sets your multiplier)
+- Updated multiplier range to 1x-10x (removed 12x, 15x, 18x)
+- Added 9x multiplier tier in Hard and Expert zones
+- Added 1x multiplier in Easy zone for balanced risk/reward
+
+## Previous Changes (November 30, 2025)
 - Added multi-wallet connection modal (MetaMask, Zerion, Glyph coming soon)
 - Added sound effects and background music with mute controls
 - Implemented particle effects for game events (win, loss, multipliers)
@@ -139,10 +147,8 @@ Wallet detection automatically identifies which wallets are installed and provid
 - Added all-time leaderboard with highest multipliers and biggest wins tabs
 - Implemented achievement badges system with 13 unlockable badges
 - Enhanced UI with Framer Motion animations
-- Increased hazard difficulty (25/30/40/55% across zones)
 - Added visual step numbers on each block
 - Added landscape with mountains, trees, and DashKids logo wall
-- Added x15 multiplier appearing rarely in Expert zone
 - Added reset trap spaces that send players back to step 0 (keep multiplier)
 - Implemented streak/on-fire system with animated flames around player
 
