@@ -48,36 +48,6 @@ interface GameState {
   enemiesDestroyed: number;
 }
 
-const laserSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
-const crashSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
-const enemyDestroySound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
-
-const playLaserSound = () => {
-  if (laserSound) {
-    laserSound.currentTime = 0;
-    laserSound.volume = 0.15;
-    laserSound.playbackRate = 1.5;
-    laserSound.play().catch(() => {});
-  }
-};
-
-const playCrashSound = () => {
-  if (crashSound) {
-    crashSound.currentTime = 0;
-    crashSound.volume = 0.5;
-    crashSound.playbackRate = 0.8;
-    crashSound.play().catch(() => {});
-  }
-};
-
-const playEnemyDestroySound = () => {
-  if (enemyDestroySound) {
-    enemyDestroySound.currentTime = 0;
-    enemyDestroySound.volume = 0.4;
-    enemyDestroySound.play().catch(() => {});
-  }
-};
-
 const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 const successSound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
 
@@ -96,7 +66,6 @@ const playSuccessSound = () => {
     successSound.play().catch(() => {});
   }
 };
-
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
@@ -138,7 +107,6 @@ export function RabbitRushApp() {
     refreshBalance,
     transactionState,
     resetTransactionState,
-    setTransactionState,
     signMessage,
     signClaimMessage,
     requestKicksFromHouse
@@ -465,21 +433,9 @@ export function RabbitRushApp() {
     setIsWagering(true);
     resetTransactionState();
     
-    // Set a timeout to auto-reset if transaction doesn't complete (mobile wallet issue)
-    const timeoutId = setTimeout(() => {
-      console.log('[RabbitRush] Transaction timeout - wallet may not have responded');
-      setIsWagering(false);
-      resetTransactionState();
-      setTransactionState({ 
-        status: "error", 
-        message: "Wallet didn't respond. If viewing in Zerion, use Zerion wallet. If viewing in MetaMask, use MetaMask." 
-      });
-    }, 30000); // 30 second timeout
-    
     try {
       console.log('[RabbitRush] Starting game with bet:', betValue);
       const txHash = await sendKicksToHouse(betValue.toString());
-      clearTimeout(timeoutId);
       console.log('[RabbitRush] Transaction hash:', txHash);
       
       if (!txHash) {
@@ -553,7 +509,6 @@ export function RabbitRushApp() {
         setDisplayKicks(parseFloat(kicksBalance) || 0);
       });
     } catch (error: any) {
-      clearTimeout(timeoutId);
       console.error('[RabbitRush] Failed to start game:', error);
       console.error('[RabbitRush] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.code === "ACTION_REJECTED") {
@@ -657,7 +612,6 @@ export function RabbitRushApp() {
       cancelAnimationFrame(gameLoopRef.current);
       gameLoopRef.current = null;
     }
-    playCrashSound();
     saveRunResult(false, 0);
     setEndMessage(message);
     setPhase("ended");
@@ -775,7 +729,6 @@ export function RabbitRushApp() {
         color: currentWeapon.bulletColor
       });
       gs.shootCooldown = currentWeapon.fireRate;
-      playLaserSound();
     }
     
     if (gs.shieldTime > 0) {
@@ -1124,7 +1077,6 @@ export function RabbitRushApp() {
               setInGameEarnings(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
               gameStateRef.current.hasPickedFirst = true;
-              playEnemyDestroySound();
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
@@ -1306,18 +1258,7 @@ export function RabbitRushApp() {
 
       {phase !== "playing" && phase !== "ended" && (isPurchasing || isWagering || isClaiming) && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center relative">
-            <button
-              onClick={() => {
-                setIsPurchasing(false);
-                setIsWagering(false);
-                setIsClaiming(false);
-                resetTransactionState();
-              }}
-              className="absolute top-2 right-2 text-gray-400 hover:text-white text-xl font-bold w-8 h-8 flex items-center justify-center"
-            >
-              ×
-            </button>
+          <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
             <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">
               {isPurchasing ? "Processing Purchase..." : 

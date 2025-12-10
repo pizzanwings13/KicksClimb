@@ -545,63 +545,36 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   sendKicksToHouse: async (amount: string) => {
-    const { kicksContract, houseWalletAddress, checkAllowance, setTransactionState, signer, provider, kicksTokenAddress } = get();
+    const { kicksContract, houseWalletAddress, checkAllowance, approveTokens, setTransactionState } = get();
     
-    console.log("[sendKicksToHouse] Starting transfer of", amount, "KICKS");
-    console.log("[sendKicksToHouse] Contract exists:", !!kicksContract);
-    console.log("[sendKicksToHouse] House wallet:", houseWalletAddress);
-    console.log("[sendKicksToHouse] Signer exists:", !!signer);
-    console.log("[sendKicksToHouse] Provider exists:", !!provider);
-    
-    if (!kicksContract || !houseWalletAddress || !signer) {
-      setTransactionState({ status: "error", message: "Wallet not properly connected. Please reconnect." });
+    if (!kicksContract || !houseWalletAddress) {
+      setTransactionState({ status: "error", message: "Token contract or house wallet not configured" });
       return null;
     }
 
     try {
-      // Create a fresh signer-connected contract for write operations
-      // This ensures mobile wallets properly trigger transaction popups
-      const writeContract = kicksContract.connect(signer) as ethers.Contract;
-      console.log("[sendKicksToHouse] Created signer-connected contract for writes");
-      
       setTransactionState({ status: "checking", message: "Checking token allowance..." });
-      console.log("[sendKicksToHouse] Checking allowance...");
       
-      const decimals = await writeContract.decimals();
-      console.log("[sendKicksToHouse] Token decimals:", decimals);
+      const decimals = await kicksContract.decimals();
       const amountInWei = ethers.parseUnits(amount, decimals);
-      console.log("[sendKicksToHouse] Amount in wei:", amountInWei.toString());
       
       const currentAllowance = await checkAllowance();
-      console.log("[sendKicksToHouse] Current allowance:", currentAllowance.toString());
       
       if (currentAllowance < amountInWei) {
-        console.log("[sendKicksToHouse] Need approval, calling approve...");
-        setTransactionState({ status: "approving", message: "Please approve KICKS tokens in your wallet..." });
-        
-        const approveTx = await writeContract.approve(houseWalletAddress, amountInWei);
-        console.log("[sendKicksToHouse] Approval tx submitted:", approveTx.hash);
-        await approveTx.wait();
-        console.log("[sendKicksToHouse] Approval complete");
+        await approveTokens(amount);
       }
       
-      setTransactionState({ status: "transferring", message: "Please confirm the transfer in your wallet..." });
-      console.log("[sendKicksToHouse] Calling transfer...");
+      setTransactionState({ status: "transferring", message: "Transferring KICKS to house wallet..." });
       
-      const tx = await writeContract.transfer(houseWalletAddress, amountInWei);
-      console.log("[sendKicksToHouse] Transfer tx submitted:", tx.hash);
-      
+      const tx = await kicksContract.transfer(houseWalletAddress, amountInWei);
       const receipt = await tx.wait();
-      console.log("[sendKicksToHouse] Transfer confirmed:", receipt.hash);
       
       await get().refreshBalance();
       
       setTransactionState({ status: "success", message: "Transfer successful!", txHash: receipt.hash });
       return receipt.hash;
     } catch (error: any) {
-      console.error("[sendKicksToHouse] Transfer error:", error);
-      console.error("[sendKicksToHouse] Error code:", error.code);
-      console.error("[sendKicksToHouse] Error message:", error.message);
+      console.error("Transfer error:", error);
       const message = error.code === "ACTION_REJECTED" 
         ? "Transaction rejected by user" 
         : error.message || "Failed to transfer tokens";
