@@ -48,6 +48,42 @@ interface GameState {
   enemiesDestroyed: number;
 }
 
+const laserSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
+const crashSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
+const enemyDestroySound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
+const backgroundMusic = typeof Audio !== 'undefined' ? new Audio('/sounds/background.mp3') : null;
+
+if (backgroundMusic) {
+  backgroundMusic.loop = true;
+  backgroundMusic.volume = 0.3;
+}
+
+const playLaserSound = () => {
+  if (laserSound) {
+    laserSound.currentTime = 0;
+    laserSound.volume = 0.15;
+    laserSound.playbackRate = 1.5;
+    laserSound.play().catch(() => {});
+  }
+};
+
+const playCrashSound = () => {
+  if (crashSound) {
+    crashSound.currentTime = 0;
+    crashSound.volume = 0.5;
+    crashSound.playbackRate = 0.8;
+    crashSound.play().catch(() => {});
+  }
+};
+
+const playEnemyDestroySound = () => {
+  if (enemyDestroySound) {
+    enemyDestroySound.currentTime = 0;
+    enemyDestroySound.volume = 0.4;
+    enemyDestroySound.play().catch(() => {});
+  }
+};
+
 const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 const successSound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
 
@@ -64,6 +100,19 @@ const playSuccessSound = () => {
     successSound.currentTime = 0;
     successSound.volume = 0.5;
     successSound.play().catch(() => {});
+  }
+};
+
+const startBackgroundMusic = () => {
+  if (backgroundMusic) {
+    backgroundMusic.play().catch(() => {});
+  }
+};
+
+const stopBackgroundMusic = () => {
+  if (backgroundMusic) {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
   }
 };
 
@@ -500,6 +549,7 @@ export function RabbitRushApp() {
       setIsWagering(false);
       resetTransactionState();
       setPhase("playing");
+      startBackgroundMusic();
       console.log('[RabbitRush] Game started! Phase set to playing');
       
       requestAnimationFrame(gameLoop);
@@ -592,6 +642,7 @@ export function RabbitRushApp() {
       
       if (claimed) {
         await refreshBalance();
+        stopBackgroundMusic();
         playSuccessSound();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
       } else {
@@ -612,6 +663,8 @@ export function RabbitRushApp() {
       cancelAnimationFrame(gameLoopRef.current);
       gameLoopRef.current = null;
     }
+    playCrashSound();
+    stopBackgroundMusic();
     saveRunResult(false, 0);
     setEndMessage(message);
     setPhase("ended");
@@ -729,6 +782,7 @@ export function RabbitRushApp() {
         color: currentWeapon.bulletColor
       });
       gs.shootCooldown = currentWeapon.fireRate;
+      playLaserSound();
     }
     
     if (gs.shieldTime > 0) {
@@ -1077,6 +1131,7 @@ export function RabbitRushApp() {
               setInGameEarnings(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
               gameStateRef.current.hasPickedFirst = true;
+              playEnemyDestroySound();
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
