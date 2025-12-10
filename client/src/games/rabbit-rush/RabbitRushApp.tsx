@@ -468,11 +468,26 @@ export function RabbitRushApp() {
       }
       
       console.log('[RabbitRush] Calling API to start run');
-      const res = await fetch('/api/rabbit-rush/run/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      let res;
+      try {
+        res = await fetch('/api/rabbit-rush/run/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
+          signal: controller.signal,
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.error('[RabbitRush] API fetch failed:', fetchError);
+        setIsWagering(false);
+        resetTransactionState();
+        return;
+      }
+      clearTimeout(timeoutId);
+      
       console.log('[RabbitRush] API response status:', res.status);
       
       if (!res.ok) {
@@ -482,7 +497,15 @@ export function RabbitRushApp() {
         return;
       }
       
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        console.error('[RabbitRush] Failed to parse API response:', jsonError);
+        setIsWagering(false);
+        resetTransactionState();
+        return;
+      }
       console.log('[RabbitRush] Run started with ID:', data.runId);
       setCurrentGameId(data.runId);
       
