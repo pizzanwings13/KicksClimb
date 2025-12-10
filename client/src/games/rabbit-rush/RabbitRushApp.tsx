@@ -139,6 +139,7 @@ export function RabbitRushApp() {
   const [betAmount, setBetAmount] = useState("100");
   const [displayMult, setDisplayMult] = useState("1.00");
   const [displayKicks, setDisplayKicks] = useState(0);
+  const [inGameEarnings, setInGameEarnings] = useState(0);
   const [endMessage, setEndMessage] = useState("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
@@ -442,6 +443,7 @@ export function RabbitRushApp() {
       gameStateRef.current.shootCooldown = 0;
       gameStateRef.current.coinsCollected = 0;
       gameStateRef.current.enemiesDestroyed = 0;
+      setInGameEarnings(0);
       
       const canvas = canvasRef.current!;
       rocketRef.current.x = canvas.width / 2;
@@ -497,6 +499,7 @@ export function RabbitRushApp() {
     if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst || isClaiming) return;
     
     const mult = gameStateRef.current.currentMult;
+    const payout = Math.floor(gameStateRef.current.wager * mult);
     
     gameStateRef.current.gameActive = false;
     if (gameLoopRef.current) {
@@ -509,10 +512,12 @@ export function RabbitRushApp() {
     setPhase("ended");
     
     try {
+      await saveRunResult(true, payout);
+      
       const authMessage = `Request Rabbit Rush claim nonce for run ${currentGameId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
-        setEndMessage(`Claim cancelled. Please try again later.`);
+        setEndMessage(`Claim cancelled. Won ${payout.toLocaleString()} KICKS - claim manually later.`);
         return;
       }
       
@@ -533,7 +538,6 @@ export function RabbitRushApp() {
       const signature = await signClaimMessage(expectedPayout, currentGameId || 0, nonce, "rabbit-rush");
       if (!signature) {
         setEndMessage(`Claim cancelled. Won ${serverPayout.toLocaleString()} KICKS - claim manually later.`);
-        saveRunResult(true, serverPayout);
         return;
       }
       
@@ -541,23 +545,19 @@ export function RabbitRushApp() {
       
       if (claimed) {
         await refreshBalance();
-        setDisplayKicks(parseFloat(kicksBalance) || 0);
         playSuccessSound();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
-        saveRunResult(true, serverPayout);
       } else {
         setEndMessage(`Claim failed. Contact support with game ID: ${currentGameId}`);
-        saveRunResult(true, serverPayout);
       }
     } catch (error: any) {
       console.error('Cashout error:', error);
       setEndMessage(`Error: ${error.message || 'Claim failed'}. Contact support.`);
-      saveRunResult(true, 0);
     } finally {
       setIsClaiming(false);
       resetTransactionState();
     }
-  }, [saveRunResult, currentGameId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, kicksBalance, resetTransactionState, walletAddress]);
+  }, [saveRunResult, currentGameId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, resetTransactionState, walletAddress]);
 
   const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
@@ -812,7 +812,7 @@ export function RabbitRushApp() {
       ctx.restore();
       
       if (Math.abs(c.x - rocket.x) < 40 && Math.abs(cy - rocket.y - 50) < 55) {
-        setDisplayKicks(prev => prev + c.value);
+        setInGameEarnings(prev => prev + c.value);
         gs.coinsCollected += c.value;
         gs.hasPickedFirst = true;
         playSuccessSound();
@@ -1026,7 +1026,7 @@ export function RabbitRushApp() {
             playHitSound();
             
             if (e.hp <= 0) {
-              setDisplayKicks(prev => prev + 100);
+              setInGameEarnings(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
               gameStateRef.current.hasPickedFirst = true;
               
@@ -1056,7 +1056,7 @@ export function RabbitRushApp() {
               playHitSound();
               
               if (o.hp <= 0) {
-                setDisplayKicks(prev => prev + 50);
+                setInGameEarnings(prev => prev + 50);
                 gameStateRef.current.hasPickedFirst = true;
                 
                 for (let k = 0; k < 20; k++) {
@@ -1198,7 +1198,7 @@ export function RabbitRushApp() {
       <div className="absolute top-4 right-4 z-20 bg-black/70 px-4 py-2 rounded-xl border-2 border-pink-500 shadow-lg shadow-pink-500/30">
         <span className="text-white font-bold">
           {phase === "playing" 
-            ? `Bet: ${gameStateRef.current.wager.toLocaleString()} KICKS` 
+            ? `Bet: ${gameStateRef.current.wager.toLocaleString()} | +${inGameEarnings.toLocaleString()}` 
             : `${displayKicks.toLocaleString()} KICKS`}
         </span>
       </div>
