@@ -138,6 +138,7 @@ export function RabbitRushApp() {
     refreshBalance,
     transactionState,
     resetTransactionState,
+    setTransactionState,
     signMessage,
     signClaimMessage,
     requestKicksFromHouse
@@ -464,9 +465,21 @@ export function RabbitRushApp() {
     setIsWagering(true);
     resetTransactionState();
     
+    // Set a timeout to auto-reset if transaction doesn't complete (mobile wallet issue)
+    const timeoutId = setTimeout(() => {
+      console.log('[RabbitRush] Transaction timeout - wallet may not have responded');
+      setIsWagering(false);
+      resetTransactionState();
+      setTransactionState({ 
+        status: "error", 
+        message: "Wallet didn't respond. If viewing in Zerion, use Zerion wallet. If viewing in MetaMask, use MetaMask." 
+      });
+    }, 30000); // 30 second timeout
+    
     try {
       console.log('[RabbitRush] Starting game with bet:', betValue);
       const txHash = await sendKicksToHouse(betValue.toString());
+      clearTimeout(timeoutId);
       console.log('[RabbitRush] Transaction hash:', txHash);
       
       if (!txHash) {
@@ -540,6 +553,7 @@ export function RabbitRushApp() {
         setDisplayKicks(parseFloat(kicksBalance) || 0);
       });
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('[RabbitRush] Failed to start game:', error);
       console.error('[RabbitRush] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.code === "ACTION_REJECTED") {
