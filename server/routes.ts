@@ -1016,4 +1016,192 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rabbit-rush/profile/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const user = await storage.getUserByWallet(walletAddress);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      let inventory = await storage.getRabbitRushInventory(user.id);
+      if (!inventory) {
+        inventory = await storage.createRabbitRushInventory(user.id);
+      }
+      
+      res.json({ 
+        user: {
+          id: user.id,
+          username: user.username,
+          walletAddress: user.walletAddress,
+        },
+        inventory: {
+          ...inventory,
+          ownedShips: JSON.parse(inventory.ownedShips),
+          ownedWeapons: JSON.parse(inventory.ownedWeapons),
+          ownedColors: JSON.parse(inventory.ownedColors),
+        }
+      });
+    } catch (error) {
+      console.error("Get Rabbit Rush profile error:", error);
+      res.status(500).json({ error: "Failed to get profile" });
+    }
+  });
+
+  app.post("/api/rabbit-rush/purchase", async (req, res) => {
+    try {
+      const { walletAddress, itemType, itemId } = req.body;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      let inventory = await storage.getRabbitRushInventory(user.id);
+      if (!inventory) {
+        inventory = await storage.createRabbitRushInventory(user.id);
+      }
+      
+      const ownedShips = JSON.parse(inventory.ownedShips);
+      const ownedWeapons = JSON.parse(inventory.ownedWeapons);
+      const ownedColors = JSON.parse(inventory.ownedColors);
+      
+      if (itemType === 'ship' && !ownedShips.includes(itemId)) {
+        ownedShips.push(itemId);
+        await storage.updateRabbitRushInventory(user.id, { 
+          ownedShips: JSON.stringify(ownedShips) 
+        });
+      } else if (itemType === 'weapon' && !ownedWeapons.includes(itemId)) {
+        ownedWeapons.push(itemId);
+        await storage.updateRabbitRushInventory(user.id, { 
+          ownedWeapons: JSON.stringify(ownedWeapons) 
+        });
+      } else if (itemType === 'color' && !ownedColors.includes(itemId)) {
+        ownedColors.push(itemId);
+        await storage.updateRabbitRushInventory(user.id, { 
+          ownedColors: JSON.stringify(ownedColors) 
+        });
+      }
+      
+      res.json({ success: true, ownedShips, ownedWeapons, ownedColors });
+    } catch (error) {
+      console.error("Purchase error:", error);
+      res.status(500).json({ error: "Failed to process purchase" });
+    }
+  });
+
+  app.post("/api/rabbit-rush/equip", async (req, res) => {
+    try {
+      const { walletAddress, selectedShip, selectedWeapon, selectedColor } = req.body;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const updates: any = {};
+      if (selectedShip !== undefined) updates.selectedShip = selectedShip;
+      if (selectedWeapon !== undefined) updates.selectedWeapon = selectedWeapon;
+      if (selectedColor !== undefined) updates.selectedColor = selectedColor;
+      
+      await storage.updateRabbitRushInventory(user.id, updates);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Equip error:", error);
+      res.status(500).json({ error: "Failed to equip item" });
+    }
+  });
+
+  app.post("/api/rabbit-rush/run/end", async (req, res) => {
+    try {
+      const { walletAddress, wager, finalMultiplier, payout, coinsCollected, enemiesDestroyed, won } = req.body;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const run = await storage.createRabbitRushRun(user.id, wager.toString());
+      await storage.updateRabbitRushRun(run.id, {
+        finalMultiplier: finalMultiplier.toString(),
+        payout: payout.toString(),
+        coinsCollected: coinsCollected || 0,
+        enemiesDestroyed: enemiesDestroyed || 0,
+        runStatus: won ? "won" : "lost",
+        endedAt: new Date(),
+      });
+      
+      let inventory = await storage.getRabbitRushInventory(user.id);
+      if (!inventory) {
+        inventory = await storage.createRabbitRushInventory(user.id);
+      }
+      
+      const newTotalRuns = inventory.totalRuns + 1;
+      const newBestMultiplier = Math.max(parseFloat(inventory.bestMultiplier), parseFloat(finalMultiplier));
+      
+      const updates: any = {
+        totalRuns: newTotalRuns,
+        bestMultiplier: newBestMultiplier.toString(),
+      };
+      
+      if (won) {
+        updates.runsWon = inventory.runsWon + 1;
+        updates.totalKicksWon = (parseFloat(inventory.totalKicksWon) + parseFloat(payout)).toString();
+        await storage.updateRabbitRushDailyLeaderboard(user.id, payout.toString(), finalMultiplier.toString());
+        await storage.updateRabbitRushWeeklyLeaderboard(user.id, payout.toString(), finalMultiplier.toString());
+      } else {
+        updates.runsLost = inventory.runsLost + 1;
+        updates.totalKicksLost = (parseFloat(inventory.totalKicksLost) + parseFloat(wager)).toString();
+      }
+      
+      await storage.updateRabbitRushInventory(user.id, updates);
+      
+      res.json({ success: true, runId: run.id });
+    } catch (error) {
+      console.error("End run error:", error);
+      res.status(500).json({ error: "Failed to record run" });
+    }
+  });
+
+  app.get("/api/rabbit-rush/leaderboard/:type", async (req, res) => {
+    try {
+      const { type } = req.params;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      let leaderboard;
+      if (type === "daily") {
+        leaderboard = await storage.getRabbitRushDailyLeaderboard(limit);
+      } else if (type === "weekly") {
+        leaderboard = await storage.getRabbitRushWeeklyLeaderboard(limit);
+      } else {
+        return res.status(400).json({ error: "Invalid leaderboard type" });
+      }
+      
+      res.json({ leaderboard });
+    } catch (error) {
+      console.error("Get leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get leaderboard" });
+    }
+  });
+
+  app.get("/api/rabbit-rush/runs/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const runs = await storage.getUserRabbitRushRuns(user.id, limit);
+      res.json({ runs });
+    } catch (error) {
+      console.error("Get runs error:", error);
+      res.status(500).json({ error: "Failed to get runs" });
+    }
+  });
+
 }

@@ -126,6 +126,52 @@ export function RabbitRushApp() {
     lunaImg.src = '/textures/rabbit-luna.avif';
     lunaImg.onload = () => { lunaImageRef.current = lunaImg; };
   }, []);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!walletAddress) return;
+      try {
+        const res = await fetch(`/api/rabbit-rush/profile/${walletAddress}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.inventory) {
+            setOwnedShips(data.inventory.ownedShips);
+            setOwnedWeapons(data.inventory.ownedWeapons);
+            setOwnedColors(data.inventory.ownedColors);
+            setSelectedShip(data.inventory.selectedShip);
+            setSelectedWeapon(data.inventory.selectedWeapon);
+            setSelectedColor(data.inventory.selectedColor);
+            setProfileStats({
+              totalRuns: data.inventory.totalRuns || 0,
+              runsWon: data.inventory.runsWon || 0,
+              bestMultiplier: data.inventory.bestMultiplier || "0",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+      }
+    };
+    loadProfile();
+  }, [walletAddress]);
+
+  const fetchLeaderboard = async (type: "daily" | "weekly") => {
+    try {
+      const res = await fetch(`/api/rabbit-rush/leaderboard/${type}?limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboardData(data.leaderboard || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (showLeaderboard) {
+      fetchLeaderboard(leaderboardTab);
+    }
+  }, [showLeaderboard, leaderboardTab]);
   
   const [phase, setPhase] = useState<GamePhase>("ship_select");
   const [selectedShip, setSelectedShip] = useState(0);
@@ -139,6 +185,10 @@ export function RabbitRushApp() {
   const [displayMult, setDisplayMult] = useState("1.00");
   const [displayKicks, setDisplayKicks] = useState(0);
   const [endMessage, setEndMessage] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [profileStats, setProfileStats] = useState<{totalRuns: number, runsWon: number, bestMultiplier: string}>({ totalRuns: 0, runsWon: 0, bestMultiplier: "0" });
   
   const currentShip = SHIPS[selectedShip];
   const currentWeapon = WEAPONS[selectedWeapon];
@@ -214,43 +264,85 @@ export function RabbitRushApp() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSelectShip = (shipId: number) => {
+  const handleSelectShip = async (shipId: number) => {
     if (ownedShips.includes(shipId)) {
       setSelectedShip(shipId);
       setPhase("shop");
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/equip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, selectedShip: shipId }),
+        });
+      }
     }
   };
 
-  const handleBuyShip = (ship: ShipConfig) => {
+  const handleBuyShip = async (ship: ShipConfig) => {
     if (displayKicks >= ship.price && !ownedShips.includes(ship.id)) {
       setDisplayKicks(prev => prev - ship.price);
       setOwnedShips(prev => [...prev, ship.id]);
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, itemType: 'ship', itemId: ship.id }),
+        });
+      }
     }
   };
 
-  const handleBuyWeapon = (weapon: WeaponConfig) => {
+  const handleBuyWeapon = async (weapon: WeaponConfig) => {
     if (displayKicks >= weapon.price && !ownedWeapons.includes(weapon.id)) {
       setDisplayKicks(prev => prev - weapon.price);
       setOwnedWeapons(prev => [...prev, weapon.id]);
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, itemType: 'weapon', itemId: weapon.id }),
+        });
+      }
     }
   };
 
-  const handleBuyColor = (color: ColorConfig) => {
+  const handleBuyColor = async (color: ColorConfig) => {
     if (displayKicks >= color.price && !ownedColors.includes(color.id)) {
       setDisplayKicks(prev => prev - color.price);
       setOwnedColors(prev => [...prev, color.id]);
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, itemType: 'color', itemId: color.id }),
+        });
+      }
     }
   };
 
-  const handleEquipWeapon = (weaponId: number) => {
+  const handleEquipWeapon = async (weaponId: number) => {
     if (ownedWeapons.includes(weaponId)) {
       setSelectedWeapon(weaponId);
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/equip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, selectedWeapon: weaponId }),
+        });
+      }
     }
   };
 
-  const handleEquipColor = (colorId: number) => {
+  const handleEquipColor = async (colorId: number) => {
     if (ownedColors.includes(colorId)) {
       setSelectedColor(colorId);
+      if (walletAddress) {
+        await fetch('/api/rabbit-rush/equip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, selectedColor: colorId }),
+        });
+      }
     }
   };
 
@@ -291,6 +383,27 @@ export function RabbitRushApp() {
     requestAnimationFrame(gameLoop);
   };
 
+  const saveRunResult = useCallback(async (won: boolean, payout: number) => {
+    if (!walletAddress) return;
+    try {
+      await fetch('/api/rabbit-rush/run/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          wager: gameStateRef.current.wager,
+          finalMultiplier: gameStateRef.current.currentMult,
+          payout,
+          coinsCollected: gameStateRef.current.coinsCollected,
+          enemiesDestroyed: gameStateRef.current.enemiesDestroyed,
+          won,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to save run:', error);
+    }
+  }, [walletAddress]);
+
   const handleCashout = useCallback(() => {
     if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst) return;
     
@@ -298,19 +411,22 @@ export function RabbitRushApp() {
     setDisplayKicks(prev => prev + win);
     
     gameStateRef.current.gameActive = false;
+    playSuccessSound();
+    saveRunResult(true, win);
     setEndMessage(`CASHED OUT AT ${gameStateRef.current.currentMult.toFixed(2)}x! Won ${win.toLocaleString()} KICKS!`);
     setPhase("ended");
-  }, []);
+  }, [saveRunResult]);
 
-  const endGame = useCallback((message: string, isWin: boolean = false) => {
+  const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
     if (gameLoopRef.current) {
       cancelAnimationFrame(gameLoopRef.current);
       gameLoopRef.current = null;
     }
+    saveRunResult(false, 0);
     setEndMessage(message);
     setPhase("ended");
-  }, []);
+  }, [saveRunResult]);
 
   const spawnStuff = useCallback(() => {
     const scrollY = scrollYRef.current;
@@ -555,6 +671,8 @@ export function RabbitRushApp() {
       
       if (Math.abs(c.x - rocket.x) < 40 && Math.abs(cy - rocket.y - 50) < 55) {
         setDisplayKicks(prev => prev + c.value);
+        gs.coinsCollected += c.value;
+        playSuccessSound();
         
         for (let j = 0; j < 12; j++) {
           particlesRef.current.push({
@@ -969,6 +1087,28 @@ export function RabbitRushApp() {
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent mt-12">
               RABBIT RUSH
             </h1>
+            
+            <div className="flex gap-4 bg-black/60 px-4 py-2 rounded-xl border border-pink-500/30">
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{profileStats.totalRuns}</div>
+                <div className="text-xs text-gray-400">Runs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-400">{profileStats.runsWon}</div>
+                <div className="text-xs text-gray-400">Wins</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-yellow-400">{parseFloat(profileStats.bestMultiplier).toFixed(2)}x</div>
+                <div className="text-xs text-gray-400">Best</div>
+              </div>
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="ml-2 px-3 py-1 bg-pink-500 hover:bg-pink-600 rounded-lg text-white text-sm font-bold transition-colors"
+              >
+                Leaderboard
+              </button>
+            </div>
+            
             <p className="text-pink-300">Choose your ship!</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full">
@@ -1230,6 +1370,76 @@ export function RabbitRushApp() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showLeaderboard && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-white">Leaderboard</h2>
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setLeaderboardTab("daily")}
+                className={`flex-1 py-2 rounded-lg font-bold ${leaderboardTab === "daily" ? "bg-pink-500 text-white" : "bg-gray-700 text-gray-300"}`}
+              >
+                Daily
+              </button>
+              <button
+                onClick={() => setLeaderboardTab("weekly")}
+                className={`flex-1 py-2 rounded-lg font-bold ${leaderboardTab === "weekly" ? "bg-pink-500 text-white" : "bg-gray-700 text-gray-300"}`}
+              >
+                Weekly
+              </button>
+            </div>
+            
+            <div className="space-y-2">
+              {leaderboardData.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">No scores yet. Be the first!</div>
+              ) : (
+                leaderboardData.map((entry, index) => (
+                  <div
+                    key={entry.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg ${
+                      index === 0 ? "bg-yellow-500/20 border border-yellow-500/50" :
+                      index === 1 ? "bg-gray-400/20 border border-gray-400/50" :
+                      index === 2 ? "bg-orange-700/20 border border-orange-700/50" :
+                      "bg-gray-800"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-full ${
+                      index === 0 ? "bg-yellow-500 text-black" :
+                      index === 1 ? "bg-gray-400 text-black" :
+                      index === 2 ? "bg-orange-700 text-white" :
+                      "bg-gray-700 text-gray-300"
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-white">{entry.user?.username || 'Unknown'}</div>
+                      <div className="text-xs text-gray-400">{entry.runsPlayed} runs</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-green-400">{parseFloat(entry.totalWinnings).toLocaleString()} KICKS</div>
+                      <div className="text-xs text-yellow-400">Best: {parseFloat(entry.bestMultiplier).toFixed(2)}x</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

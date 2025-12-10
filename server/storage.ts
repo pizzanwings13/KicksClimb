@@ -1,7 +1,9 @@
 import { 
   users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
+  rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard,
   type User, type InsertUser, type Game, type InsertGame, 
-  type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement
+  type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
+  type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -310,6 +312,176 @@ export class DatabaseStorage implements IStorage {
         eq(userAchievements.achievementId, achievementId)
       ));
     return !!existing && existing.progress >= existing.maxProgress;
+  }
+
+  async getRabbitRushInventory(userId: number): Promise<RabbitRushInventory | undefined> {
+    const [inventory] = await db.select()
+      .from(rabbitRushInventories)
+      .where(eq(rabbitRushInventories.userId, userId));
+    return inventory;
+  }
+
+  async createRabbitRushInventory(userId: number): Promise<RabbitRushInventory> {
+    const [inventory] = await db.insert(rabbitRushInventories).values({
+      userId,
+      ownedShips: "[0,1]",
+      ownedWeapons: "[0]",
+      ownedColors: "[0]",
+      selectedShip: 0,
+      selectedWeapon: 0,
+      selectedColor: 0,
+    }).returning();
+    return inventory;
+  }
+
+  async updateRabbitRushInventory(userId: number, updates: Partial<RabbitRushInventory>): Promise<RabbitRushInventory | undefined> {
+    const [inventory] = await db.update(rabbitRushInventories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(rabbitRushInventories.userId, userId))
+      .returning();
+    return inventory;
+  }
+
+  async createRabbitRushRun(userId: number, wager: string): Promise<RabbitRushRun> {
+    const [run] = await db.insert(rabbitRushRuns).values({
+      userId,
+      wager,
+      runStatus: "active",
+    }).returning();
+    return run;
+  }
+
+  async updateRabbitRushRun(runId: number, updates: Partial<RabbitRushRun>): Promise<RabbitRushRun | undefined> {
+    const [run] = await db.update(rabbitRushRuns)
+      .set(updates)
+      .where(eq(rabbitRushRuns.id, runId))
+      .returning();
+    return run;
+  }
+
+  async getUserRabbitRushRuns(userId: number, limit: number = 10): Promise<RabbitRushRun[]> {
+    return db.select()
+      .from(rabbitRushRuns)
+      .where(eq(rabbitRushRuns.userId, userId))
+      .orderBy(desc(rabbitRushRuns.startedAt))
+      .limit(limit);
+  }
+
+  async getRabbitRushDailyLeaderboard(limit: number = 10): Promise<(RabbitRushDailyLeaderboardEntry & { user: User })[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const results = await db.select()
+      .from(rabbitRushDailyLeaderboard)
+      .innerJoin(users, eq(rabbitRushDailyLeaderboard.userId, users.id))
+      .where(and(
+        gte(rabbitRushDailyLeaderboard.date, today),
+        lte(rabbitRushDailyLeaderboard.date, tomorrow)
+      ))
+      .orderBy(desc(rabbitRushDailyLeaderboard.totalWinnings))
+      .limit(limit);
+
+    return results.map(r => ({ ...r.rabbit_rush_daily_leaderboard, user: r.users }));
+  }
+
+  async getRabbitRushWeeklyLeaderboard(limit: number = 10): Promise<(RabbitRushWeeklyLeaderboardEntry & { user: User })[]> {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const results = await db.select()
+      .from(rabbitRushWeeklyLeaderboard)
+      .innerJoin(users, eq(rabbitRushWeeklyLeaderboard.userId, users.id))
+      .where(and(
+        gte(rabbitRushWeeklyLeaderboard.weekStart, weekStart),
+        lte(rabbitRushWeeklyLeaderboard.weekEnd, weekEnd)
+      ))
+      .orderBy(desc(rabbitRushWeeklyLeaderboard.totalWinnings))
+      .limit(limit);
+
+    return results.map(r => ({ ...r.rabbit_rush_weekly_leaderboard, user: r.users }));
+  }
+
+  async updateRabbitRushDailyLeaderboard(userId: number, winnings: string, multiplier: string): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [existing] = await db.select()
+      .from(rabbitRushDailyLeaderboard)
+      .where(and(
+        eq(rabbitRushDailyLeaderboard.userId, userId),
+        gte(rabbitRushDailyLeaderboard.date, today),
+        lte(rabbitRushDailyLeaderboard.date, tomorrow)
+      ));
+
+    if (existing) {
+      const newWinnings = (parseFloat(existing.totalWinnings) + parseFloat(winnings)).toString();
+      const newMultiplier = Math.max(parseFloat(existing.bestMultiplier), parseFloat(multiplier)).toString();
+      await db.update(rabbitRushDailyLeaderboard)
+        .set({
+          totalWinnings: newWinnings,
+          runsPlayed: existing.runsPlayed + 1,
+          bestMultiplier: newMultiplier,
+        })
+        .where(eq(rabbitRushDailyLeaderboard.id, existing.id));
+    } else {
+      await db.insert(rabbitRushDailyLeaderboard).values({
+        userId,
+        totalWinnings: winnings,
+        runsPlayed: 1,
+        bestMultiplier: multiplier,
+        date: today,
+      });
+    }
+  }
+
+  async updateRabbitRushWeeklyLeaderboard(userId: number, winnings: string, multiplier: string): Promise<void> {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const [existing] = await db.select()
+      .from(rabbitRushWeeklyLeaderboard)
+      .where(and(
+        eq(rabbitRushWeeklyLeaderboard.userId, userId),
+        gte(rabbitRushWeeklyLeaderboard.weekStart, weekStart),
+        lte(rabbitRushWeeklyLeaderboard.weekEnd, weekEnd)
+      ));
+
+    if (existing) {
+      const newWinnings = (parseFloat(existing.totalWinnings) + parseFloat(winnings)).toString();
+      const newMultiplier = Math.max(parseFloat(existing.bestMultiplier), parseFloat(multiplier)).toString();
+      await db.update(rabbitRushWeeklyLeaderboard)
+        .set({
+          totalWinnings: newWinnings,
+          runsPlayed: existing.runsPlayed + 1,
+          bestMultiplier: newMultiplier,
+        })
+        .where(eq(rabbitRushWeeklyLeaderboard.id, existing.id));
+    } else {
+      await db.insert(rabbitRushWeeklyLeaderboard).values({
+        userId,
+        totalWinnings: winnings,
+        runsPlayed: 1,
+        bestMultiplier: multiplier,
+        weekStart,
+        weekEnd,
+      });
+    }
   }
 }
 
