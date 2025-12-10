@@ -440,6 +440,8 @@ export function RabbitRushApp() {
       
       if (!txHash) {
         console.log('[RabbitRush] No transaction hash, aborting');
+        setIsWagering(false);
+        resetTransactionState();
         return;
       }
       
@@ -453,6 +455,8 @@ export function RabbitRushApp() {
       
       if (!res.ok) {
         console.log('[RabbitRush] API error:', res.status);
+        setIsWagering(false);
+        resetTransactionState();
         return;
       }
       
