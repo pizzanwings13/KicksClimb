@@ -711,7 +711,7 @@ export function RabbitRushApp() {
       ctx.fillRect(star.x, star.y, star.size, star.size);
     }
     
-    scrollYRef.current -= 8;
+    scrollYRef.current -= 5;
     frameCountRef.current++;
     
     const dx = rocket.targetX - rocket.x;
@@ -1372,6 +1372,8 @@ export function RabbitRushApp() {
                       </div>
                       {owned ? (
                         <span className="text-green-400 text-sm font-bold">SELECT</span>
+                      ) : ship.price === 0 ? (
+                        <span className="text-green-400 text-sm font-bold">FREE</span>
                       ) : (
                         <span className="text-yellow-400 text-sm font-bold">{ship.price.toLocaleString()} KICKS</span>
                       )}
