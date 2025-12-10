@@ -121,6 +121,7 @@ interface WalletState {
   checkAllowance: () => Promise<bigint>;
   approveTokens: (amount: string) => Promise<string | null>;
   sendKicksToHouse: (amount: string) => Promise<string | null>;
+  signMessage: (message: string) => Promise<string | null>;
   signClaimMessage: (amount: string, gameId: number, nonce: string, gameType?: "kicks-climb" | "rabbit-rush") => Promise<string | null>;
   requestKicksFromHouse: (amount: string, gameId: number, signature: string, nonce: string, gameType?: "kicks-climb" | "rabbit-rush") => Promise<boolean>;
   setShowWalletModal: (show: boolean) => void;
@@ -578,6 +579,26 @@ export const useWallet = create<WalletState>((set, get) => ({
         ? "Transaction rejected by user" 
         : error.message || "Failed to transfer tokens";
       setTransactionState({ status: "error", message });
+      throw error;
+    }
+  },
+
+  signMessage: async (message: string) => {
+    const { signer, setTransactionState } = get();
+    
+    if (!signer) {
+      setTransactionState({ status: "error", message: "Wallet not connected" });
+      return null;
+    }
+
+    try {
+      const signature = await signer.signMessage(message);
+      return signature;
+    } catch (error: any) {
+      console.error("Sign message error:", error);
+      if (error.code === "ACTION_REJECTED") {
+        return null;
+      }
       throw error;
     }
   },

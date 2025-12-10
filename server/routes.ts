@@ -1145,10 +1145,52 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/rabbit-rush/run/:runId/claim-nonce", async (req, res) => {
+  app.post("/api/rabbit-rush/run/:runId/claim-nonce", async (req, res) => {
     try {
       const runId = parseInt(req.params.runId);
+      const { walletAddress, authSignature } = req.body;
       const crypto = await import("crypto");
+      const { ethers } = await import("ethers");
+      
+      if (!walletAddress || !authSignature) {
+        return res.status(400).json({ error: "Wallet address and authentication signature required" });
+      }
+      
+      const run = await storage.getRabbitRushRun(runId);
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      const user = await storage.getUser(run.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Not authorized to claim this run" });
+      }
+      
+      const authMessage = `Request Rabbit Rush claim nonce for run ${runId}`;
+      let recoveredAddress: string;
+      try {
+        recoveredAddress = ethers.verifyMessage(authMessage, authSignature);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid authentication signature" });
+      }
+      
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Authentication failed - signature does not match wallet" });
+      }
+      
+      if (run.runStatus !== "won") {
+        return res.status(400).json({ error: "Run must be won to claim" });
+      }
+      
+      if (run.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Already claimed" });
+      }
+      
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1"));
+      
+      if (expectedPayout <= 0) {
+        return res.status(400).json({ error: "No payout available" });
+      }
       
       const nonce = `rabbit-rush-${runId}-${Date.now()}-${crypto.randomUUID()}`;
       
@@ -1156,7 +1198,7 @@ export async function registerRoutes(
         claimNonce: nonce,
       });
       
-      res.json({ nonce });
+      res.json({ nonce, expectedPayout: expectedPayout.toString() });
     } catch (error) {
       console.error("Get claim nonce error:", error);
       res.status(500).json({ error: "Failed to generate nonce" });
@@ -1165,9 +1207,9 @@ export async function registerRoutes(
 
   app.post("/api/rabbit-rush/claim", async (req, res) => {
     try {
-      const { walletAddress, amount, runId, signature, nonce, kicksTokenAddress } = req.body;
+      const { walletAddress, runId, signature, nonce, kicksTokenAddress } = req.body;
       
-      if (!walletAddress || !amount || !runId || !signature || !nonce) {
+      if (!walletAddress || !runId || !signature || !nonce) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       
@@ -1193,13 +1235,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Run must be won to claim" });
       }
       
-      if (!run.payout || parseFloat(run.payout) <= 0) {
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1"));
+      
+      if (expectedPayout <= 0) {
         return res.status(400).json({ error: "No payout available" });
       }
       
-      if (run.payout !== amount) {
-        return res.status(400).json({ error: "Amount mismatch" });
-      }
+      const amount = expectedPayout.toString();
       
       const expectedMessage = `RABBIT RUSH Claim\nAmount: ${amount} KICKS\nRun ID: ${runId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
       
@@ -1215,6 +1257,11 @@ export async function registerRoutes(
       if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
         return res.status(400).json({ error: "Signature verification failed" });
       }
+      
+      await storage.updateRabbitRushRun(parseInt(runId), {
+        claimStatus: "processing",
+        claimNonce: null,
+      });
       
       let txHash: string | null = null;
       
@@ -1245,6 +1292,10 @@ export async function registerRoutes(
           console.log(`Rabbit Rush claim sent: ${amount} KICKS to ${walletAddress}, tx: ${txHash}`);
         } catch (transferError: any) {
           console.error("Token transfer error:", transferError);
+          await storage.updateRabbitRushRun(parseInt(runId), {
+            claimStatus: "pending",
+            claimNonce: null,
+          });
           return res.status(500).json({ error: "Failed to transfer KICKS: " + transferError.message });
         }
       } else {

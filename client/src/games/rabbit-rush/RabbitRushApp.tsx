@@ -106,6 +106,7 @@ export function RabbitRushApp() {
     refreshBalance,
     transactionState,
     resetTransactionState,
+    signMessage,
     signClaimMessage,
     requestKicksFromHouse
   } = useWallet();
@@ -495,7 +496,6 @@ export function RabbitRushApp() {
   const handleCashout = useCallback(async () => {
     if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst || isClaiming) return;
     
-    const win = Math.floor(gameStateRef.current.wager * gameStateRef.current.currentMult);
     const mult = gameStateRef.current.currentMult;
     
     gameStateRef.current.gameActive = false;
@@ -505,42 +505,59 @@ export function RabbitRushApp() {
     }
     
     setIsClaiming(true);
-    setEndMessage(`Claiming ${win.toLocaleString()} KICKS...`);
+    setEndMessage(`Processing cashout...`);
     setPhase("ended");
     
     try {
-      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentGameId}/claim-nonce`);
-      if (!nonceRes.ok) throw new Error('Failed to get claim nonce');
-      const { nonce } = await nonceRes.json();
-      
-      const signature = await signClaimMessage(win.toString(), currentGameId || 0, nonce, "rabbit-rush");
-      if (!signature) {
-        setEndMessage(`Claim cancelled. Won ${win.toLocaleString()} KICKS - claim manually later.`);
-        saveRunResult(true, win);
+      const authMessage = `Request Rabbit Rush claim nonce for run ${currentGameId}`;
+      const authSignature = await signMessage(authMessage);
+      if (!authSignature) {
+        setEndMessage(`Claim cancelled. Please try again later.`);
         return;
       }
       
-      const claimed = await requestKicksFromHouse(win.toString(), currentGameId || 0, signature, nonce, "rabbit-rush");
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentGameId}/claim-nonce`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, authSignature }),
+      });
+      if (!nonceRes.ok) {
+        const errorData = await nonceRes.json();
+        throw new Error(errorData.error || 'Failed to get claim nonce');
+      }
+      const { nonce, expectedPayout } = await nonceRes.json();
+      const serverPayout = parseInt(expectedPayout);
+      
+      setEndMessage(`Claiming ${serverPayout.toLocaleString()} KICKS...`);
+      
+      const signature = await signClaimMessage(expectedPayout, currentGameId || 0, nonce, "rabbit-rush");
+      if (!signature) {
+        setEndMessage(`Claim cancelled. Won ${serverPayout.toLocaleString()} KICKS - claim manually later.`);
+        saveRunResult(true, serverPayout);
+        return;
+      }
+      
+      const claimed = await requestKicksFromHouse(expectedPayout, currentGameId || 0, signature, nonce, "rabbit-rush");
       
       if (claimed) {
         await refreshBalance();
         setDisplayKicks(parseFloat(kicksBalance) || 0);
         playSuccessSound();
-        setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${win.toLocaleString()} KICKS!`);
-        saveRunResult(true, win);
+        setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
+        saveRunResult(true, serverPayout);
       } else {
         setEndMessage(`Claim failed. Contact support with game ID: ${currentGameId}`);
-        saveRunResult(true, win);
+        saveRunResult(true, serverPayout);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Cashout error:', error);
-      setEndMessage(`Error claiming ${win.toLocaleString()} KICKS. Contact support.`);
-      saveRunResult(true, win);
+      setEndMessage(`Error: ${error.message || 'Claim failed'}. Contact support.`);
+      saveRunResult(true, 0);
     } finally {
       setIsClaiming(false);
       resetTransactionState();
     }
-  }, [saveRunResult, currentGameId, isClaiming, signClaimMessage, requestKicksFromHouse, refreshBalance, kicksBalance, resetTransactionState]);
+  }, [saveRunResult, currentGameId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, kicksBalance, resetTransactionState, walletAddress]);
 
   const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
