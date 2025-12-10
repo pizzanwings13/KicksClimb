@@ -98,7 +98,17 @@ const MIN_BET = 100;
 const MAX_BET = 10000;
 
 export function RabbitRushApp() {
-  const { isConnected, walletAddress, kicksBalance } = useWallet();
+  const { 
+    isConnected, 
+    walletAddress, 
+    kicksBalance, 
+    sendKicksToHouse, 
+    refreshBalance,
+    transactionState,
+    resetTransactionState,
+    signClaimMessage,
+    requestKicksFromHouse
+  } = useWallet();
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameLoopRef = useRef<number | null>(null);
@@ -116,6 +126,23 @@ export function RabbitRushApp() {
   
   const blazeImageRef = useRef<HTMLImageElement | null>(null);
   const lunaImageRef = useRef<HTMLImageElement | null>(null);
+  
+  const [phase, setPhase] = useState<GamePhase>("ship_select");
+  const [selectedShip, setSelectedShip] = useState(0);
+  const [selectedWeapon, setSelectedWeapon] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(0);
+  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
+  const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
+  const [ownedColors, setOwnedColors] = useState<number[]>([0]);
+  const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
+  const [betAmount, setBetAmount] = useState("100");
+  const [displayMult, setDisplayMult] = useState("1.00");
+  const [displayKicks, setDisplayKicks] = useState(0);
+  const [endMessage, setEndMessage] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [profileStats, setProfileStats] = useState<{totalRuns: number, runsWon: number, bestMultiplier: string}>({ totalRuns: 0, runsWon: 0, bestMultiplier: "0" });
   
   useEffect(() => {
     const blazeImg = new Image();
@@ -154,23 +181,6 @@ export function RabbitRushApp() {
     };
     loadProfile();
   }, [walletAddress]);
-
-  const [phase, setPhase] = useState<GamePhase>("ship_select");
-  const [selectedShip, setSelectedShip] = useState(0);
-  const [selectedWeapon, setSelectedWeapon] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
-  const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
-  const [ownedColors, setOwnedColors] = useState<number[]>([0]);
-  const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
-  const [betAmount, setBetAmount] = useState("100");
-  const [displayMult, setDisplayMult] = useState("1.00");
-  const [displayKicks, setDisplayKicks] = useState(0);
-  const [endMessage, setEndMessage] = useState("");
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
-  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
-  const [profileStats, setProfileStats] = useState<{totalRuns: number, runsWon: number, bestMultiplier: string}>({ totalRuns: 0, runsWon: 0, bestMultiplier: "0" });
 
   const fetchLeaderboard = async (type: "daily" | "weekly") => {
     try {
@@ -278,44 +288,84 @@ export function RabbitRushApp() {
     }
   };
 
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isWagering, setIsWagering] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+
   const handleBuyShip = async (ship: ShipConfig) => {
-    if (displayKicks >= ship.price && !ownedShips.includes(ship.id)) {
-      setDisplayKicks(prev => prev - ship.price);
-      setOwnedShips(prev => [...prev, ship.id]);
-      if (walletAddress) {
-        await fetch('/api/rabbit-rush/purchase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress, itemType: 'ship', itemId: ship.id }),
-        });
+    if (displayKicks >= ship.price && !ownedShips.includes(ship.id) && !isPurchasing) {
+      setIsPurchasing(true);
+      try {
+        const txHash = await sendKicksToHouse(ship.price.toString());
+        if (txHash) {
+          setOwnedShips(prev => [...prev, ship.id]);
+          await refreshBalance();
+          setDisplayKicks(parseFloat(kicksBalance) || 0);
+          if (walletAddress) {
+            await fetch('/api/rabbit-rush/purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress, itemType: 'ship', itemId: ship.id, txHash }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Purchase failed:', error);
+      } finally {
+        setIsPurchasing(false);
+        resetTransactionState();
       }
     }
   };
 
   const handleBuyWeapon = async (weapon: WeaponConfig) => {
-    if (displayKicks >= weapon.price && !ownedWeapons.includes(weapon.id)) {
-      setDisplayKicks(prev => prev - weapon.price);
-      setOwnedWeapons(prev => [...prev, weapon.id]);
-      if (walletAddress) {
-        await fetch('/api/rabbit-rush/purchase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress, itemType: 'weapon', itemId: weapon.id }),
-        });
+    if (displayKicks >= weapon.price && !ownedWeapons.includes(weapon.id) && !isPurchasing) {
+      setIsPurchasing(true);
+      try {
+        const txHash = await sendKicksToHouse(weapon.price.toString());
+        if (txHash) {
+          setOwnedWeapons(prev => [...prev, weapon.id]);
+          await refreshBalance();
+          setDisplayKicks(parseFloat(kicksBalance) || 0);
+          if (walletAddress) {
+            await fetch('/api/rabbit-rush/purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress, itemType: 'weapon', itemId: weapon.id, txHash }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Purchase failed:', error);
+      } finally {
+        setIsPurchasing(false);
+        resetTransactionState();
       }
     }
   };
 
   const handleBuyColor = async (color: ColorConfig) => {
-    if (displayKicks >= color.price && !ownedColors.includes(color.id)) {
-      setDisplayKicks(prev => prev - color.price);
-      setOwnedColors(prev => [...prev, color.id]);
-      if (walletAddress) {
-        await fetch('/api/rabbit-rush/purchase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress, itemType: 'color', itemId: color.id }),
-        });
+    if (displayKicks >= color.price && !ownedColors.includes(color.id) && !isPurchasing) {
+      setIsPurchasing(true);
+      try {
+        const txHash = await sendKicksToHouse(color.price.toString());
+        if (txHash) {
+          setOwnedColors(prev => [...prev, color.id]);
+          await refreshBalance();
+          setDisplayKicks(parseFloat(kicksBalance) || 0);
+          if (walletAddress) {
+            await fetch('/api/rabbit-rush/purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress, itemType: 'color', itemId: color.id, txHash }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Purchase failed:', error);
+      } finally {
+        setIsPurchasing(false);
+        resetTransactionState();
       }
     }
   };
@@ -346,44 +396,81 @@ export function RabbitRushApp() {
     }
   };
 
-  const handleStartGame = () => {
+  const [currentGameId, setCurrentGameId] = useState<number | null>(null);
+
+  const handleStartGame = async () => {
     const betValue = parseFloat(betAmount);
-    if (isNaN(betValue) || betValue < MIN_BET || betValue > Math.min(displayKicks, MAX_BET)) {
+    if (isNaN(betValue) || betValue < MIN_BET || betValue > Math.min(displayKicks, MAX_BET) || isWagering) {
       return;
     }
     
-    setDisplayKicks(prev => prev - betValue);
-    gameStateRef.current.wager = betValue;
-    gameStateRef.current.currentMult = 1.0;
-    gameStateRef.current.hasShield = false;
-    gameStateRef.current.shieldTime = 0;
-    gameStateRef.current.gameActive = true;
-    gameStateRef.current.hasPickedFirst = false;
-    gameStateRef.current.shootCooldown = 0;
+    setIsWagering(true);
     
-    const canvas = canvasRef.current!;
-    rocketRef.current.x = canvas.width / 2;
-    rocketRef.current.targetX = canvas.width / 2;
-    rocketRef.current.y = canvas.height - 150;
-    rocketRef.current.trail = [];
-    
-    scrollYRef.current = 0;
-    frameCountRef.current = 0;
-    obstaclesRef.current = [];
-    carrotsRef.current = [];
-    coinsRef.current = [];
-    powerupsRef.current = [];
-    enemiesRef.current = [];
-    bulletsRef.current = [];
-    particlesRef.current = [];
-    
-    setDisplayMult("1.00");
-    setPhase("playing");
-    
-    requestAnimationFrame(gameLoop);
+    try {
+      const txHash = await sendKicksToHouse(betValue.toString());
+      if (!txHash) {
+        setIsWagering(false);
+        resetTransactionState();
+        return;
+      }
+      
+      const res = await fetch('/api/rabbit-rush/run/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
+      });
+      
+      if (!res.ok) {
+        setIsWagering(false);
+        resetTransactionState();
+        return;
+      }
+      
+      const data = await res.json();
+      setCurrentGameId(data.runId);
+      
+      await refreshBalance();
+      setDisplayKicks(parseFloat(kicksBalance) || 0);
+      
+      gameStateRef.current.wager = betValue;
+      gameStateRef.current.currentMult = 1.0;
+      gameStateRef.current.hasShield = false;
+      gameStateRef.current.shieldTime = 0;
+      gameStateRef.current.gameActive = true;
+      gameStateRef.current.hasPickedFirst = false;
+      gameStateRef.current.shootCooldown = 0;
+      gameStateRef.current.coinsCollected = 0;
+      gameStateRef.current.enemiesDestroyed = 0;
+      
+      const canvas = canvasRef.current!;
+      rocketRef.current.x = canvas.width / 2;
+      rocketRef.current.targetX = canvas.width / 2;
+      rocketRef.current.y = canvas.height - 150;
+      rocketRef.current.trail = [];
+      
+      scrollYRef.current = 0;
+      frameCountRef.current = 0;
+      obstaclesRef.current = [];
+      carrotsRef.current = [];
+      coinsRef.current = [];
+      powerupsRef.current = [];
+      enemiesRef.current = [];
+      bulletsRef.current = [];
+      particlesRef.current = [];
+      
+      setDisplayMult("1.00");
+      setPhase("playing");
+      
+      requestAnimationFrame(gameLoop);
+    } catch (error) {
+      console.error('Failed to start game:', error);
+    } finally {
+      setIsWagering(false);
+      resetTransactionState();
+    }
   };
 
-  const saveRunResult = useCallback(async (won: boolean, payout: number) => {
+  const saveRunResult = useCallback(async (won: boolean, payout: number, runId?: number) => {
     if (!walletAddress) return;
     try {
       await fetch('/api/rabbit-rush/run/end', {
@@ -391,6 +478,7 @@ export function RabbitRushApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress,
+          runId: runId || currentGameId,
           wager: gameStateRef.current.wager,
           finalMultiplier: gameStateRef.current.currentMult,
           payout,
@@ -402,20 +490,57 @@ export function RabbitRushApp() {
     } catch (error) {
       console.error('Failed to save run:', error);
     }
-  }, [walletAddress]);
+  }, [walletAddress, currentGameId]);
 
-  const handleCashout = useCallback(() => {
-    if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst) return;
+  const handleCashout = useCallback(async () => {
+    if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst || isClaiming) return;
     
     const win = Math.floor(gameStateRef.current.wager * gameStateRef.current.currentMult);
-    setDisplayKicks(prev => prev + win);
+    const mult = gameStateRef.current.currentMult;
     
     gameStateRef.current.gameActive = false;
-    playSuccessSound();
-    saveRunResult(true, win);
-    setEndMessage(`CASHED OUT AT ${gameStateRef.current.currentMult.toFixed(2)}x! Won ${win.toLocaleString()} KICKS!`);
+    if (gameLoopRef.current) {
+      cancelAnimationFrame(gameLoopRef.current);
+      gameLoopRef.current = null;
+    }
+    
+    setIsClaiming(true);
+    setEndMessage(`Claiming ${win.toLocaleString()} KICKS...`);
     setPhase("ended");
-  }, [saveRunResult]);
+    
+    try {
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentGameId}/claim-nonce`);
+      if (!nonceRes.ok) throw new Error('Failed to get claim nonce');
+      const { nonce } = await nonceRes.json();
+      
+      const signature = await signClaimMessage(win.toString(), currentGameId || 0, nonce);
+      if (!signature) {
+        setEndMessage(`Claim cancelled. Won ${win.toLocaleString()} KICKS - claim manually later.`);
+        saveRunResult(true, win);
+        return;
+      }
+      
+      const claimed = await requestKicksFromHouse(win.toString(), currentGameId || 0, signature, nonce);
+      
+      if (claimed) {
+        await refreshBalance();
+        setDisplayKicks(parseFloat(kicksBalance) || 0);
+        playSuccessSound();
+        setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${win.toLocaleString()} KICKS!`);
+        saveRunResult(true, win);
+      } else {
+        setEndMessage(`Claim failed. Contact support with game ID: ${currentGameId}`);
+        saveRunResult(true, win);
+      }
+    } catch (error) {
+      console.error('Cashout error:', error);
+      setEndMessage(`Error claiming ${win.toLocaleString()} KICKS. Contact support.`);
+      saveRunResult(true, win);
+    } finally {
+      setIsClaiming(false);
+      resetTransactionState();
+    }
+  }, [saveRunResult, currentGameId, isClaiming, signClaimMessage, requestKicksFromHouse, refreshBalance, kicksBalance, resetTransactionState]);
 
   const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
@@ -1046,6 +1171,26 @@ export function RabbitRushApp() {
       <div className="absolute top-4 right-4 z-20 bg-black/70 px-4 py-2 rounded-xl border-2 border-pink-500 shadow-lg shadow-pink-500/30">
         <span className="text-white font-bold">{displayKicks.toLocaleString()} KICKS</span>
       </div>
+
+      {(isPurchasing || isWagering || isClaiming || transactionState.status !== "idle") && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
+            <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">
+              {isPurchasing ? "Processing Purchase..." : 
+               isWagering ? "Starting Game..." : 
+               isClaiming ? "Claiming Winnings..." : 
+               "Processing..."}
+            </h3>
+            <p className="text-gray-400">
+              {transactionState.message || "Please confirm in your wallet"}
+            </p>
+            {transactionState.status === "error" && (
+              <p className="text-red-400 mt-2">{transactionState.message}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {phase === "playing" && (
         <>

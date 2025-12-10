@@ -1114,9 +1114,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/rabbit-rush/run/end", async (req, res) => {
+  app.post("/api/rabbit-rush/run/start", async (req, res) => {
     try {
-      const { walletAddress, wager, finalMultiplier, payout, coinsCollected, enemiesDestroyed, won } = req.body;
+      const { walletAddress, wager, depositTxHash } = req.body;
       
       const user = await storage.getUserByWallet(walletAddress);
       if (!user) {
@@ -1125,6 +1125,49 @@ export async function registerRoutes(
       
       const run = await storage.createRabbitRushRun(user.id, wager.toString());
       await storage.updateRabbitRushRun(run.id, {
+        depositTxHash: depositTxHash,
+      });
+      
+      res.json({ success: true, runId: run.id });
+    } catch (error) {
+      console.error("Start run error:", error);
+      res.status(500).json({ error: "Failed to start run" });
+    }
+  });
+
+  app.get("/api/rabbit-rush/run/:runId/claim-nonce", async (req, res) => {
+    try {
+      const runId = parseInt(req.params.runId);
+      
+      const nonce = `rabbit-rush-${runId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      
+      await storage.updateRabbitRushRun(runId, {
+        claimNonce: nonce,
+      });
+      
+      res.json({ nonce });
+    } catch (error) {
+      console.error("Get claim nonce error:", error);
+      res.status(500).json({ error: "Failed to generate nonce" });
+    }
+  });
+
+  app.post("/api/rabbit-rush/run/end", async (req, res) => {
+    try {
+      const { walletAddress, runId, wager, finalMultiplier, payout, coinsCollected, enemiesDestroyed, won } = req.body;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      let actualRunId = runId;
+      if (!runId) {
+        const run = await storage.createRabbitRushRun(user.id, wager.toString());
+        actualRunId = run.id;
+      }
+      
+      await storage.updateRabbitRushRun(actualRunId, {
         finalMultiplier: finalMultiplier.toString(),
         payout: payout.toString(),
         coinsCollected: coinsCollected || 0,
@@ -1158,7 +1201,7 @@ export async function registerRoutes(
       
       await storage.updateRabbitRushInventory(user.id, updates);
       
-      res.json({ success: true, runId: run.id });
+      res.json({ success: true, runId: actualRunId });
     } catch (error) {
       console.error("End run error:", error);
       res.status(500).json({ error: "Failed to record run" });

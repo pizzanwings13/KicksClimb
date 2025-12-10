@@ -152,6 +152,9 @@ export const rabbitRushRuns = pgTable("rabbit_rush_runs", {
   coinsCollected: integer("coins_collected").default(0).notNull(),
   enemiesDestroyed: integer("enemies_destroyed").default(0).notNull(),
   runStatus: text("run_status").default("active").notNull(),
+  depositTxHash: text("deposit_tx_hash"),
+  claimNonce: text("claim_nonce"),
+  claimTxHash: text("claim_tx_hash"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
 });
