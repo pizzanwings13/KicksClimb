@@ -66,12 +66,11 @@ const GAMES: GameCardProps[] = [
   },
   {
     title: "Rabbit Rush",
-    description: "Race against time in this fast-paced token betting game. Quick decisions, big rewards!",
+    description: "Pilot your rocket through space! Collect multipliers, avoid asteroids and enemies, cash out before you crash!",
     icon: <Rabbit className="w-6 h-6 text-white" />,
     route: "/rabbit-rush",
     gradient: "bg-gradient-to-br from-orange-500 to-pink-500",
-    available: false,
-    comingSoon: true,
+    available: true,
   },
 ];
 
