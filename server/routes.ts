@@ -1186,7 +1186,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Already claimed" });
       }
       
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1"));
+      const coinsBonus = run.coinsCollected || 0;
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
       
       if (expectedPayout <= 0) {
         return res.status(400).json({ error: "No payout available" });
@@ -1235,7 +1236,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Run must be won to claim" });
       }
       
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1"));
+      const coinsBonus = run.coinsCollected || 0;
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
       
       if (expectedPayout <= 0) {
         return res.status(400).json({ error: "No payout available" });

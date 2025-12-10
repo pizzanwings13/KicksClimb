@@ -499,7 +499,8 @@ export function RabbitRushApp() {
     if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst || isClaiming) return;
     
     const mult = gameStateRef.current.currentMult;
-    const payout = Math.floor(gameStateRef.current.wager * mult);
+    const coinsBonus = gameStateRef.current.coinsCollected;
+    const payout = Math.floor(gameStateRef.current.wager * mult) + coinsBonus;
     
     gameStateRef.current.gameActive = false;
     if (gameLoopRef.current) {
