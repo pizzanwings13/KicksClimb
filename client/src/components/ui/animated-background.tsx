@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 export function AnimatedBackground({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0a0f] relative overflow-x-hidden overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 via-black to-black" />
       
       <motion.div

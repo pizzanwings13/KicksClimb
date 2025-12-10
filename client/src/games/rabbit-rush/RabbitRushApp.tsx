@@ -430,13 +430,18 @@ export function RabbitRushApp() {
     setIsWagering(true);
     
     try {
+      console.log('[RabbitRush] Starting game with bet:', betValue);
       const txHash = await sendKicksToHouse(betValue.toString());
+      console.log('[RabbitRush] Transaction hash:', txHash);
+      
       if (!txHash) {
+        console.log('[RabbitRush] No transaction hash, aborting');
         setIsWagering(false);
         resetTransactionState();
         return;
       }
       
+      console.log('[RabbitRush] Calling API to start run');
       const res = await fetch('/api/rabbit-rush/run/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -444,12 +449,14 @@ export function RabbitRushApp() {
       });
       
       if (!res.ok) {
+        console.log('[RabbitRush] API error:', res.status);
         setIsWagering(false);
         resetTransactionState();
         return;
       }
       
       const data = await res.json();
+      console.log('[RabbitRush] Run started with ID:', data.runId);
       setCurrentGameId(data.runId);
       
       await refreshBalance();
@@ -484,11 +491,17 @@ export function RabbitRushApp() {
       
       setDisplayMult("1.00");
       setPhase("playing");
+      console.log('[RabbitRush] Game started!');
+      
+      setIsWagering(false);
+      resetTransactionState();
       
       requestAnimationFrame(gameLoop);
-    } catch (error) {
-      console.error('Failed to start game:', error);
-    } finally {
+    } catch (error: any) {
+      console.error('[RabbitRush] Failed to start game:', error);
+      if (error?.code === "ACTION_REJECTED") {
+        console.log('[RabbitRush] User rejected transaction');
+      }
       setIsWagering(false);
       resetTransactionState();
     }

@@ -115,7 +115,7 @@ function BackToHubButton() {
     }
   };
 
-  if (phase !== "menu") return null;
+  if (phase !== "menu" && phase !== "betting") return null;
 
   return (
     <button
