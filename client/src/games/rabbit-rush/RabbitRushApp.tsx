@@ -496,6 +496,7 @@ export function RabbitRushApp() {
       console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
       setPhase("playing");
+      resetTransactionState();
       console.log('[RabbitRush] Game started! Phase set to playing');
       
       requestAnimationFrame(gameLoop);
