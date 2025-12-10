@@ -526,17 +526,12 @@ export function RabbitRushApp() {
       
       console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
-      
-      // Clear wagering state first, then set phase in next tick to ensure state updates
       setIsWagering(false);
       resetTransactionState();
+      setPhase("playing");
+      console.log('[RabbitRush] Game started! Phase set to playing');
       
-      // Force phase change with a small delay to ensure state is cleared
-      setTimeout(() => {
-        setPhase("playing");
-        console.log('[RabbitRush] Game started! Phase set to playing');
-        requestAnimationFrame(gameLoop);
-      }, 50);
+      requestAnimationFrame(gameLoop);
       
       console.log('[RabbitRush] Refreshing balance in background...');
       refreshBalance().then(() => {
