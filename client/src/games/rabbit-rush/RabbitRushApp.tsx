@@ -431,6 +431,7 @@ export function RabbitRushApp() {
     }
     
     setIsWagering(true);
+    resetTransactionState();
     
     try {
       console.log('[RabbitRush] Starting game with bet:', betValue);
@@ -439,8 +440,6 @@ export function RabbitRushApp() {
       
       if (!txHash) {
         console.log('[RabbitRush] No transaction hash, aborting');
-        setIsWagering(false);
-        resetTransactionState();
         return;
       }
       
@@ -454,19 +453,12 @@ export function RabbitRushApp() {
       
       if (!res.ok) {
         console.log('[RabbitRush] API error:', res.status);
-        setIsWagering(false);
-        resetTransactionState();
         return;
       }
       
       const data = await res.json();
       console.log('[RabbitRush] Run started with ID:', data.runId);
       setCurrentGameId(data.runId);
-      
-      console.log('[RabbitRush] Refreshing balance...');
-      await refreshBalance();
-      setDisplayKicks(parseFloat(kicksBalance) || 0);
-      console.log('[RabbitRush] Balance refreshed');
       
       console.log('[RabbitRush] Setting up game state...');
       gameStateRef.current.wager = betValue;
@@ -484,8 +476,6 @@ export function RabbitRushApp() {
       console.log('[RabbitRush] Canvas ref:', canvas ? 'available' : 'null');
       if (!canvas) {
         console.error('[RabbitRush] Canvas not available');
-        setIsWagering(false);
-        resetTransactionState();
         return;
       }
       rocketRef.current.x = canvas.width / 2;
@@ -508,19 +498,20 @@ export function RabbitRushApp() {
       setPhase("playing");
       console.log('[RabbitRush] Game started! Phase set to playing');
       
-      setIsWagering(false);
-      resetTransactionState();
-      
-      console.log('[RabbitRush] Starting game loop...');
       requestAnimationFrame(gameLoop);
+      
+      console.log('[RabbitRush] Refreshing balance in background...');
+      refreshBalance().then(() => {
+        setDisplayKicks(parseFloat(kicksBalance) || 0);
+      });
     } catch (error: any) {
       console.error('[RabbitRush] Failed to start game:', error);
       console.error('[RabbitRush] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.code === "ACTION_REJECTED") {
         console.log('[RabbitRush] User rejected transaction');
       }
+    } finally {
       setIsWagering(false);
-      resetTransactionState();
     }
   };
 
