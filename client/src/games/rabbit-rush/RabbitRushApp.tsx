@@ -2,22 +2,75 @@ import { useLocation } from "wouter";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Rabbit, ArrowLeft, Rocket, Shield, Zap, Coins } from "lucide-react";
+import { ArrowLeft, Rocket, ShoppingCart, Palette, Crosshair, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type GamePhase = "ship_select" | "betting" | "playing" | "ended";
-type ShipType = 0 | 1 | 2;
+type GamePhase = "ship_select" | "shop" | "betting" | "playing" | "ended";
+
+interface ShipConfig {
+  id: number;
+  name: string;
+  price: number;
+  speed: number;
+  handling: number;
+  color1: string;
+  color2: string;
+  description: string;
+}
+
+interface WeaponConfig {
+  id: number;
+  name: string;
+  price: number;
+  fireRate: number;
+  damage: number;
+  bulletColor: string;
+  description: string;
+}
+
+interface ColorConfig {
+  id: number;
+  name: string;
+  price: number;
+  color1: string;
+  color2: string;
+}
 
 interface GameState {
   wager: number;
   currentMult: number;
   hasShield: boolean;
-  hasWeapon: boolean;
   shieldTime: number;
-  weaponTime: number;
   gameActive: boolean;
   hasPickedFirst: boolean;
+  shootCooldown: number;
 }
+
+const SHIPS: ShipConfig[] = [
+  { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
+  { id: 1, name: "Luna Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#99bbff", color2: "#6699ff", description: "Starter ship - cool and steady" },
+  { id: 2, name: "Thunder Bolt", price: 2500, speed: 1.3, handling: 0.35, color1: "#ffff00", color2: "#ff8800", description: "Fast! +30% speed, better handling" },
+  { id: 3, name: "Shadow Phantom", price: 5000, speed: 1.5, handling: 0.4, color1: "#aa00ff", color2: "#5500aa", description: "Elite! +50% speed, superior handling" },
+  { id: 4, name: "Golden Eagle", price: 10000, speed: 1.8, handling: 0.5, color1: "#ffd700", color2: "#ff9900", description: "Legendary! +80% speed, max handling" },
+];
+
+const WEAPONS: WeaponConfig[] = [
+  { id: 0, name: "Basic Blaster", price: 0, fireRate: 15, damage: 1, bulletColor: "#ff00ff", description: "Standard weapon - gets the job done" },
+  { id: 1, name: "Rapid Fire", price: 1500, fireRate: 8, damage: 1, bulletColor: "#00ffff", description: "Shoots twice as fast!" },
+  { id: 2, name: "Power Cannon", price: 3000, fireRate: 12, damage: 2, bulletColor: "#ff8800", description: "Double damage per hit" },
+  { id: 3, name: "Plasma Ray", price: 7500, fireRate: 6, damage: 2, bulletColor: "#00ff00", description: "Fast + powerful combo" },
+];
+
+const COLORS: ColorConfig[] = [
+  { id: 0, name: "Default", price: 0, color1: "#ff6699", color2: "#ff3366" },
+  { id: 1, name: "Ocean Blue", price: 500, color1: "#00ccff", color2: "#0066ff" },
+  { id: 2, name: "Toxic Green", price: 500, color1: "#00ff88", color2: "#00aa44" },
+  { id: 3, name: "Royal Purple", price: 1000, color1: "#cc66ff", color2: "#8800cc" },
+  { id: 4, name: "Sunset Orange", price: 1000, color1: "#ff9933", color2: "#ff5500" },
+  { id: 5, name: "Diamond White", price: 2000, color1: "#ffffff", color2: "#aaccff" },
+  { id: 6, name: "Midnight Black", price: 2000, color1: "#333344", color2: "#111122" },
+  { id: 7, name: "Rainbow Shift", price: 5000, color1: "#ff0088", color2: "#00ffff" },
+];
 
 const QUICK_AMOUNTS = ["100", "500", "1000", "2500", "5000"];
 const MIN_BET = 100;
@@ -32,19 +85,28 @@ export function RabbitRushApp() {
     wager: 0,
     currentMult: 1.0,
     hasShield: false,
-    hasWeapon: false,
     shieldTime: 0,
-    weaponTime: 0,
     gameActive: false,
-    hasPickedFirst: false
+    hasPickedFirst: false,
+    shootCooldown: 0
   });
   
   const [phase, setPhase] = useState<GamePhase>("ship_select");
-  const [selectedShip, setSelectedShip] = useState<ShipType>(0);
+  const [selectedShip, setSelectedShip] = useState(0);
+  const [selectedWeapon, setSelectedWeapon] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(0);
+  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
+  const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
+  const [ownedColors, setOwnedColors] = useState<number[]>([0]);
+  const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
   const [betAmount, setBetAmount] = useState("100");
   const [displayMult, setDisplayMult] = useState("1.00");
   const [displayKicks, setDisplayKicks] = useState(0);
   const [endMessage, setEndMessage] = useState("");
+  
+  const currentShip = SHIPS[selectedShip];
+  const currentWeapon = WEAPONS[selectedWeapon];
+  const currentColor = COLORS[selectedColor];
   
   const rocketRef = useRef({
     x: 0,
@@ -54,7 +116,7 @@ export function RabbitRushApp() {
     speed: 0,
     targetX: 0,
     trail: [] as { x: number; y: number; alpha: number }[],
-    baseSpeed: 6
+    baseSpeed: 8
   });
   
   const obstaclesRef = useRef<any[]>([]);
@@ -116,9 +178,44 @@ export function RabbitRushApp() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSelectShip = (ship: ShipType) => {
-    setSelectedShip(ship);
-    setPhase("betting");
+  const handleSelectShip = (shipId: number) => {
+    if (ownedShips.includes(shipId)) {
+      setSelectedShip(shipId);
+      setPhase("shop");
+    }
+  };
+
+  const handleBuyShip = (ship: ShipConfig) => {
+    if (displayKicks >= ship.price && !ownedShips.includes(ship.id)) {
+      setDisplayKicks(prev => prev - ship.price);
+      setOwnedShips(prev => [...prev, ship.id]);
+    }
+  };
+
+  const handleBuyWeapon = (weapon: WeaponConfig) => {
+    if (displayKicks >= weapon.price && !ownedWeapons.includes(weapon.id)) {
+      setDisplayKicks(prev => prev - weapon.price);
+      setOwnedWeapons(prev => [...prev, weapon.id]);
+    }
+  };
+
+  const handleBuyColor = (color: ColorConfig) => {
+    if (displayKicks >= color.price && !ownedColors.includes(color.id)) {
+      setDisplayKicks(prev => prev - color.price);
+      setOwnedColors(prev => [...prev, color.id]);
+    }
+  };
+
+  const handleEquipWeapon = (weaponId: number) => {
+    if (ownedWeapons.includes(weaponId)) {
+      setSelectedWeapon(weaponId);
+    }
+  };
+
+  const handleEquipColor = (colorId: number) => {
+    if (ownedColors.includes(colorId)) {
+      setSelectedColor(colorId);
+    }
   };
 
   const handleStartGame = () => {
@@ -131,11 +228,10 @@ export function RabbitRushApp() {
     gameStateRef.current.wager = betValue;
     gameStateRef.current.currentMult = 1.0;
     gameStateRef.current.hasShield = false;
-    gameStateRef.current.hasWeapon = false;
     gameStateRef.current.shieldTime = 0;
-    gameStateRef.current.weaponTime = 0;
     gameStateRef.current.gameActive = true;
     gameStateRef.current.hasPickedFirst = false;
+    gameStateRef.current.shootCooldown = 0;
     
     const canvas = canvasRef.current!;
     rocketRef.current.x = canvas.width / 2;
@@ -213,15 +309,12 @@ export function RabbitRushApp() {
     }
     
     if (Math.random() < 0.015) {
-      const powerupTypes = [
-        { type: 'shield', emoji: '🛡️', color: '#00ffff' },
-        { type: 'weapon', emoji: '🔫', color: '#ff00ff' }
-      ];
-      const powerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
       powerupsRef.current.push({
         x: Math.random() * (canvas.width - 100) + 50,
         y: scrollY - 100,
-        ...powerup,
+        type: 'shield',
+        emoji: '🛡️',
+        color: '#00ffff',
         size: 45,
         pulse: 0
       });
@@ -280,21 +373,20 @@ export function RabbitRushApp() {
     frameCountRef.current++;
     
     const dx = rocket.targetX - rocket.x;
-    rocket.x += dx * 0.1;
+    rocket.x += dx * currentShip.handling * currentShip.speed;
     rocket.x = Math.max(50, Math.min(canvas.width - 50, rocket.x));
     
-    if (gs.weaponTime > 0) {
-      gs.weaponTime--;
-      if (frameCountRef.current % 10 === 0) {
-        bulletsRef.current.push({
-          x: rocket.x,
-          y: rocket.y - 40,
-          vy: -12,
-          fromPlayer: true
-        });
-      }
-    } else {
-      gs.hasWeapon = false;
+    gs.shootCooldown--;
+    if (gs.shootCooldown <= 0) {
+      bulletsRef.current.push({
+        x: rocket.x,
+        y: rocket.y - 40,
+        vy: -15 * currentShip.speed,
+        fromPlayer: true,
+        damage: currentWeapon.damage,
+        color: currentWeapon.bulletColor
+      });
+      gs.shootCooldown = currentWeapon.fireRate;
     }
     
     if (gs.shieldTime > 0) {
@@ -313,9 +405,7 @@ export function RabbitRushApp() {
       const t = rocket.trail[i];
       const alpha = (i / rocket.trail.length) * 0.3;
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = gs.hasWeapon 
-        ? (selectedShip === 0 ? '#ff00ff' : '#00ffff')
-        : (selectedShip === 0 ? '#ff3366' : '#6699ff');
+      ctx.fillStyle = currentColor.color2;
       ctx.fillRect(t.x - 25, t.y + 40, 50, 70);
     }
     ctx.globalAlpha = 1;
@@ -330,13 +420,8 @@ export function RabbitRushApp() {
     }
     
     const gradient = ctx.createLinearGradient(rocket.x - 30, rocket.y, rocket.x + 30, rocket.y + 120);
-    if (gs.hasWeapon) {
-      gradient.addColorStop(0, selectedShip === 0 ? '#ff66ff' : '#66ffff');
-      gradient.addColorStop(1, selectedShip === 0 ? '#ff00ff' : '#00ffff');
-    } else {
-      gradient.addColorStop(0, selectedShip === 0 ? '#ff6699' : '#99bbff');
-      gradient.addColorStop(1, selectedShip === 0 ? '#ff3366' : '#6699ff');
-    }
+    gradient.addColorStop(0, currentColor.color1);
+    gradient.addColorStop(1, currentColor.color2);
     
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -457,10 +542,7 @@ export function RabbitRushApp() {
       if (Math.abs(p.x - rocket.x) < 45 && Math.abs(py - rocket.y - 50) < 60) {
         if (p.type === 'shield') {
           gs.hasShield = true;
-          gs.shieldTime = 300;
-        } else if (p.type === 'weapon') {
-          gs.hasWeapon = true;
-          gs.weaponTime = 300;
+          gs.shieldTime = 400;
         }
         
         for (let j = 0; j < 20; j++) {
@@ -610,10 +692,10 @@ export function RabbitRushApp() {
       const b = bulletsRef.current[i];
       b.y += b.vy;
       
-      ctx.fillStyle = b.fromPlayer ? '#ff00ff' : '#ff0000';
-      ctx.shadowColor = b.fromPlayer ? '#ff00ff' : '#ff0000';
+      ctx.fillStyle = b.fromPlayer ? (b.color || currentWeapon.bulletColor) : '#ff0000';
+      ctx.shadowColor = b.fromPlayer ? (b.color || currentWeapon.bulletColor) : '#ff0000';
       ctx.shadowBlur = 10;
-      ctx.fillRect(b.x - 3, b.y - 8, 6, 16);
+      ctx.fillRect(b.x - 4, b.y - 10, 8, 20);
       ctx.shadowBlur = 0;
       
       if (b.fromPlayer) {
@@ -621,7 +703,7 @@ export function RabbitRushApp() {
           const e = enemiesRef.current[j];
           const ey = e.y - scrollYRef.current;
           if (Math.abs(b.x - e.x) < 35 && Math.abs(b.y - ey) < 35) {
-            e.hp--;
+            e.hp -= (b.damage || currentWeapon.damage);
             bulletsRef.current.splice(i, 1);
             
             if (e.hp <= 0) {
@@ -702,7 +784,7 @@ export function RabbitRushApp() {
     if (gs.gameActive) {
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [selectedShip, endGame, spawnStuff]);
+  }, [currentShip, currentWeapon, currentColor, endGame, spawnStuff]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -787,7 +869,7 @@ export function RabbitRushApp() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center gap-6 z-30"
+            className="absolute inset-0 bg-black/95 flex flex-col items-center justify-start gap-4 z-30 p-4 overflow-y-auto"
           >
             <button
               onClick={() => setLocation("/")}
@@ -797,27 +879,174 @@ export function RabbitRushApp() {
               <span>Back to Games</span>
             </button>
 
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent mt-12">
               RABBIT RUSH
             </h1>
-            <p className="text-pink-300 glow">Choose your ship!</p>
+            <p className="text-pink-300">Choose your ship!</p>
             
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={() => handleSelectShip(0)}
-                className="flex items-center gap-4 text-xl px-8 py-4 bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600"
-              >
-                <Rocket className="w-6 h-6" />
-                Blaze Ship
-              </Button>
-              <Button
-                onClick={() => handleSelectShip(1)}
-                className="flex items-center gap-4 text-xl px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-              >
-                <Rocket className="w-6 h-6" />
-                Luna Ship
-              </Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full">
+              {SHIPS.map(ship => {
+                const owned = ownedShips.includes(ship.id);
+                const canBuy = displayKicks >= ship.price;
+                return (
+                  <div
+                    key={ship.id}
+                    className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      owned 
+                        ? "border-green-500 bg-green-900/20 hover:bg-green-900/40" 
+                        : canBuy 
+                          ? "border-yellow-500 bg-yellow-900/20 hover:bg-yellow-900/40"
+                          : "border-gray-600 bg-gray-900/20 opacity-60"
+                    }`}
+                    onClick={() => owned ? handleSelectShip(ship.id) : canBuy && handleBuyShip(ship)}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div 
+                        className="w-10 h-10 rounded-full"
+                        style={{ background: `linear-gradient(135deg, ${ship.color1}, ${ship.color2})` }}
+                      />
+                      <div>
+                        <h3 className="font-bold text-white">{ship.name}</h3>
+                        <p className="text-xs text-gray-400">{ship.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-400">
+                        Speed: {Math.round(ship.speed * 100)}% | Handling: {Math.round(ship.handling * 100)}%
+                      </div>
+                      {owned ? (
+                        <span className="text-green-400 text-sm font-bold">SELECT</span>
+                      ) : (
+                        <span className="text-yellow-400 text-sm font-bold">{ship.price.toLocaleString()} KICKS</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          </motion.div>
+        )}
+
+        {phase === "shop" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/95 flex flex-col items-center gap-4 z-30 p-4 overflow-y-auto"
+          >
+            <button
+              onClick={() => setPhase("ship_select")}
+              className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-lg border border-pink-500/30 text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Change Ship</span>
+            </button>
+
+            <h2 className="text-2xl font-bold text-white mt-12 flex items-center gap-2">
+              <ShoppingCart className="w-6 h-6" />
+              SHOP
+            </h2>
+            
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => setShopTab("weapons")}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${shopTab === "weapons" ? "bg-pink-500" : "bg-gray-700"} text-white`}
+              >
+                <Crosshair className="w-4 h-4" /> Weapons
+              </button>
+              <button
+                onClick={() => setShopTab("colors")}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${shopTab === "colors" ? "bg-pink-500" : "bg-gray-700"} text-white`}
+              >
+                <Palette className="w-4 h-4" /> Colors
+              </button>
+            </div>
+
+            <div className="w-full max-w-md">
+              {shopTab === "weapons" && (
+                <div className="grid gap-3">
+                  {WEAPONS.map(weapon => {
+                    const owned = ownedWeapons.includes(weapon.id);
+                    const equipped = selectedWeapon === weapon.id;
+                    const canBuy = displayKicks >= weapon.price;
+                    return (
+                      <div
+                        key={weapon.id}
+                        className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                          equipped ? "border-purple-500 bg-purple-900/30" :
+                          owned ? "border-green-500 bg-green-900/20 hover:bg-green-900/40" : 
+                          canBuy ? "border-yellow-500 bg-yellow-900/20 hover:bg-yellow-900/40" :
+                          "border-gray-600 bg-gray-900/20 opacity-60"
+                        }`}
+                        onClick={() => owned ? handleEquipWeapon(weapon.id) : canBuy && handleBuyWeapon(weapon)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-bold text-white">{weapon.name}</h3>
+                            <p className="text-xs text-gray-400">{weapon.description}</p>
+                            <p className="text-xs mt-1" style={{ color: weapon.bulletColor }}>
+                              Fire Rate: {Math.round(60 / weapon.fireRate)}/sec | Damage: {weapon.damage}
+                            </p>
+                          </div>
+                          {equipped ? (
+                            <span className="text-purple-400 text-sm font-bold">EQUIPPED</span>
+                          ) : owned ? (
+                            <span className="text-green-400 text-sm font-bold">EQUIP</span>
+                          ) : (
+                            <span className="text-yellow-400 text-sm font-bold">{weapon.price.toLocaleString()} KICKS</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {shopTab === "colors" && (
+                <div className="grid grid-cols-2 gap-3">
+                  {COLORS.map(color => {
+                    const owned = ownedColors.includes(color.id);
+                    const equipped = selectedColor === color.id;
+                    const canBuy = displayKicks >= color.price;
+                    return (
+                      <div
+                        key={color.id}
+                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                          equipped ? "border-purple-500 bg-purple-900/30" :
+                          owned ? "border-green-500 bg-green-900/20 hover:bg-green-900/40" : 
+                          canBuy ? "border-yellow-500 bg-yellow-900/20 hover:bg-yellow-900/40" :
+                          "border-gray-600 bg-gray-900/20 opacity-60"
+                        }`}
+                        onClick={() => owned ? handleEquipColor(color.id) : canBuy && handleBuyColor(color)}
+                      >
+                        <div 
+                          className="w-full h-10 rounded-lg mb-2"
+                          style={{ background: `linear-gradient(135deg, ${color.color1}, ${color.color2})` }}
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-white text-sm font-medium">{color.name}</span>
+                          {equipped ? (
+                            <span className="text-purple-400 text-xs">✓</span>
+                          ) : owned ? (
+                            <span className="text-green-400 text-xs">EQUIP</span>
+                          ) : (
+                            <span className="text-yellow-400 text-xs">{color.price}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={() => setPhase("betting")}
+              className="mt-4 text-xl px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            >
+              <Zap className="w-6 h-6 mr-2" />
+              READY TO PLAY
+            </Button>
           </motion.div>
         )}
 
@@ -829,16 +1058,21 @@ export function RabbitRushApp() {
             className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center gap-6 z-30 px-4"
           >
             <button
-              onClick={() => setPhase("ship_select")}
+              onClick={() => setPhase("shop")}
               className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-lg border border-pink-500/30 text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Change Ship</span>
+              <span>Shop</span>
             </button>
 
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
               RABBIT RUSH
             </h1>
+            
+            <div className="text-center mb-2">
+              <p className="text-gray-400 text-sm">Ship: <span className="text-pink-400">{currentShip.name}</span></p>
+              <p className="text-gray-400 text-sm">Weapon: <span className="text-cyan-400">{currentWeapon.name}</span></p>
+            </div>
             
             <p className="text-white">
               Your KICKS: <span className="text-yellow-400 font-bold">{displayKicks.toLocaleString()}</span>
