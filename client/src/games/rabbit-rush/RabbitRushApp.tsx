@@ -423,7 +423,10 @@ export function RabbitRushApp() {
 
   const handleStartGame = async () => {
     const betValue = parseFloat(betAmount);
+    console.log('[RabbitRush] handleStartGame called, betValue:', betValue, 'isWagering:', isWagering);
+    
     if (isNaN(betValue) || betValue < MIN_BET || betValue > Math.min(displayKicks, MAX_BET) || isWagering) {
+      console.log('[RabbitRush] Early return - validation failed or already wagering');
       return;
     }
     
@@ -447,6 +450,7 @@ export function RabbitRushApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
       });
+      console.log('[RabbitRush] API response status:', res.status);
       
       if (!res.ok) {
         console.log('[RabbitRush] API error:', res.status);
@@ -459,9 +463,12 @@ export function RabbitRushApp() {
       console.log('[RabbitRush] Run started with ID:', data.runId);
       setCurrentGameId(data.runId);
       
+      console.log('[RabbitRush] Refreshing balance...');
       await refreshBalance();
       setDisplayKicks(parseFloat(kicksBalance) || 0);
+      console.log('[RabbitRush] Balance refreshed');
       
+      console.log('[RabbitRush] Setting up game state...');
       gameStateRef.current.wager = betValue;
       gameStateRef.current.currentMult = 1.0;
       gameStateRef.current.hasShield = false;
@@ -474,6 +481,7 @@ export function RabbitRushApp() {
       setInGameEarnings(0);
       
       const canvas = canvasRef.current;
+      console.log('[RabbitRush] Canvas ref:', canvas ? 'available' : 'null');
       if (!canvas) {
         console.error('[RabbitRush] Canvas not available');
         setIsWagering(false);
@@ -495,16 +503,19 @@ export function RabbitRushApp() {
       bulletsRef.current = [];
       particlesRef.current = [];
       
+      console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
       setPhase("playing");
-      console.log('[RabbitRush] Game started!');
+      console.log('[RabbitRush] Game started! Phase set to playing');
       
       setIsWagering(false);
       resetTransactionState();
       
+      console.log('[RabbitRush] Starting game loop...');
       requestAnimationFrame(gameLoop);
     } catch (error: any) {
       console.error('[RabbitRush] Failed to start game:', error);
+      console.error('[RabbitRush] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.code === "ACTION_REJECTED") {
         console.log('[RabbitRush] User rejected transaction');
       }
