@@ -351,6 +351,13 @@ export class DatabaseStorage implements IStorage {
     return run;
   }
 
+  async getRabbitRushRun(runId: number): Promise<RabbitRushRun | undefined> {
+    const [run] = await db.select()
+      .from(rabbitRushRuns)
+      .where(eq(rabbitRushRuns.id, runId));
+    return run;
+  }
+
   async updateRabbitRushRun(runId: number, updates: Partial<RabbitRushRun>): Promise<RabbitRushRun | undefined> {
     const [run] = await db.update(rabbitRushRuns)
       .set(updates)

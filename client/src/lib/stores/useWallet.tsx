@@ -121,8 +121,8 @@ interface WalletState {
   checkAllowance: () => Promise<bigint>;
   approveTokens: (amount: string) => Promise<string | null>;
   sendKicksToHouse: (amount: string) => Promise<string | null>;
-  signClaimMessage: (amount: string, gameId: number, nonce: string) => Promise<string | null>;
-  requestKicksFromHouse: (amount: string, gameId: number, signature: string, nonce: string) => Promise<boolean>;
+  signClaimMessage: (amount: string, gameId: number, nonce: string, gameType?: "kicks-climb" | "rabbit-rush") => Promise<string | null>;
+  requestKicksFromHouse: (amount: string, gameId: number, signature: string, nonce: string, gameType?: "kicks-climb" | "rabbit-rush") => Promise<boolean>;
   setShowWalletModal: (show: boolean) => void;
   setGlyphProvider: (provider: any) => void;
   connectWithProvider: (externalProvider: any, walletType: WalletType) => Promise<void>;
@@ -582,7 +582,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  signClaimMessage: async (amount: string, gameId: number, nonce: string) => {
+  signClaimMessage: async (amount: string, gameId: number, nonce: string, gameType: "kicks-climb" | "rabbit-rush" = "kicks-climb") => {
     const { signer, walletAddress, setTransactionState } = get();
     
     if (!signer || !walletAddress) {
@@ -593,7 +593,9 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       setTransactionState({ status: "signing", message: "Please sign the claim message..." });
       
-      const message = `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      const message = gameType === "rabbit-rush"
+        ? `RABBIT RUSH Claim\nAmount: ${amount} KICKS\nRun ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`
+        : `KICKS CLIMB Claim\nAmount: ${amount} KICKS\nGame ID: ${gameId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
       
       const signature = await signer.signMessage(message);
       
@@ -609,7 +611,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  requestKicksFromHouse: async (amount: string, gameId: number, signature: string, nonce: string) => {
+  requestKicksFromHouse: async (amount: string, gameId: number, signature: string, nonce: string, gameType: "kicks-climb" | "rabbit-rush" = "kicks-climb") => {
     const { walletAddress, kicksTokenAddress, setTransactionState } = get();
     
     if (!walletAddress) {
@@ -620,13 +622,16 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       setTransactionState({ status: "claiming", message: "Processing claim and sending KICKS..." });
       
-      const response = await fetch("/api/claim", {
+      const endpoint = gameType === "rabbit-rush" ? "/api/rabbit-rush/claim" : "/api/claim";
+      const idField = gameType === "rabbit-rush" ? "runId" : "gameId";
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletAddress: walletAddress,
           amount: amount,
-          gameId: gameId,
+          [idField]: gameId,
           signature: signature,
           nonce: nonce,
           kicksTokenAddress: kicksTokenAddress,

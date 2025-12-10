@@ -513,14 +513,14 @@ export function RabbitRushApp() {
       if (!nonceRes.ok) throw new Error('Failed to get claim nonce');
       const { nonce } = await nonceRes.json();
       
-      const signature = await signClaimMessage(win.toString(), currentGameId || 0, nonce);
+      const signature = await signClaimMessage(win.toString(), currentGameId || 0, nonce, "rabbit-rush");
       if (!signature) {
         setEndMessage(`Claim cancelled. Won ${win.toLocaleString()} KICKS - claim manually later.`);
         saveRunResult(true, win);
         return;
       }
       
-      const claimed = await requestKicksFromHouse(win.toString(), currentGameId || 0, signature, nonce);
+      const claimed = await requestKicksFromHouse(win.toString(), currentGameId || 0, signature, nonce, "rabbit-rush");
       
       if (claimed) {
         await refreshBalance();

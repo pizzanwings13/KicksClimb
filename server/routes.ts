@@ -1051,7 +1051,11 @@ export async function registerRoutes(
 
   app.post("/api/rabbit-rush/purchase", async (req, res) => {
     try {
-      const { walletAddress, itemType, itemId } = req.body;
+      const { walletAddress, itemType, itemId, txHash } = req.body;
+      
+      if (!txHash) {
+        return res.status(400).json({ error: "Transaction hash required" });
+      }
       
       const user = await storage.getUserByWallet(walletAddress);
       if (!user) {
@@ -1084,6 +1088,7 @@ export async function registerRoutes(
         });
       }
       
+      console.log(`Purchase recorded: ${itemType} ${itemId} for user ${user.id}, txHash: ${txHash}`);
       res.json({ success: true, ownedShips, ownedWeapons, ownedColors });
     } catch (error) {
       console.error("Purchase error:", error);
@@ -1118,6 +1123,10 @@ export async function registerRoutes(
     try {
       const { walletAddress, wager, depositTxHash } = req.body;
       
+      if (!depositTxHash) {
+        return res.status(400).json({ error: "Deposit transaction hash required" });
+      }
+      
       const user = await storage.getUserByWallet(walletAddress);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -1128,6 +1137,7 @@ export async function registerRoutes(
         depositTxHash: depositTxHash,
       });
       
+      console.log(`Game run started: runId=${run.id}, wager=${wager}, depositTxHash=${depositTxHash}`);
       res.json({ success: true, runId: run.id });
     } catch (error) {
       console.error("Start run error:", error);
@@ -1138,8 +1148,9 @@ export async function registerRoutes(
   app.get("/api/rabbit-rush/run/:runId/claim-nonce", async (req, res) => {
     try {
       const runId = parseInt(req.params.runId);
+      const crypto = await import("crypto");
       
-      const nonce = `rabbit-rush-${runId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const nonce = `rabbit-rush-${runId}-${Date.now()}-${crypto.randomUUID()}`;
       
       await storage.updateRabbitRushRun(runId, {
         claimNonce: nonce,
@@ -1149,6 +1160,106 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get claim nonce error:", error);
       res.status(500).json({ error: "Failed to generate nonce" });
+    }
+  });
+
+  app.post("/api/rabbit-rush/claim", async (req, res) => {
+    try {
+      const { walletAddress, amount, runId, signature, nonce, kicksTokenAddress } = req.body;
+      
+      if (!walletAddress || !amount || !runId || !signature || !nonce) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const run = await storage.getRabbitRushRun(parseInt(runId));
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      const user = await storage.getUser(run.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Wallet address does not match run owner" });
+      }
+      
+      if (run.claimNonce !== nonce) {
+        return res.status(400).json({ error: "Invalid or expired nonce" });
+      }
+      
+      if (run.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Run already claimed" });
+      }
+      
+      if (run.runStatus !== "won") {
+        return res.status(400).json({ error: "Run must be won to claim" });
+      }
+      
+      if (!run.payout || parseFloat(run.payout) <= 0) {
+        return res.status(400).json({ error: "No payout available" });
+      }
+      
+      if (run.payout !== amount) {
+        return res.status(400).json({ error: "Amount mismatch" });
+      }
+      
+      const expectedMessage = `RABBIT RUSH Claim\nAmount: ${amount} KICKS\nRun ID: ${runId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      
+      const { ethers } = await import("ethers");
+      let recoveredAddress: string;
+      
+      try {
+        recoveredAddress = ethers.verifyMessage(expectedMessage, signature);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid signature format" });
+      }
+      
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(400).json({ error: "Signature verification failed" });
+      }
+      
+      let txHash: string | null = null;
+      
+      const houseWalletKey = process.env.HOUSE_WALLET_KEY;
+      
+      if (houseWalletKey && kicksTokenAddress) {
+        try {
+          const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
+          const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
+          const houseWallet = new ethers.Wallet(houseWalletKey, provider);
+          
+          const tokenContract = new ethers.Contract(
+            kicksTokenAddress,
+            [
+              "function transfer(address to, uint256 amount) returns (bool)",
+              "function decimals() view returns (uint8)"
+            ],
+            houseWallet
+          );
+          
+          const decimals = await tokenContract.decimals();
+          const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
+          
+          const tx = await tokenContract.transfer(walletAddress, amountInSmallestUnit);
+          const receipt = await tx.wait();
+          txHash = receipt.hash;
+          
+          console.log(`Rabbit Rush claim sent: ${amount} KICKS to ${walletAddress}, tx: ${txHash}`);
+        } catch (transferError: any) {
+          console.error("Token transfer error:", transferError);
+          return res.status(500).json({ error: "Failed to transfer KICKS: " + transferError.message });
+        }
+      } else {
+        console.warn("House wallet key or token address not configured, skipping transfer");
+      }
+      
+      await storage.updateRabbitRushRun(parseInt(runId), {
+        claimStatus: "claimed",
+        claimTxHash: txHash || undefined,
+      });
+      
+      res.json({ success: true, txHash });
+    } catch (error) {
+      console.error("Rabbit Rush claim error:", error);
+      res.status(500).json({ error: "Failed to process claim" });
     }
   });
 
