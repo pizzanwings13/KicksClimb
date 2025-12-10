@@ -128,6 +128,10 @@ export function RabbitRushApp() {
   
   const blazeImageRef = useRef<HTMLImageElement | null>(null);
   const lunaImageRef = useRef<HTMLImageElement | null>(null);
+  const thunderImageRef = useRef<HTMLImageElement | null>(null);
+  const shadowImageRef = useRef<HTMLImageElement | null>(null);
+  const eagleImageRef = useRef<HTMLImageElement | null>(null);
+  const cosmicImageRef = useRef<HTMLImageElement | null>(null);
   
   const [phase, setPhase] = useState<GamePhase>("ship_select");
   const [selectedShip, setSelectedShip] = useState(0);
@@ -155,6 +159,22 @@ export function RabbitRushApp() {
     const lunaImg = new Image();
     lunaImg.src = '/textures/rabbit-luna.avif';
     lunaImg.onload = () => { lunaImageRef.current = lunaImg; };
+    
+    const thunderImg = new Image();
+    thunderImg.src = '/textures/rabbit-thunder.avif';
+    thunderImg.onload = () => { thunderImageRef.current = thunderImg; };
+    
+    const shadowImg = new Image();
+    shadowImg.src = '/textures/rabbit-shadow.avif';
+    shadowImg.onload = () => { shadowImageRef.current = shadowImg; };
+    
+    const eagleImg = new Image();
+    eagleImg.src = '/textures/rabbit-eagle.avif';
+    eagleImg.onload = () => { eagleImageRef.current = eagleImg; };
+    
+    const cosmicImg = new Image();
+    cosmicImg.src = '/textures/rabbit-cosmic.avif';
+    cosmicImg.onload = () => { cosmicImageRef.current = cosmicImg; };
   }, []);
 
   useEffect(() => {
@@ -738,7 +758,8 @@ export function RabbitRushApp() {
     ctx.arc(rocket.x, rocket.y + 50, 20, 0, Math.PI * 2);
     ctx.fill();
     
-    const rabbitImg = selectedShip === 0 ? blazeImageRef.current : selectedShip === 1 ? lunaImageRef.current : null;
+    const rabbitImages = [blazeImageRef.current, lunaImageRef.current, thunderImageRef.current, shadowImageRef.current, eagleImageRef.current, cosmicImageRef.current];
+    const rabbitImg = rabbitImages[selectedShip] || null;
     if (rabbitImg) {
       ctx.save();
       ctx.beginPath();
