@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rabbit Rush</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  body { 
+    margin: 0; 
+    padding: 0; 
+    background: linear-gradient(180deg, #0a1a3f 0%, #1a0a3f 100%); 
+    color: white; 
+    font-family: 'Arial', sans-serif; 
+    overflow: hidden; 
+    touch-action: manipulation; 
+  }
+  canvas { 
+    display: block; 
+    background: linear-gradient(180deg, #0a1a3f 0%, #1a0a3f 50%, #2a1a4f 100%);
+  }
+  #ui { 
+    position: absolute; 
+    top: 20px; 
+    width: 100%; 
+    text-align: center; 
+    pointer-events: none; 
+  }
+  #balance { 
+    position: absolute; 
+    top: 10px; 
+    right: 20px; 
+    font-size: 16px; 
+    background: rgba(0,0,0,0.7); 
+    padding: 8px 12px; 
+    border-radius: 12px; 
+    pointer-events: auto;
+    border: 2px solid #ff3366;
+    box-shadow: 0 4px 15px rgba(255,51,102,0.3);
+  }
+  #wagerScreen, #rabbitSelect, #shopOverlay { 
+    position: absolute; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.95); 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 20px;
+    z-index: 100;
+  }
+  button { 
+    padding: 12px 28px; 
+    font-size: 18px; 
+    background: linear-gradient(135deg, #ff3366 0%, #ff6b9d 100%); 
+    border: none; 
+    border-radius: 12px; 
+    color: white; 
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 20px rgba(255,51,102,0.4);
+    transition: all 0.15s;
+  }
+  button:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(255,51,102,0.6); }
+  .rabbit-btn {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 22px;
+    padding: 16px 34px;
+  }
+  #cashout { 
+    position: absolute; 
+    bottom: 40px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    width: 80%; 
+    max-width: 400px;
+    height: 70px; 
+    font-size: 22px; 
+    background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%); 
+    opacity: 0; 
+    pointer-events: none; 
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(0,255,136,0.4);
+    border-radius: 12px;
+  }
+  #cashout.active { opacity: 1; pointer-events: auto; }
+  h1 { margin: 0; font-size: 44px; background: linear-gradient(135deg, #ff3366, #ffaa00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 0 30px rgba(255,51,102,0.5); }
+  #multiplier { font-size: 44px; font-weight: bold; text-shadow: 0 0 20px rgba(255,255,255,0.5); animation: pulse 0.5s ease-in-out infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+  input { padding: 12px; font-size: 18px; width: 80%; max-width: 300px; border-radius: 10px; text-align: center; border: 2px solid #ff3366; background: rgba(255,255,255,0.06); color: white; }
+  .glow { text-shadow: 0 0 10px currentColor; }
+  /* Shop */
+  #shopOverlay { display:none; align-items:flex-start; padding-top:80px; }
+  .shopCard { width: 92%; max-width: 760px; background: rgba(10,10,10,0.85); border-radius: 12px; padding: 18px; display:flex; gap:12px; align-items:center; border: 1px solid rgba(255,255,255,0.06); }
+  .shopItem { flex:1; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:6px 12px; }
+  .muted { opacity:0.8; font-size:14px; }
+  #connectBtn { margin-right:10px; padding:8px 12px; font-size:14px; border-radius:10px; background:linear-gradient(135deg,#3366ff,#66a3ff); }
+  #headerRight { position:absolute; top:10px; left:20px; display:flex; gap:8px; align-items:center; pointer-events:auto; }
+  #addr { font-size:13px; background: rgba(255,255,255,0.04); padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); }
+</style>
+</head>
+<body>
+
+<!-- Header / connect -->
+<div id="headerRight">
+  <button id="connectBtn">Connect Wallet</button>
+  <div id="addr">Not connected</div>
+  <button onclick="openShop()">Shop</button>
+</div>
+
+<div id="rabbitSelect">
+  <h1>🚀 RABBIT RUSH 🚀</h1>
+  <p class="glow">Choose your ship!</p>
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <button class="rabbit-btn" id="shipBlazeBtn" onclick="chooseRabbit(0)">🚀 Blaze Ship</button>
+    <button class="rabbit-btn" id="shipLunaBtn" onclick="chooseRabbit(1)">🚀 Luna Ship</button>
+  </div>
+  <p class="muted">Owned rockets will appear below the default picks</p>
+  <div id="ownedRockets" style="margin-top:12px;"></div>
+</div>
+
+<div id="wagerScreen" style="display:none">
+  <h1>🚀 RABBIT RUSH 🚀</h1>
+  <p>Your KICKS: <span id="kicksDisplay" class="glow">100000</span></p>
+  <input type="number" id="wagerInput" placeholder="Enter wager (min 100 KICKS)" min="100">
+  <button onclick="startGame()">🚀 BLAST OFF 🚀</button>
+</div>
+
+<!-- Shop overlay -->
+<div id="shopOverlay">
+  <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <h1>SHOP — Spend KICKS</h1>
+    <div class="shopCard">
+      <div style="flex:1">
+        <div class="shopItem">
+          <div>
+            <div style="font-size:18px;font-weight:bold">Rocket Upgrade (speed +10%)</div>
+            <div class="muted">Stackable — each purchase increases rocket top speed</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="priceUpgrade" class="muted">100 KICKS</div>
+            <button onclick="buyItem(1,1)">Buy</button>
+            <div id="ownedUpg" class="muted">Owned: 0</div>
+          </div>
+        </div>
+        <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:8px 0">
+        <div class="shopItem">
+          <div>
+            <div style="font-size:18px;font-weight:bold">Shield (single-use)</div>
+            <div class="muted">Used automatically on crash/hit</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="priceShield" class="muted">50 KICKS</div>
+            <button onclick="buyItem(2,1)">Buy</button>
+            <div id="ownedShield" class="muted">Owned: 0</div>
+          </div>
+        </div>
+        <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:8px 0">
+        <div class="shopItem">
+          <div>
+            <div style="font-size:18px;font-weight:bold">Weapon (30s)</div>
+            <div class="muted">Auto-fire for a duration</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="priceWeapon" class="muted">75 KICKS</div>
+            <button onclick="buyItem(3,1)">Buy</button>
+            <div id="ownedWeapon" class="muted">Owned: 0</div>
+          </div>
+        </div>
+        <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:8px 0">
+        <div class="shopItem">
+          <div>
+            <div style="font-size:18px;font-weight:bold">New Rocket (alternate skin)</div>
+            <div class="muted">Permanent unlock — appears in ship selector</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="priceRocket" class="muted">500 KICKS</div>
+            <button onclick="buyItem(4,1)">Buy</button>
+            <div id="ownedRocketCount" class="muted">Owned: 0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="closeShop()">Close Shop</button>
+  </div>
+</div>
+
+<div id="balance">💰 <span id="kicks">100000</span> KICKS</div>
+<div id="ui">
+  <h1 id="multiplier">1.00x</h1>
+</div>
+<button id="cashout">💰 CASH OUT 💰</button>
+<canvas id="game"></canvas>
+
+<!-- Ethers CDN -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
+<script>
+/* ====== CONFIG - REPLACE THESE ====== */
+const KICKS_ADDRESS = "0xREPLACE_WITH_KICKS_ADDRESS";
+const STORE_ADDRESS = "0xREPLACE_WITH_STORE_ADDRESS";
+/* Item ID mapping must match your GameStore:
+   1 => Rocket Upgrade
+   2 => Shield
+   3 => Weapon
+   4 => New Rocket (unlock)
+*/
+const ITEMS = [
+  { id:1, name:'Rocket Upgrade', price: '100' }, // prices expressed in KICKS (human units)
+  { id:2, name:'Shield', price: '50' },
+  { id:3, name:'Weapon', price: '75' },
+  { id:4, name:'New Rocket', price: '500' }
+];
+/* =================================== */
+
+/* Minimal ABIs used in this frontend:
+   - ERC20: balanceOf, approve, allowance, decimals (decimals optional)
+   - GameStore: buy(uint256 id,uint256 qty) and playerOwned(address,id) view and items(uint256)->(id,name,price,exists) if you have it
+*/
+const KICKS_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function decimals() view returns (uint8)"
+];
+
+const STORE_ABI = [
+  "function buy(uint256 id, uint256 qty) external",
+  "function playerOwned(address, uint256) view returns (uint256)",
+  "function items(uint256) view returns (uint256 id, string name, uint256 price, bool exists)"
+];
+
+/* ====== State ====== */
+let provider = null;
+let signer = null;
+let userAddress = null;
+let kicks = 100000; // local fallback
+let decimals = 18;
+let contractKicks = null;
+let contractStore = null;
+let inventory = { 1:0, 2:0, 3:0, 4:0 };
+
+/* ====== Init UI references ====== */
+const kicksSpan = document.getElementById('kicks');
+const kicksDisplay = document.getElementById('kicksDisplay');
+const addrEl = document.getElementById('addr');
+const connectBtn = document.getElementById('connectBtn');
+const shopOverlay = document.getElementById('shopOverlay');
+
+connectBtn.onclick = connectWallet;
+openShop = () => { shopOverlay.style.display = 'flex'; updateShopUI(); }
+closeShop = () => { shopOverlay.style.display = 'none'; }
+
+/* ====== Connect Wallet ====== */
+async function connectWallet(){
+  if (window.ethereum == null) {
+    alert('No injected wallet found (MetaMask). Please install one.');
+    return;
+  }
+  provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+  await provider.send("eth_requestAccounts", []);
+  signer = provider.getSigner();
+  userAddress = await signer.getAddress();
+  addrEl.innerText = `${userAddress.substring(0,6)}...${userAddress.slice(-4)}`;
+  contractKicks = new ethers.Contract(KICKS_ADDRESS, KICKS_ABI, signer);
+  contractStore = new ethers.Contract(STORE_ADDRESS, STORE_ABI, signer);
+  // decimals if available
+  try { decimals = await contractKicks.decimals(); } catch(e) { decimals = 18; }
+  await refreshBalancesAndInventory();
+  connectBtn.innerText = 'Connected';
+}
+
+/* ====== Refresh on-chain data ====== */
+async function refreshBalancesAndInventory(){
+  if (!provider || !userAddress) return;
+  try {
+    const viewKicks = contractKicks.connect(provider);
+    const bal = await viewKicks.balanceOf(userAddress);
+    kicks = Number(ethers.utils.formatUnits(bal, decimals));
+    kicksSpan.innerText = kicks.toLocaleString();
+    kicksDisplay.innerText = kicks.toLocaleString();
+  } catch(e) {
+    console.warn('balance fetch failed, using local:', e);
+  }
+  // fetch owned counts for item IDs 1..4
+  for (let it of ITEMS) {
+    try {
+      const owned = await contractStore.playerOwned(userAddress, it.id);
+      const n = owned ? owned.toNumber() : 0;
+      inventory[it.id] = n;
+    } catch(e) {
+      console.warn('playerOwned fetch failed for', it.id, e);
+    }
+  }
+  updateShopUI();
+  updateOwnedRocketsUI();
+}
+
+/* ====== Shop UI updates ====== */
+function updateShopUI(){
+  document.getElementById('priceUpgrade').innerText = `${ITEMS[0].price} KICKS`;
+  document.getElementById('priceShield').innerText = `${ITEMS[1].price} KICKS`;
+  document.getElementById('priceWeapon').innerText = `${ITEMS[2].price} KICKS`;
+  document.getElementById('priceRocket').innerText = `${ITEMS[3].price} KICKS`;
+  document.getElementById('ownedUpg').innerText = `Owned: ${inventory[1] || 0}`;
+  document.getElementById('ownedShield').innerText = `Owned: ${inventory[2] || 0}`;
+  document.getElementById('ownedWeapon').innerText = `Owned: ${inventory[3] || 0}`;
+  document.getElementById('ownedRocketCount').innerText = `Owned: ${inventory[4] || 0}`;
+}
+
+/* ====== Buy flow: approve -> buy ====== */
+async function buyItem(itemId, qty=1){
+  if (!signer || !contractKicks || !contractStore) {
+    alert('Connect wallet first to buy items.');
+    return;
+  }
+  const item = ITEMS.find(i => i.id === itemId);
+  if (!item) return;
+
+  const priceHuman = Number(item.price) * qty;
+  if (kicks < priceHuman) {
+    alert('Insufficient KICKS balance');
+    return;
+  }
+
+  // Convert to token base units
+  const totalPrice = ethers.utils.parseUnits((Number(item.price) * qty).toString(), decimals);
+  const kicksContract = contractKicks.connect(signer);
+  const allowance = await kicksContract.allowance(userAddress, STORE_ADDRESS);
+  if (allowance.lt(totalPrice)) {
+    try {
+      const tx = await kicksContract.approve(STORE_ADDRESS, totalPrice);
+      await tx.wait();
+    } catch(e) {
+      console.error('approve failed', e);
+      alert('Approve failed — see console');
+      return;
+    }
+  }
+
+  // Call buy on store
+  try {
+    const storeContract = contractStore.connect(signer);
+    const tx = await storeContract.buy(itemId, qty);
+    await tx.wait();
+    // optimistic local update, but we also re-query
+    inventory[itemId] = (inventory[itemId]||0) + qty;
+    // refresh balances & UI
+    await refreshBalancesAndInventory();
+    alert(`Purchase successful: ${item.name} x${qty}`);
+  } catch(e) {
+    console.error('buy failed', e);
+    alert('Purchase failed — see console');
+  }
+}
+
+/* ====== Apply owned items at game start ====== */
+function applyOwnedItemsToGame(){
+  // Rocket upgrades (id 1) => each +10% speed
+  const upg = inventory[1] || 0;
+  rocket.baseSpeed = 6 * (1 + 0.1 * upg); // base speed scaled by upgrades
+
+  // Shields (id 2) and weapons (id 3) are consumable counts:
+  playerConsumables.shields = inventory[2] || 0;
+  playerConsumables.weapons = inventory[3] || 0;
+
+  // Rockets (id 4) => make available in selection; count used to unlock extras
+  // We'll list them in the selection if owned > 0
+  updateOwnedRocketsUI();
+}
+
+/* ====== Owned rockets UI (selection) ====== */
+function updateOwnedRocketsUI(){
+  const container = document.getElementById('ownedRockets');
+  container.innerHTML = '';
+  const count = inventory[4] || 0;
+  if (count > 0) {
+    const btn = document.createElement('button');
+    btn.className = 'rabbit-btn';
+    btn.innerText = `🚀 Custom Rocket (Owned: ${count})`;
+    btn.onclick = () => {
+      // set a new selected index to 2 to represent custom rocket
+      chooseRabbit(2);
+    };
+    container.appendChild(btn);
+  }
+}
+
+/* ====== Consumables object used during the session ====== */
+const playerConsumables = { shields:0, weapons:0 };
+
+/* ====== Now integrate with your existing game code below (kept largely intact) ====== */
+
+let kicksLocal = 100000;
+kicks = kicksLocal;
+kicksSpan.innerText = kicks.toLocaleString();
+kicksDisplay.innerText = kicks.toLocaleString();
+
+let wager = 0;
+let currentMult = 1.0;
+let gameActive = false;
+let selectedRabbit = 0;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if (!gameActive) {
+    rocket.x = canvas.width/2;
+    rocket.targetX = canvas.width/2;
+  }
+});
+
+let rocket = {
+  x: canvas.width/2,
+  y: canvas.height - 150,
+  width: 80,
+  height: 120,
+  speed: 0,
+  targetX: canvas.width/2,
+  trail: [],
+  baseSpeed: 6 // modified dynamically by upgrades
+};
+
+let obstacles = [];
+let carrots = [];
+let coins = [];
+let powerups = [];
+let enemies = [];
+let bullets = [];
+let particles = [];
+let stars = [];
+let scrollY = 0;
+let score = 1.0;
+let hasPickedFirst = false;
+let frameCount = 0;
+let hasShield = false;
+let hasWeapon = false;
+let shieldTime = 0;
+let weaponTime = 0;
+
+// Initialize stars
+for (let i = 0; i < 100; i++) {
+  stars.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    size: Math.random() * 2 + 0.5,
+    speed: Math.random() * 2 + 1
+  });
+}
+
+function chooseRabbit(n) {
+  selectedRabbit = n;
+  document.getElementById('rabbitSelect').style.display = 'none';
+  document.getElementById('wagerScreen').style.display = 'flex';
+  document.getElementById('kicksDisplay').innerText = kicks.toLocaleString();
+  // Apply owned items to the rocket now that player is about to play
+  applyOwnedItemsToGame();
+}
+
+function startGame() {
+  wager = parseInt(document.getElementById('wagerInput').value);
+  if (isNaN(wager) || wager < 100 || wager > kicks) {
+    alert("Invalid wager! Must be between 100 and " + kicks + " KICKS");
+    return;
+  }
+  kicks -= wager;
+  document.getElementById('kicks').innerText = kicks.toLocaleString();
+  document.getElementById('wagerScreen').style.display = 'none';
+
+  // Apply consumables at the start of the match:
+  if (playerConsumables.shields > 0) {
+    hasShield = true;
+    playerConsumables.shields--;
+  } else {
+    hasShield = false;
+  }
+  if (playerConsumables.weapons > 0) {
+    hasWeapon = true;
+    weaponTime = 300;
+    playerConsumables.weapons--;
+  } else {
+    hasWeapon = false;
+  }
+
+  rocket.x = canvas.width/2;
+  rocket.targetX = canvas.width/2;
+  rocket.y = canvas.height - 150;
+  rocket.trail = [];
+  scrollY = 0;
+  currentMult = 1.0;
+  score = 1.0;
+  hasPickedFirst = false;
+  obstacles = [];
+  carrots = [];
+  coins = [];
+  powerups = [];
+  enemies = [];
+  bullets = [];
+  particles = [];
+  frameCount = 0;
+  shieldTime = hasShield ? 300 : 0;
+  gameActive = true;
+  document.getElementById('multiplier').innerText = '1.00x';
+  document.getElementById('cashout').classList.remove('active');
+
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  rocket.targetX = e.touches[0].clientX;
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  rocket.targetX = e.touches[0].clientX;
+});
+canvas.addEventListener('mousemove', e => {
+  if (e.buttons === 1) rocket.targetX = e.clientX;
+});
+canvas.addEventListener('mousedown', e => {
+  rocket.targetX = e.clientX;
+});
+
+document.getElementById('cashout').onclick = () => {
+  if (!gameActive || !hasPickedFirst) return;
+  let win = Math.floor(wager * currentMult);
+  kicks += win;
+  document.getElementById('kicks').innerText = kicks.toLocaleString();
+  endGame(`🎉 CASHED OUT AT ${currentMult.toFixed(2)}x!\n\n💰 Won ${win.toLocaleString()} KICKS!`);
+};
+
+function spawnStuff() {
+  // Spawn multiplier carrots
+  if (Math.random() < 0.02) {
+    const carrotTypes = [
+      {emoji: '🥕', mult: 0.1, color: '#ff8800'},
+      {emoji: '🥕', mult: 0.2, color: '#ffaa00'},
+      {emoji: '✨', mult: 0.5, color: '#ffff00'}
+    ];
+    const type = carrotTypes[Math.floor(Math.random() * carrotTypes.length)];
+    carrots.push({
+      x: Math.random() * (canvas.width - 100) + 50,
+      y: scrollY - 100,
+      ...type,
+      size: 50,
+      pulse: 0
+    });
+  }
+  
+  // Spawn KICKS coins
+  if (Math.random() < 0.03) {
+    const coinValues = [50, 100, 150, 200];
+    const value = coinValues[Math.floor(Math.random() * coinValues.length)];
+    coins.push({
+      x: Math.random() * (canvas.width - 100) + 50,
+      y: scrollY - 100,
+      value: value,
+      size: 40,
+      rotation: 0
+    });
+  }
+  
+  // Spawn powerups (shields and weapons)
+  if (Math.random() < 0.015) {
+    const powerupTypes = [
+      {type: 'shield', emoji: '🛡️', color: '#00ffff'},
+      {type: 'weapon', emoji: '🔫', color: '#ff00ff'}
+    ];
+    const powerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+    powerups.push({
+      x: Math.random() * (canvas.width - 100) + 50,
+      y: scrollY - 100,
+      ...powerup,
+      size: 45,
+      pulse: 0
+    });
+  }
+  
+  // Spawn obstacles
+  if (Math.random() < 0.03) {
+    obstacles.push({
+      x: Math.random() * (canvas.width - 120) + 60,
+      y: scrollY - 100,
+      size: 80,
+      rotation: Math.random() * Math.PI * 2
+    });
+  }
+  
+  // Spawn enemy ships
+  if (Math.random() < 0.02) {
+    enemies.push({
+      x: Math.random() * (canvas.width - 100) + 50,
+      y: scrollY - 100,
+      size: 60,
+      hp: 3,
+      shootTimer: 0,
+      vx: (Math.random() - 0.5) * 3
+    });
+  }
+}
+
+function drawRocket() {
+  // Trail effect
+  rocket.trail.push({x: rocket.x, y: rocket.y, alpha: 1});
+  if (rocket.trail.length > 10) rocket.trail.shift();
+  
+  ctx.globalAlpha = 0.3;
+  for (let i = 0; i < rocket.trail.length; i++) {
+    const t = rocket.trail[i];
+    const alpha = (i / rocket.trail.length) * 0.3;
+    ctx.globalAlpha = alpha;
+    if (hasWeapon) {
+      ctx.fillStyle = selectedRabbit === 0 ? '#ff00ff' : '#00ffff';
+    } else {
+      ctx.fillStyle = selectedRabbit === 0 ? '#ff3366' : '#6699ff';
+    }
+    ctx.fillRect(t.x - 25, t.y + 40, 50, 70);
+  }
+  ctx.globalAlpha = 1;
+
+  // Shield effect
+  if (hasShield) {
+    const shieldPulse = Math.sin(frameCount * 0.1);
+    ctx.strokeStyle = `rgba(0, 255, 255, ${0.7 + shieldPulse * 0.3})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(rocket.x, rocket.y + 60, 70 + shieldPulse * 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(0, 200, 255, ${0.4 + shieldPulse * 0.2})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(rocket.x, rocket.y + 60, 80 + shieldPulse * 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Rocket body with gradient
+  const gradient = ctx.createLinearGradient(rocket.x - 30, rocket.y, rocket.x + 30, rocket.y + 120);
+  if (hasWeapon) {
+    if (selectedRabbit === 0) {
+      gradient.addColorStop(0, '#ff66ff');
+      gradient.addColorStop(1, '#ff00ff');
+    } else {
+      gradient.addColorStop(0, '#66ffff');
+      gradient.addColorStop(1, '#00ffff');
+    }
+  } else {
+    if (selectedRabbit === 0) {
+      gradient.addColorStop(0, '#ff6699');
+      gradient.addColorStop(1, '#ff3366');
+    } else {
+      gradient.addColorStop(0, '#99ccff');
+      gradient.addColorStop(1, '#6699ff');
+    }
+  }
+  ctx.fillStyle = gradient;
+  
+  ctx.beginPath();
+  ctx.moveTo(rocket.x, rocket.y + 20);
+  ctx.lineTo(rocket.x - 30, rocket.y + 50);
+  ctx.lineTo(rocket.x - 25, rocket.y + 120);
+  ctx.lineTo(rocket.x + 25, rocket.y + 120);
+  ctx.lineTo(rocket.x + 30, rocket.y + 50);
+  ctx.closePath();
+  ctx.fill();
+
+  // Weapon barrels
+  if (hasWeapon) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(rocket.x - 35, rocket.y + 40, 8, 30);
+    ctx.fillRect(rocket.x + 27, rocket.y + 40, 8, 30);
+  }
+
+  // Flame
+  const flameGradient = ctx.createLinearGradient(rocket.x, rocket.y + 120, rocket.x, rocket.y + 170);
+  if (selectedRabbit === 0) {
+    flameGradient.addColorStop(0, '#ffaa00');
+    flameGradient.addColorStop(0.5, '#ff6600');
+    flameGradient.addColorStop(1, '#ff0000');
+  } else {
+    flameGradient.addColorStop(0, '#00ffff');
+    flameGradient.addColorStop(0.5, '#0099ff');
+    flameGradient.addColorStop(1, '#0066ff');
+  }
+  ctx.fillStyle = flameGradient;
+  
+  const flameHeight = 50 + Math.sin(frameCount * 0.2) * 10;
+  ctx.beginPath();
+  ctx.moveTo(rocket.x - 20, rocket.y + 120);
+  ctx.lineTo(rocket.x + 20, rocket.y + 120);
+  ctx.lineTo(rocket.x + 10, rocket.y + 140 + flameHeight);
+  ctx.lineTo(rocket.x, rocket.y + 135 + flameHeight);
+  ctx.lineTo(rocket.x - 10, rocket.y + 140 + flameHeight);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ship cockpit window
+  ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+  ctx.beginPath();
+  ctx.arc(rocket.x, rocket.y + 40, 15, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ship accent stripe
+  ctx.strokeStyle = selectedRabbit === 0 ? '#ffff00' : '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(rocket.x - 20, rocket.y + 60);
+  ctx.lineTo(rocket.x + 20, rocket.y + 60);
+  ctx.stroke();
+}
+
+function loop() {
+  frameCount++;
+  
+  // Draw starfield
+  ctx.fillStyle = '#0a1a3f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  for (let star of stars) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${star.size / 3})`;
+    ctx.fillRect(star.x, star.y, star.size, star.size);
+    star.y += star.speed * (1 + score / 10);
+    if (star.y > canvas.height) {
+      star.y = 0;
+      star.x = Math.random() * canvas.width;
+    }
+  }
+
+  if (gameActive) {
+    scrollY += rocket.baseSpeed + score / 5;
+    spawnStuff();
+
+    // Update powerup timers
+    if (hasShield) {
+      shieldTime--;
+      if (shieldTime <= 0) hasShield = false;
+    }
+    if (hasWeapon) {
+      weaponTime--;
+      if (weaponTime <= 0) hasWeapon = false;
+      
+      // Auto-fire weapon
+      if (frameCount % 15 === 0) {
+        bullets.push({
+          x: rocket.x - 30,
+          y: rocket.y + 40,
+          vy: -8,
+          fromPlayer: true
+        });
+        bullets.push({
+          x: rocket.x + 30,
+          y: rocket.y + 40,
+          vy: -8,
+          fromPlayer: true
+        });
+      }
+    }
+
+    rocket.x += (rocket.targetX - rocket.x) * 0.15;
+    rocket.x = Math.max(40, Math.min(canvas.width - 40, rocket.x));
+
+    drawRocket();
+
+    // Carrots
+    for (let i = carrots.length - 1; i >= 0; i--) {
+      const c = carrots[i];
+      c.pulse = (c.pulse + 0.1) % (Math.PI * 2);
+      const scale = 1 + Math.sin(c.pulse) * 0.2;
+      
+      ctx.save();
+      ctx.translate(c.x, c.y - scrollY);
+      ctx.scale(scale, scale);
+      ctx.font = '50px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      ctx.shadowColor = c.color;
+      ctx.shadowBlur = 20;
+      ctx.fillText(c.emoji, 0, 0);
+      ctx.restore();
+
+      const cy = c.y - scrollY;
+      if (Math.abs(c.x - rocket.x) < 50 && Math.abs(cy - rocket.y) < 80) {
+        currentMult += c.mult;
+        if (currentMult > 20) currentMult = 20;
+        score = currentMult;
+        document.getElementById('multiplier').innerText = currentMult.toFixed(2) + 'x';
+        hasPickedFirst = true;
+        document.getElementById('cashout').classList.add('active');
+        
+        if (currentMult >= 20) {
+          let win = Math.floor(wager * 20);
+          kicks += win;
+          document.getElementById('kicks').innerText = kicks.toLocaleString();
+          endGame(`🏆 MAX MULTIPLIER!\n\n💰 Won ${win.toLocaleString()} KICKS!`);
+          return;
+        }
+
+        for (let j = 0; j < 20; j++) {
+          particles.push({
+            x: c.x, y: cy,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 30,
+            color: c.color
+          });
+        }
+        carrots.splice(i, 1);
+      }
+    }
+
+    // Coins
+    for (let i = coins.length - 1; i >= 0; i--) {
+      const coin = coins[i];
+      coin.rotation += 0.1;
+      const cy = coin.y - scrollY;
+      
+      ctx.save();
+      ctx.translate(coin.x, cy);
+      ctx.rotate(coin.rotation);
+      ctx.font = '40px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#ffff00';
+      ctx.shadowBlur = 15;
+      ctx.fillText('💰', 0, 0);
+      ctx.restore();
+      
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#ffff00';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${coin.value}`, coin.x, cy + 30);
+
+      if (Math.abs(coin.x - rocket.x) < 50 && Math.abs(cy - rocket.y) < 80) {
+        kicks += coin.value;
+        document.getElementById('kicks').innerText = kicks.toLocaleString();
+        
+        for (let j = 0; j < 15; j++) {
+          particles.push({
+            x: coin.x, y: cy,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 25,
+            color: '#ffff00'
+          });
+        }
+        coins.splice(i, 1);
+      }
+    }
+
+    // Powerups
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i];
+      p.pulse = (p.pulse + 0.15) % (Math.PI * 2);
+      const scale = 1 + Math.sin(p.pulse) * 0.3;
+      const py = p.y - scrollY;
+      
+      ctx.save();
+      ctx.translate(p.x, py);
+      ctx.scale(scale, scale);
+      ctx.font = '45px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 25;
+      ctx.fillText(p.emoji, 0, 0);
+      ctx.restore();
+
+      if (Math.abs(p.x - rocket.x) < 50 && Math.abs(py - rocket.y) < 80) {
+        if (p.type === 'shield') {
+          // If player has consumable shields from shop, prioritize using them later; here give free pickup shield
+          hasShield = true;
+          shieldTime = Math.max(shieldTime, 300);
+        } else if (p.type === 'weapon') {
+          hasWeapon = true;
+          weaponTime = Math.max(weaponTime, 300);
+        }
+        
+        for (let j = 0; j < 20; j++) {
+          particles.push({
+            x: p.x, y: py,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 30,
+            color: p.color
+          });
+        }
+        powerups.splice(i, 1);
+      }
+    }
+
+    // Obstacles
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.rotation += 0.05;
+      const oy = o.y - scrollY;
+      
+      ctx.save();
+      ctx.translate(o.x, oy);
+      ctx.rotate(o.rotation);
+      
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, o.size / 2);
+      gradient.addColorStop(0, '#ff0000');
+      gradient.addColorStop(1, '#990000');
+      ctx.fillStyle = gradient;
+      
+      ctx.fillRect(-o.size / 2, -o.size / 2, o.size, o.size);
+      
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-o.size / 2, -o.size / 2, o.size, o.size);
+      ctx.restore();
+
+      if (Math.abs(o.x - rocket.x) < 60 && Math.abs(oy - rocket.y) < 80) {
+        if (hasShield) {
+          hasShield = false;
+          shieldTime = 0;
+          for (let j = 0; j < 30; j++) {
+            particles.push({
+              x: o.x, y: oy,
+              vx: (Math.random() - 0.5) * 15,
+              vy: (Math.random() - 0.5) * 15,
+              life: 40,
+              color: '#00ffff'
+            });
+          }
+          obstacles.splice(i, 1);
+        } else {
+          for (let j = 0; j < 30; j++) {
+            particles.push({
+              x: rocket.x, y: rocket.y,
+              vx: (Math.random() - 0.5) * 15,
+              vy: (Math.random() - 0.5) * 15,
+              life: 40,
+              color: '#ff0000'
+            });
+          }
+          endGame(`💥 CRASHED!\n\nLost ${wager.toLocaleString()} KICKS`);
+          return;
+        }
+      }
+    }
+
+    // Enemy ships
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      e.x += e.vx;
+      const ey = e.y - scrollY;
+      
+      // Keep enemies on screen
+      if (e.x < 50) { e.x = 50; e.vx *= -1; }
+      if (e.x > canvas.width - 50) { e.x = canvas.width - 50; e.vx *= -1; }
+      
+      // Draw enemy ship
+      ctx.save();
+      ctx.translate(e.x, ey);
+      
+      const enemyGrad = ctx.createLinearGradient(-30, -30, 30, 30);
+      enemyGrad.addColorStop(0, '#8800ff');
+      enemyGrad.addColorStop(1, '#4400aa');
+      ctx.fillStyle = enemyGrad;
+      
+      ctx.beginPath();
+      ctx.moveTo(0, 30);
+      ctx.lineTo(-30, -10);
+      ctx.lineTo(-20, -30);
+      ctx.lineTo(20, -30);
+      ctx.lineTo(30, -10);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.font = '30px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('👾', 0, 0);
+      ctx.restore();
+      
+      // HP bar
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(e.x - 25, ey + 35, 50, 5);
+      ctx.fillStyle = '#00ff00';
+      ctx.fillRect(e.x - 25, ey + 35, (e.hp / 3) * 50, 5);
+      
+      // Enemy shooting
+      e.shootTimer++;
+      if (e.shootTimer > 90) {
+        e.shootTimer = 0;
+        bullets.push({
+          x: e.x,
+          y: ey + 20,
+          vy: 6,
+          fromPlayer: false
+        });
+      }
+      
+      // Check collision with player
+      if (Math.abs(e.x - rocket.x) < 50 && Math.abs(ey - rocket.y) < 70) {
+        if (hasShield) {
+          hasShield = false;
+          shieldTime = 0;
+          for (let j = 0; j < 25; j++) {
+            particles.push({
+              x: e.x, y: ey,
+              vx: (Math.random() - 0.5) * 12,
+              vy: (Math.random() - 0.5) * 12,
+              life: 35,
+              color: '#8800ff'
+            });
+          }
+          enemies.splice(i, 1);
+        } else {
+          for (let j = 0; j < 30; j++) {
+            particles.push({
+              x: rocket.x, y: rocket.y,
+              vx: (Math.random() - 0.5) * 15,
+              vy: (Math.random() - 0.5) * 15,
+              life: 40,
+              color: '#ff0000'
+            });
+          }
+          endGame(`👾 HIT BY ENEMY!\n\nLost ${wager.toLocaleString()} KICKS`);
+          return;
+        }
+      }
+    }
+    
+    // Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.y += b.vy;
+      
+      if (b.fromPlayer) {
+        ctx.fillStyle = '#ff00ff';
+        ctx.shadowColor = '#ff00ff';
+      } else {
+        ctx.fillStyle = '#ff0000';
+        ctx.shadowColor = '#ff0000';
+      }
+      ctx.shadowBlur = 10;
+      ctx.fillRect(b.x - 3, b.y - 8, 6, 16);
+      ctx.shadowBlur = 0;
+      
+      // Check bullet hits
+      if (b.fromPlayer) {
+        // Check enemy hits
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const e = enemies[j];
+          const ey = e.y - scrollY;
+          if (Math.abs(b.x - e.x) < 35 && Math.abs(b.y - ey) < 35) {
+            e.hp--;
+            bullets.splice(i, 1);
+            
+            if (e.hp <= 0) {
+              kicks += 100;
+              document.getElementById('kicks').innerText = kicks.toLocaleString();
+              
+              for (let k = 0; k < 25; k++) {
+                particles.push({
+                  x: e.x, y: ey,
+                  vx: (Math.random() - 0.5) * 12,
+                  vy: (Math.random() - 0.5) * 12,
+                  life: 35,
+                  color: '#8800ff'
+                });
+              }
+              enemies.splice(j, 1);
+            }
+            break;
+          }
+        }
+      } else {
+        // Check player hit
+        if (Math.abs(b.x - rocket.x) < 40 && Math.abs(b.y - rocket.y) < 80) {
+          if (hasShield) {
+            hasShield = false;
+            shieldTime = 0;
+            bullets.splice(i, 1);
+            for (let j = 0; j < 20; j++) {
+              particles.push({
+                x: b.x, y: b.y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 30,
+                color: '#00ffff'
+              });
+            }
+          } else {
+            for (let j = 0; j < 30; j++) {
+              particles.push({
+                x: rocket.x, y: rocket.y,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                life: 40,
+                color: '#ff0000'
+              });
+            }
+            endGame(`💥 SHOT DOWN!\n\nLost ${wager.toLocaleString()} KICKS`);
+            return;
+          }
+        }
+      }
+      
+      // Remove off-screen bullets
+      if (b.y < -50 || b.y > canvas.height + 50) {
+        bullets.splice(i, 1);
+      }
+    }
+
+    obstacles = obstacles.filter(o => o.y - scrollY < canvas.height + 100);
+    carrots = carrots.filter(c => c.y - scrollY < canvas.height + 100);
+    coins = coins.filter(c => c.y - scrollY < canvas.height + 100);
+    powerups = powerups.filter(p => p.y - scrollY < canvas.height + 100);
+    enemies = enemies.filter(e => e.y - scrollY < canvas.height + 100);
+
+    // Particles
+    for (let p of particles) {
+      ctx.globalAlpha = p.life / 30;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+      p.life--;
+    }
+    ctx.globalAlpha = 1;
+    particles = particles.filter(p => p.life > 0);
+  }
+
+  if (gameActive) requestAnimationFrame(loop);
+}
+
+function endGame(message) {
+  gameActive = false;
+  setTimeout(() => {
+    alert(message);
+    document.getElementById('wagerScreen').style.display = 'flex';
+    document.getElementById('kicksDisplay').innerText = kicks.toLocaleString();
+    document.getElementById('wagerInput').value = '';
+    // After match ends, refresh on-chain inventory in case player bought more while playing
+    refreshBalancesAndInventory();
+  }, 100);
+}
+
+document.getElementById('cashout').classList.remove('active');
+
+/* ====== Helpful: periodic refresh of on-chain data when connected ====== */
+setInterval(() => { if (userAddress) refreshBalancesAndInventory(); }, 15000);
+
+</script>
+</body>
+</html>

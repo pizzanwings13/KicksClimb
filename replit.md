@@ -1,15 +1,24 @@
-# KICKS CLIMB - ApeChain Token Betting Game
+# TOKEN RUSH - Multi-Game Token Betting Platform
 
 ## Overview
-A 3D betting game on ApeChain where players connect their wallets to bet KICKS tokens and navigate through 100 steps with multiplier zones, hazard traps, power-ups, and collect achievements.
+A multi-game token betting platform on ApeChain where players connect their wallets to play various games using KICKS tokens. The platform serves as a hub for multiple betting games with shared wallet connection and user sessions.
 
 ## Current State
-- Full game with all enhanced features implemented
+- **Platform Hub**: Token Rush serves as the main game selection hub
+- **Kicks Climb**: Fully functional 3D betting game (100 steps, multipliers, hazards)
+- **Rabbit Rush**: Coming soon (placeholder page with preview)
+- Shared wallet connection and user session across all games
 - Database schema with PostgreSQL for users, games, leaderboards, and achievements
-- ApeChain wallet integration ready (configure KICKS token contract address via Settings)
+- ApeChain wallet integration (MetaMask, Zerion supported)
 - Sound effects and particle animations
-- Power-up system with shield, double multiplier, and skip abilities
-- Achievement badges with milestone rewards
+- Scalable architecture for adding more games
+
+## Platform Architecture
+- **Token Rush Hub** (`/`): Main game selection page after wallet connection
+- **Kicks Climb** (`/kicks-climb`): 3D step-climbing betting game
+- **Rabbit Rush** (`/rabbit-rush`): Coming soon - fast-paced betting game
+- Shared authentication: One wallet connection works across all games
+- Modular game structure: Each game lives in `client/src/games/{game-name}/`
 
 ## Tech Stack
 - **Frontend**: React, Three.js, @react-three/fiber, Framer Motion, Tailwind CSS
@@ -75,10 +84,18 @@ When landing on a multiplier tile, your multiplier is **replaced** with the tile
 ```
 client/
 ├── src/
-│   ├── components/game/     # Game components (Board, Player, HUD, etc.)
+│   ├── components/game/     # Shared game components (modals, HUD, etc.)
+│   ├── games/
+│   │   ├── kicks-climb/     # Kicks Climb game module
+│   │   │   └── KicksClimbApp.tsx
+│   │   └── rabbit-rush/     # Rabbit Rush game module (coming soon)
+│   │       └── RabbitRushApp.tsx
+│   ├── pages/
+│   │   ├── GameHub.tsx      # Main game selection page
+│   │   └── ConnectWalletPage.tsx  # Wallet connection landing
 │   ├── lib/stores/          # Zustand stores (wallet, game state, audio)
 │   ├── lib/hooks/           # Custom hooks (sound effects)
-│   └── App.tsx              # Main application
+│   └── App.tsx              # Router hub with shared providers
 server/
 ├── db.ts                    # Database connection
 ├── routes.ts                # API endpoints
@@ -86,6 +103,11 @@ server/
 shared/
 └── schema.ts                # Drizzle database schema
 ```
+
+## Routes
+- `/` - Connect wallet page (if not connected) or Game Hub (if connected)
+- `/kicks-climb` - Kicks Climb game (requires wallet connection)
+- `/rabbit-rush` - Rabbit Rush placeholder (requires wallet connection)
 
 ## API Endpoints
 - `POST /api/auth/connect` - Connect wallet and create/get user
