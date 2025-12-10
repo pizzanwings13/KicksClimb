@@ -1253,7 +1253,7 @@ export function RabbitRushApp() {
         </span>
       </div>
 
-      {(isPurchasing || isWagering || isClaiming || transactionState.status !== "idle") && (
+      {phase !== "playing" && (isPurchasing || isWagering || isClaiming || (transactionState.status !== "idle" && transactionState.status !== "success")) && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
             <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4" />
