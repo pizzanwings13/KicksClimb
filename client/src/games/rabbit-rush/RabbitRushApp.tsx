@@ -48,6 +48,7 @@ interface GameState {
   enemiesDestroyed: number;
   playerHp: number;
   maxPlayerHp: number;
+  needsInit?: boolean;
 }
 
 const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
@@ -521,21 +522,9 @@ export function RabbitRushApp() {
       gameStateRef.current.enemiesDestroyed = 0;
       gameStateRef.current.playerHp = 3;
       gameStateRef.current.maxPlayerHp = 3;
+      gameStateRef.current.needsInit = true;
       setInGameEarnings(0);
       setDisplayPlayerHp(3);
-      
-      const canvas = canvasRef.current;
-      console.log('[RabbitRush] Canvas ref:', canvas ? 'available' : 'null');
-      if (!canvas) {
-        console.error('[RabbitRush] Canvas not available');
-        setIsWagering(false);
-        resetTransactionState();
-        return;
-      }
-      rocketRef.current.x = canvas.width / 2;
-      rocketRef.current.targetX = canvas.width / 2;
-      rocketRef.current.y = canvas.height - 150;
-      rocketRef.current.trail = [];
       
       scrollYRef.current = 0;
       frameCountRef.current = 0;
@@ -546,6 +535,7 @@ export function RabbitRushApp() {
       enemiesRef.current = [];
       bulletsRef.current = [];
       particlesRef.current = [];
+      rocketRef.current.trail = [];
       
       console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
@@ -553,8 +543,6 @@ export function RabbitRushApp() {
       resetTransactionState();
       setPhase("playing");
       console.log('[RabbitRush] Game started! Phase set to playing');
-      
-      requestAnimationFrame(gameLoop);
       
       console.log('[RabbitRush] Refreshing balance in background...');
       refreshBalance().then(() => {
@@ -737,13 +725,25 @@ export function RabbitRushApp() {
 
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      if (gameStateRef.current.gameActive) {
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+      }
+      return;
+    }
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
     const gs = gameStateRef.current;
     if (!gs.gameActive) return;
+    
+    if (gs.needsInit) {
+      rocketRef.current.x = canvas.width / 2;
+      rocketRef.current.targetX = canvas.width / 2;
+      rocketRef.current.y = canvas.height - 150;
+      gs.needsInit = false;
+    }
     
     const rocket = rocketRef.current;
     const scrollY = scrollYRef.current;
@@ -1308,6 +1308,16 @@ export function RabbitRushApp() {
       canvas.removeEventListener('mousedown', handleMouseDown);
     };
   }, [phase]);
+
+  useEffect(() => {
+    if (phase === "playing" && gameStateRef.current.gameActive) {
+      console.log('[RabbitRush] Phase changed to playing, starting game loop');
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
+    }
+  }, [phase, gameLoop]);
 
   const handlePlayAgain = () => {
     setPhase("betting");
