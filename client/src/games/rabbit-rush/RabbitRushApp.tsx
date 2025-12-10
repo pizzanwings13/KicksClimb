@@ -473,7 +473,13 @@ export function RabbitRushApp() {
       gameStateRef.current.enemiesDestroyed = 0;
       setInGameEarnings(0);
       
-      const canvas = canvasRef.current!;
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        console.error('[RabbitRush] Canvas not available');
+        setIsWagering(false);
+        resetTransactionState();
+        return;
+      }
       rocketRef.current.x = canvas.width / 2;
       rocketRef.current.targetX = canvas.width / 2;
       rocketRef.current.y = canvas.height - 150;
@@ -1550,12 +1556,27 @@ export function RabbitRushApp() {
             
             <Button
               onClick={handleStartGame}
-              disabled={parseFloat(betAmount) < MIN_BET || parseFloat(betAmount) > Math.min(displayKicks, MAX_BET)}
+              disabled={isWagering || parseFloat(betAmount) < MIN_BET || parseFloat(betAmount) > Math.min(displayKicks, MAX_BET)}
               className="text-xl px-8 py-4 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 disabled:opacity-50"
             >
-              <Rocket className="w-6 h-6 mr-2" />
-              BLAST OFF
+              {isWagering ? (
+                <>
+                  <div className="w-6 h-6 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-6 h-6 mr-2" />
+                  BLAST OFF
+                </>
+              )}
             </Button>
+            
+            {transactionState.status !== "idle" && transactionState.message && (
+              <p className={`text-sm ${transactionState.status === "error" ? "text-red-400" : "text-yellow-400"}`}>
+                {transactionState.message}
+              </p>
+            )}
           </motion.div>
         )}
 
