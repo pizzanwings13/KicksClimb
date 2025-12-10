@@ -1,7 +1,7 @@
 import { useWallet } from "@/lib/stores/useWallet";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Gamepad2, Rabbit, Mountain, ChevronRight, Wallet, LogOut } from "lucide-react";
+import { Rabbit, Mountain, ChevronRight, Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface GameCardProps {
@@ -89,17 +89,13 @@ export function GameHub() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="flex flex-col items-center justify-center gap-4 mb-4">
+          <div className="flex flex-col items-center justify-center">
             <img 
-              src="/textures/dashkids-logo.jpg" 
-              alt="DashKids" 
-              className="w-32 h-32 md:w-40 md:h-40 rounded-2xl shadow-2xl shadow-orange-500/30"
+              src="/textures/tokenrush-logo.png" 
+              alt="Token Rush" 
+              className="w-48 h-48 md:w-56 md:h-56"
             />
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 via-yellow-400 to-red-500 bg-clip-text text-transparent">
-              TOKEN RUSH
-            </h1>
           </div>
-          <p className="text-xl text-gray-300 font-medium">Kicks-Powered Games, Timeless Fun</p>
         </motion.div>
 
         <motion.div
