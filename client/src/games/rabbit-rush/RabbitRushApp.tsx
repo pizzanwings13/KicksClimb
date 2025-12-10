@@ -814,6 +814,7 @@ export function RabbitRushApp() {
       if (Math.abs(c.x - rocket.x) < 40 && Math.abs(cy - rocket.y - 50) < 55) {
         setDisplayKicks(prev => prev + c.value);
         gs.coinsCollected += c.value;
+        gs.hasPickedFirst = true;
         playSuccessSound();
         
         for (let j = 0; j < 12; j++) {
@@ -848,6 +849,7 @@ export function RabbitRushApp() {
       ctx.restore();
       
       if (Math.abs(p.x - rocket.x) < 45 && Math.abs(py - rocket.y - 50) < 60) {
+        gs.hasPickedFirst = true;
         if (p.type === 'shield') {
           gs.hasShield = true;
           gs.shieldTime = 400;
@@ -964,7 +966,7 @@ export function RabbitRushApp() {
         bulletsRef.current.push({
           x: e.x,
           y: ey + 20,
-          vy: 6,
+          vy: 12,
           fromPlayer: false
         });
       }
@@ -1026,6 +1028,7 @@ export function RabbitRushApp() {
             if (e.hp <= 0) {
               setDisplayKicks(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
+              gameStateRef.current.hasPickedFirst = true;
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
@@ -1054,6 +1057,7 @@ export function RabbitRushApp() {
               
               if (o.hp <= 0) {
                 setDisplayKicks(prev => prev + 50);
+                gameStateRef.current.hasPickedFirst = true;
                 
                 for (let k = 0; k < 20; k++) {
                   particlesRef.current.push({
@@ -1072,7 +1076,7 @@ export function RabbitRushApp() {
           }
         }
       } else {
-        if (Math.abs(b.x - rocket.x) < 40 && Math.abs(b.y - rocket.y) < 80) {
+        if (Math.abs(b.x - rocket.x) < 30 && Math.abs(b.y - rocket.y) < 50) {
           if (gs.hasShield) {
             gs.hasShield = false;
             gs.shieldTime = 0;
@@ -1108,6 +1112,9 @@ export function RabbitRushApp() {
         bulletsRef.current.splice(i, 1);
       }
     }
+    if (bulletsRef.current.length > 50) {
+      bulletsRef.current = bulletsRef.current.slice(-50);
+    }
     
     obstaclesRef.current = obstaclesRef.current.filter(o => o.y - scrollYRef.current < canvas.height + 100);
     carrotsRef.current = carrotsRef.current.filter(c => c.y - scrollYRef.current < canvas.height + 100);
@@ -1127,6 +1134,9 @@ export function RabbitRushApp() {
     }
     ctx.globalAlpha = 1;
     particlesRef.current = particlesRef.current.filter(p => p.life > 0);
+    if (particlesRef.current.length > 100) {
+      particlesRef.current = particlesRef.current.slice(-100);
+    }
     
     if (gs.gameActive) {
       gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -1186,7 +1196,11 @@ export function RabbitRushApp() {
       <canvas ref={canvasRef} className="absolute inset-0" />
       
       <div className="absolute top-4 right-4 z-20 bg-black/70 px-4 py-2 rounded-xl border-2 border-pink-500 shadow-lg shadow-pink-500/30">
-        <span className="text-white font-bold">{displayKicks.toLocaleString()} KICKS</span>
+        <span className="text-white font-bold">
+          {phase === "playing" 
+            ? `Bet: ${gameStateRef.current.wager.toLocaleString()} KICKS` 
+            : `${displayKicks.toLocaleString()} KICKS`}
+        </span>
       </div>
 
       {(isPurchasing || isWagering || isClaiming || transactionState.status !== "idle") && (
