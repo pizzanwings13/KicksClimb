@@ -155,6 +155,23 @@ export function RabbitRushApp() {
     loadProfile();
   }, [walletAddress]);
 
+  const [phase, setPhase] = useState<GamePhase>("ship_select");
+  const [selectedShip, setSelectedShip] = useState(0);
+  const [selectedWeapon, setSelectedWeapon] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(0);
+  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
+  const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
+  const [ownedColors, setOwnedColors] = useState<number[]>([0]);
+  const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
+  const [betAmount, setBetAmount] = useState("100");
+  const [displayMult, setDisplayMult] = useState("1.00");
+  const [displayKicks, setDisplayKicks] = useState(0);
+  const [endMessage, setEndMessage] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [profileStats, setProfileStats] = useState<{totalRuns: number, runsWon: number, bestMultiplier: string}>({ totalRuns: 0, runsWon: 0, bestMultiplier: "0" });
+
   const fetchLeaderboard = async (type: "daily" | "weekly") => {
     try {
       const res = await fetch(`/api/rabbit-rush/leaderboard/${type}?limit=10`);
@@ -172,23 +189,6 @@ export function RabbitRushApp() {
       fetchLeaderboard(leaderboardTab);
     }
   }, [showLeaderboard, leaderboardTab]);
-  
-  const [phase, setPhase] = useState<GamePhase>("ship_select");
-  const [selectedShip, setSelectedShip] = useState(0);
-  const [selectedWeapon, setSelectedWeapon] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
-  const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
-  const [ownedColors, setOwnedColors] = useState<number[]>([0]);
-  const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
-  const [betAmount, setBetAmount] = useState("100");
-  const [displayMult, setDisplayMult] = useState("1.00");
-  const [displayKicks, setDisplayKicks] = useState(0);
-  const [endMessage, setEndMessage] = useState("");
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
-  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
-  const [profileStats, setProfileStats] = useState<{totalRuns: number, runsWon: number, bestMultiplier: string}>({ totalRuns: 0, runsWon: 0, bestMultiplier: "0" });
   
   const currentShip = SHIPS[selectedShip];
   const currentWeapon = WEAPONS[selectedWeapon];
