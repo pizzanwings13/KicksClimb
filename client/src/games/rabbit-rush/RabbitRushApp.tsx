@@ -51,12 +51,6 @@ interface GameState {
 const laserSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 const crashSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 const enemyDestroySound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
-const backgroundMusic = typeof Audio !== 'undefined' ? new Audio('/sounds/background.mp3') : null;
-
-if (backgroundMusic) {
-  backgroundMusic.loop = true;
-  backgroundMusic.volume = 0.3;
-}
 
 const playLaserSound = () => {
   if (laserSound) {
@@ -103,18 +97,6 @@ const playSuccessSound = () => {
   }
 };
 
-const startBackgroundMusic = () => {
-  if (backgroundMusic) {
-    backgroundMusic.play().catch(() => {});
-  }
-};
-
-const stopBackgroundMusic = () => {
-  if (backgroundMusic) {
-    backgroundMusic.pause();
-    backgroundMusic.currentTime = 0;
-  }
-};
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
@@ -549,7 +531,6 @@ export function RabbitRushApp() {
       setIsWagering(false);
       resetTransactionState();
       setPhase("playing");
-      startBackgroundMusic();
       console.log('[RabbitRush] Game started! Phase set to playing');
       
       requestAnimationFrame(gameLoop);
@@ -642,7 +623,6 @@ export function RabbitRushApp() {
       
       if (claimed) {
         await refreshBalance();
-        stopBackgroundMusic();
         playSuccessSound();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
       } else {
@@ -664,7 +644,6 @@ export function RabbitRushApp() {
       gameLoopRef.current = null;
     }
     playCrashSound();
-    stopBackgroundMusic();
     saveRunResult(false, 0);
     setEndMessage(message);
     setPhase("ended");
