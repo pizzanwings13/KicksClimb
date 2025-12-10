@@ -1292,7 +1292,18 @@ export function RabbitRushApp() {
 
       {phase !== "playing" && phase !== "ended" && (isPurchasing || isWagering || isClaiming) && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
+          <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center relative">
+            <button
+              onClick={() => {
+                setIsPurchasing(false);
+                setIsWagering(false);
+                setIsClaiming(false);
+                resetTransactionState();
+              }}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white text-xl font-bold w-8 h-8 flex items-center justify-center"
+            >
+              ×
+            </button>
             <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">
               {isPurchasing ? "Processing Purchase..." : 
