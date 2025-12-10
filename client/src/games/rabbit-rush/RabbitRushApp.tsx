@@ -46,10 +46,13 @@ interface GameState {
   shootCooldown: number;
   coinsCollected: number;
   enemiesDestroyed: number;
+  playerHp: number;
+  maxPlayerHp: number;
 }
 
 const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 const successSound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
+const shootSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
 
 const playHitSound = () => {
   if (hitSound) {
@@ -64,6 +67,22 @@ const playSuccessSound = () => {
     successSound.currentTime = 0;
     successSound.volume = 0.5;
     successSound.play().catch(() => {});
+  }
+};
+
+const playShootSound = () => {
+  if (shootSound) {
+    shootSound.currentTime = 0;
+    shootSound.volume = 0.1;
+    shootSound.play().catch(() => {});
+  }
+};
+
+const playEnemyDestroyedSound = () => {
+  if (successSound) {
+    const sound = successSound.cloneNode() as HTMLAudioElement;
+    sound.volume = 0.4;
+    sound.play().catch(() => {});
   }
 };
 
@@ -123,7 +142,9 @@ export function RabbitRushApp() {
     hasPickedFirst: false,
     shootCooldown: 0,
     coinsCollected: 0,
-    enemiesDestroyed: 0
+    enemiesDestroyed: 0,
+    playerHp: 3,
+    maxPlayerHp: 3
   });
   
   const blazeImageRef = useRef<HTMLImageElement | null>(null);
@@ -474,6 +495,8 @@ export function RabbitRushApp() {
       gameStateRef.current.shootCooldown = 0;
       gameStateRef.current.coinsCollected = 0;
       gameStateRef.current.enemiesDestroyed = 0;
+      gameStateRef.current.playerHp = 3;
+      gameStateRef.current.maxPlayerHp = 3;
       setInGameEarnings(0);
       
       const canvas = canvasRef.current;
@@ -627,9 +650,9 @@ export function RabbitRushApp() {
     
     if (Math.random() < 0.02) {
       const carrotTypes = [
-        { emoji: '🥕', mult: 0.1, color: '#ff8800' },
-        { emoji: '🥕', mult: 0.2, color: '#ffaa00' },
-        { emoji: '✨', mult: 0.5, color: '#ffff00' }
+        { emoji: '🥕', mult: 0.1, color: '#ff6600' },
+        { emoji: '🥕', mult: 0.2, color: '#ff7700' },
+        { emoji: '🥕', mult: 0.5, color: '#ff8800' }
       ];
       const type = carrotTypes[Math.floor(Math.random() * carrotTypes.length)];
       carrotsRef.current.push({
@@ -715,7 +738,7 @@ export function RabbitRushApp() {
       ctx.fillRect(star.x, star.y, star.size, star.size);
     }
     
-    scrollYRef.current -= 5;
+    scrollYRef.current -= 4;
     frameCountRef.current++;
     
     const dx = rocket.targetX - rocket.x;
@@ -732,6 +755,7 @@ export function RabbitRushApp() {
         damage: currentWeapon.damage,
         color: currentWeapon.bulletColor
       });
+      playShootSound();
       gs.shootCooldown = currentWeapon.fireRate;
     }
     
@@ -758,11 +782,13 @@ export function RabbitRushApp() {
     
     if (gs.hasShield) {
       const shieldPulse = Math.sin(frameCountRef.current * 0.1);
-      ctx.strokeStyle = `rgba(0, 255, 255, ${0.7 + shieldPulse * 0.3})`;
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = `rgba(50, 120, 255, ${0.8 + shieldPulse * 0.2})`;
+      ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.arc(rocket.x, rocket.y + 60, 70 + shieldPulse * 5, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.fillStyle = `rgba(50, 120, 255, ${0.15 + shieldPulse * 0.1})`;
+      ctx.fill();
     }
     
     const gradient = ctx.createLinearGradient(rocket.x - 30, rocket.y, rocket.x + 30, rocket.y + 120);
@@ -968,7 +994,9 @@ export function RabbitRushApp() {
           }
           obstaclesRef.current.splice(i, 1);
         } else {
-          for (let j = 0; j < 30; j++) {
+          gs.playerHp--;
+          playHitSound();
+          for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
               x: rocket.x,
               y: rocket.y,
@@ -978,8 +1006,11 @@ export function RabbitRushApp() {
               color: '#ff0000'
             });
           }
-          endGame(`HIT ASTEROID! Lost ${gs.wager.toLocaleString()} KICKS`);
-          return;
+          obstaclesRef.current.splice(i, 1);
+          if (gs.playerHp <= 0) {
+            endGame(`DESTROYED! Lost ${gs.wager.toLocaleString()} KICKS`);
+            return;
+          }
         }
       }
     }
@@ -1039,7 +1070,9 @@ export function RabbitRushApp() {
           }
           enemiesRef.current.splice(i, 1);
         } else {
-          for (let j = 0; j < 30; j++) {
+          gs.playerHp--;
+          playHitSound();
+          for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
               x: rocket.x,
               y: rocket.y,
@@ -1049,8 +1082,11 @@ export function RabbitRushApp() {
               color: '#ff0000'
             });
           }
-          endGame(`HIT BY ENEMY! Lost ${gs.wager.toLocaleString()} KICKS`);
-          return;
+          enemiesRef.current.splice(i, 1);
+          if (gs.playerHp <= 0) {
+            endGame(`DESTROYED! Lost ${gs.wager.toLocaleString()} KICKS`);
+            return;
+          }
         }
       }
     }
@@ -1081,6 +1117,7 @@ export function RabbitRushApp() {
               setInGameEarnings(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
               gameStateRef.current.hasPickedFirst = true;
+              playEnemyDestroyedSound();
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
@@ -1144,7 +1181,10 @@ export function RabbitRushApp() {
               });
             }
           } else {
-            for (let j = 0; j < 30; j++) {
+            gs.playerHp--;
+            playHitSound();
+            bulletsRef.current.splice(i, 1);
+            for (let j = 0; j < 15; j++) {
               particlesRef.current.push({
                 x: rocket.x,
                 y: rocket.y,
@@ -1154,8 +1194,10 @@ export function RabbitRushApp() {
                 color: '#ff0000'
               });
             }
-            endGame(`SHOT DOWN! Lost ${gs.wager.toLocaleString()} KICKS`);
-            return;
+            if (gs.playerHp <= 0) {
+              endGame(`DESTROYED! Lost ${gs.wager.toLocaleString()} KICKS`);
+              return;
+            }
           }
         }
       }
@@ -1285,6 +1327,22 @@ export function RabbitRushApp() {
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
             <div className="text-4xl font-bold text-white animate-pulse">
               {displayMult}x
+            </div>
+          </div>
+          
+          <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+            <span className="text-white font-bold text-sm">HP</span>
+            <div className="flex gap-1">
+              {[...Array(gameStateRef.current.maxPlayerHp)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-6 h-6 rounded-full border-2 transition-all ${
+                    i < gameStateRef.current.playerHp
+                      ? "bg-red-500 border-red-400 shadow-lg shadow-red-500/50"
+                      : "bg-gray-700 border-gray-600"
+                  }`}
+                />
+              ))}
             </div>
           </div>
           
