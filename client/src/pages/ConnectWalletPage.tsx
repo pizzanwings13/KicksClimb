@@ -2,13 +2,15 @@ import { motion } from "framer-motion";
 import { Wallet, Shield, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/lib/stores/useWallet";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 
 export function ConnectWalletPage() {
   const { setShowWalletModal, isConnecting, error } = useWallet();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
+    <AnimatedBackground>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -78,7 +80,8 @@ export function ConnectWalletPage() {
             Connect your ApeChain wallet to access all games
           </p>
         </motion.div>
+        </div>
       </div>
-    </div>
+    </AnimatedBackground>
   );
 }

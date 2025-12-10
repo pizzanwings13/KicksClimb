@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Rabbit, Mountain, ChevronRight, Wallet, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 
 interface GameCardProps {
   title: string;
@@ -82,8 +83,9 @@ export function GameHub() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <AnimatedBackground>
+      <div className="min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -158,7 +160,8 @@ export function GameHub() {
             More games coming soon! Stay tuned for new ways to win.
           </p>
         </motion.div>
+        </div>
       </div>
-    </div>
+    </AnimatedBackground>
   );
 }
