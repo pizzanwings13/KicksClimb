@@ -166,6 +166,7 @@ export function RabbitRushApp() {
   const [displayMult, setDisplayMult] = useState("1.00");
   const [displayKicks, setDisplayKicks] = useState(0);
   const [inGameEarnings, setInGameEarnings] = useState(0);
+  const [displayPlayerHp, setDisplayPlayerHp] = useState(3);
   const [endMessage, setEndMessage] = useState("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
@@ -498,6 +499,7 @@ export function RabbitRushApp() {
       gameStateRef.current.playerHp = 3;
       gameStateRef.current.maxPlayerHp = 3;
       setInGameEarnings(0);
+      setDisplayPlayerHp(3);
       
       const canvas = canvasRef.current;
       console.log('[RabbitRush] Canvas ref:', canvas ? 'available' : 'null');
@@ -995,6 +997,7 @@ export function RabbitRushApp() {
           obstaclesRef.current.splice(i, 1);
         } else {
           gs.playerHp--;
+          setDisplayPlayerHp(gs.playerHp);
           playHitSound();
           for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
@@ -1071,6 +1074,7 @@ export function RabbitRushApp() {
           enemiesRef.current.splice(i, 1);
         } else {
           gs.playerHp--;
+          setDisplayPlayerHp(gs.playerHp);
           playHitSound();
           for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
@@ -1182,6 +1186,7 @@ export function RabbitRushApp() {
             }
           } else {
             gs.playerHp--;
+            setDisplayPlayerHp(gs.playerHp);
             playHitSound();
             bulletsRef.current.splice(i, 1);
             for (let j = 0; j < 15; j++) {
@@ -1333,11 +1338,11 @@ export function RabbitRushApp() {
           <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
             <span className="text-white font-bold text-sm">HP</span>
             <div className="flex gap-1">
-              {[...Array(gameStateRef.current.maxPlayerHp)].map((_, i) => (
+              {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
                   className={`w-6 h-6 rounded-full border-2 transition-all ${
-                    i < gameStateRef.current.playerHp
+                    i < displayPlayerHp
                       ? "bg-red-500 border-red-400 shadow-lg shadow-red-500/50"
                       : "bg-gray-700 border-gray-600"
                   }`}
