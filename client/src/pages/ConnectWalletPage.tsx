@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Gamepad2, Wallet, Shield, Trophy, Zap } from "lucide-react";
+import { Wallet, Shield, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/lib/stores/useWallet";
 
@@ -14,13 +14,17 @@ export function ConnectWalletPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Gamepad2 className="w-12 h-12 text-purple-400" />
+          <div className="flex flex-col items-center justify-center gap-4 mb-4">
+            <img 
+              src="/textures/dashkids-logo.jpg" 
+              alt="DashKids" 
+              className="w-32 h-32 md:w-40 md:h-40 rounded-2xl shadow-2xl shadow-orange-500/30"
+            />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 via-yellow-400 to-red-500 bg-clip-text text-transparent mb-4">
             TOKEN RUSH
           </h1>
-          <p className="text-gray-400 text-lg">Your gateway to token betting games</p>
+          <p className="text-xl text-gray-300 font-medium">Kicks-Powered Games, Timeless Fun</p>
         </motion.div>
 
         <motion.div
