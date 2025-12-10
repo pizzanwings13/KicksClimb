@@ -89,13 +89,17 @@ export function GameHub() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Gamepad2 className="w-10 h-10 text-purple-400" />
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
+          <div className="flex flex-col items-center justify-center gap-4 mb-4">
+            <img 
+              src="/textures/dashkids-logo.jpg" 
+              alt="DashKids" 
+              className="w-32 h-32 md:w-40 md:h-40 rounded-2xl shadow-2xl shadow-orange-500/30"
+            />
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-400 via-yellow-400 to-red-500 bg-clip-text text-transparent">
               TOKEN RUSH
             </h1>
           </div>
-          <p className="text-gray-400 text-lg">Choose your game and start winning</p>
+          <p className="text-xl text-gray-300 font-medium">Kicks-Powered Games, Timeless Fun</p>
         </motion.div>
 
         <motion.div
