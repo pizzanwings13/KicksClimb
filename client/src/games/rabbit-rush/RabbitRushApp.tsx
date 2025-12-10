@@ -44,7 +44,28 @@ interface GameState {
   gameActive: boolean;
   hasPickedFirst: boolean;
   shootCooldown: number;
+  coinsCollected: number;
+  enemiesDestroyed: number;
 }
+
+const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
+const successSound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
+
+const playHitSound = () => {
+  if (hitSound) {
+    hitSound.currentTime = 0;
+    hitSound.volume = 0.3;
+    hitSound.play().catch(() => {});
+  }
+};
+
+const playSuccessSound = () => {
+  if (successSound) {
+    successSound.currentTime = 0;
+    successSound.volume = 0.5;
+    successSound.play().catch(() => {});
+  }
+};
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
@@ -88,8 +109,23 @@ export function RabbitRushApp() {
     shieldTime: 0,
     gameActive: false,
     hasPickedFirst: false,
-    shootCooldown: 0
+    shootCooldown: 0,
+    coinsCollected: 0,
+    enemiesDestroyed: 0
   });
+  
+  const blazeImageRef = useRef<HTMLImageElement | null>(null);
+  const lunaImageRef = useRef<HTMLImageElement | null>(null);
+  
+  useEffect(() => {
+    const blazeImg = new Image();
+    blazeImg.src = '/textures/rabbit-blaze.avif';
+    blazeImg.onload = () => { blazeImageRef.current = blazeImg; };
+    
+    const lunaImg = new Image();
+    lunaImg.src = '/textures/rabbit-luna.avif';
+    lunaImg.onload = () => { lunaImageRef.current = lunaImg; };
+  }, []);
   
   const [phase, setPhase] = useState<GamePhase>("ship_select");
   const [selectedShip, setSelectedShip] = useState(0);
@@ -325,6 +361,7 @@ export function RabbitRushApp() {
         x: Math.random() * (canvas.width - 120) + 60,
         y: scrollY - 100,
         size: 80,
+        hp: 2,
         rotation: Math.random() * Math.PI * 2
       });
     }
@@ -438,8 +475,18 @@ export function RabbitRushApp() {
     
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(rocket.x, rocket.y + 50, 15, 0, Math.PI * 2);
+    ctx.arc(rocket.x, rocket.y + 50, 20, 0, Math.PI * 2);
     ctx.fill();
+    
+    const rabbitImg = selectedShip === 0 ? blazeImageRef.current : selectedShip === 1 ? lunaImageRef.current : null;
+    if (rabbitImg) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(rocket.x, rocket.y + 50, 18, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(rabbitImg, rocket.x - 18, rocket.y + 32, 36, 36);
+      ctx.restore();
+    }
     
     const flameGradient = ctx.createLinearGradient(rocket.x, rocket.y + 110, rocket.x, rocket.y + 160);
     flameGradient.addColorStop(0, '#ffff00');
@@ -474,6 +521,7 @@ export function RabbitRushApp() {
         gs.currentMult += c.mult;
         gs.hasPickedFirst = true;
         setDisplayMult(gs.currentMult.toFixed(2));
+        playSuccessSound();
         
         for (let j = 0; j < 15; j++) {
           particlesRef.current.push({
@@ -584,6 +632,11 @@ export function RabbitRushApp() {
       ctx.lineWidth = 3;
       ctx.stroke();
       ctx.restore();
+      
+      ctx.fillStyle = '#330000';
+      ctx.fillRect(o.x - 30, oy + o.size/2 + 8, 60, 6);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(o.x - 30, oy + o.size/2 + 8, (o.hp / 2) * 60, 6);
       
       if (Math.abs(o.x - rocket.x) < 50 && Math.abs(oy - rocket.y - 50) < 70) {
         if (gs.hasShield) {
@@ -699,15 +752,20 @@ export function RabbitRushApp() {
       ctx.shadowBlur = 0;
       
       if (b.fromPlayer) {
+        let bulletHit = false;
+        
         for (let j = enemiesRef.current.length - 1; j >= 0; j--) {
           const e = enemiesRef.current[j];
           const ey = e.y - scrollYRef.current;
           if (Math.abs(b.x - e.x) < 35 && Math.abs(b.y - ey) < 35) {
             e.hp -= (b.damage || currentWeapon.damage);
             bulletsRef.current.splice(i, 1);
+            bulletHit = true;
+            playHitSound();
             
             if (e.hp <= 0) {
               setDisplayKicks(prev => prev + 100);
+              gameStateRef.current.enemiesDestroyed++;
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
@@ -722,6 +780,35 @@ export function RabbitRushApp() {
               enemiesRef.current.splice(j, 1);
             }
             break;
+          }
+        }
+        
+        if (!bulletHit) {
+          for (let j = obstaclesRef.current.length - 1; j >= 0; j--) {
+            const o = obstaclesRef.current[j];
+            const oy = o.y - scrollYRef.current;
+            if (Math.abs(b.x - o.x) < 45 && Math.abs(b.y - oy) < 45) {
+              o.hp -= (b.damage || currentWeapon.damage);
+              bulletsRef.current.splice(i, 1);
+              playHitSound();
+              
+              if (o.hp <= 0) {
+                setDisplayKicks(prev => prev + 50);
+                
+                for (let k = 0; k < 20; k++) {
+                  particlesRef.current.push({
+                    x: o.x,
+                    y: oy,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 30,
+                    color: '#666688'
+                  });
+                }
+                obstaclesRef.current.splice(j, 1);
+              }
+              break;
+            }
           }
         }
       } else {

@@ -124,6 +124,85 @@ export const weeklyLeaderboardRelations = relations(weeklyLeaderboard, ({ one })
   }),
 }));
 
+export const rabbitRushInventories = pgTable("rabbit_rush_inventories", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  ownedShips: text("owned_ships").default("[0,1]").notNull(),
+  ownedWeapons: text("owned_weapons").default("[0]").notNull(),
+  ownedColors: text("owned_colors").default("[0]").notNull(),
+  selectedShip: integer("selected_ship").default(0).notNull(),
+  selectedWeapon: integer("selected_weapon").default(0).notNull(),
+  selectedColor: integer("selected_color").default(0).notNull(),
+  totalRuns: integer("total_runs").default(0).notNull(),
+  totalKicksWon: decimal("total_kicks_won", { precision: 36, scale: 18 }).default("0").notNull(),
+  totalKicksLost: decimal("total_kicks_lost", { precision: 36, scale: 18 }).default("0").notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  runsWon: integer("runs_won").default(0).notNull(),
+  runsLost: integer("runs_lost").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const rabbitRushRuns = pgTable("rabbit_rush_runs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  wager: decimal("wager", { precision: 36, scale: 18 }).notNull(),
+  finalMultiplier: decimal("final_multiplier", { precision: 10, scale: 2 }),
+  payout: decimal("payout", { precision: 36, scale: 18 }),
+  coinsCollected: integer("coins_collected").default(0).notNull(),
+  enemiesDestroyed: integer("enemies_destroyed").default(0).notNull(),
+  runStatus: text("run_status").default("active").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+});
+
+export const rabbitRushDailyLeaderboard = pgTable("rabbit_rush_daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  runsPlayed: integer("runs_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  date: timestamp("date").defaultNow().notNull(),
+});
+
+export const rabbitRushWeeklyLeaderboard = pgTable("rabbit_rush_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  runsPlayed: integer("runs_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+export const rabbitRushInventoriesRelations = relations(rabbitRushInventories, ({ one }) => ({
+  user: one(users, {
+    fields: [rabbitRushInventories.userId],
+    references: [users.id],
+  }),
+}));
+
+export const rabbitRushRunsRelations = relations(rabbitRushRuns, ({ one }) => ({
+  user: one(users, {
+    fields: [rabbitRushRuns.userId],
+    references: [users.id],
+  }),
+}));
+
+export const rabbitRushDailyLeaderboardRelations = relations(rabbitRushDailyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [rabbitRushDailyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
+export const rabbitRushWeeklyLeaderboardRelations = relations(rabbitRushWeeklyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [rabbitRushWeeklyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -149,3 +228,7 @@ export type InsertGameStep = z.infer<typeof insertGameStepSchema>;
 export type DailyLeaderboardEntry = typeof dailyLeaderboard.$inferSelect;
 export type WeeklyLeaderboardEntry = typeof weeklyLeaderboard.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
+export type RabbitRushInventory = typeof rabbitRushInventories.$inferSelect;
+export type RabbitRushRun = typeof rabbitRushRuns.$inferSelect;
+export type RabbitRushDailyLeaderboardEntry = typeof rabbitRushDailyLeaderboard.$inferSelect;
+export type RabbitRushWeeklyLeaderboardEntry = typeof rabbitRushWeeklyLeaderboard.$inferSelect;
