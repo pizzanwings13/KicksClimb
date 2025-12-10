@@ -69,7 +69,7 @@ const playSuccessSound = () => {
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
-  { id: 1, name: "Luna Ship", price: 1000, speed: 1.1, handling: 0.28, color1: "#99bbff", color2: "#6699ff", description: "Cool and steady with +10% speed" },
+  { id: 1, name: "Luna Ship", price: 1500, speed: 1.1, handling: 0.28, color1: "#99bbff", color2: "#6699ff", description: "Cool and steady with +10% speed" },
   { id: 2, name: "Thunder Bolt", price: 2500, speed: 1.3, handling: 0.35, color1: "#ffff00", color2: "#ff8800", description: "Fast! +30% speed, better handling" },
   { id: 3, name: "Shadow Phantom", price: 5000, speed: 1.5, handling: 0.4, color1: "#aa00ff", color2: "#5500aa", description: "Elite! +50% speed, superior handling" },
   { id: 4, name: "Golden Eagle", price: 10000, speed: 1.8, handling: 0.5, color1: "#ffd700", color2: "#ff9900", description: "Legendary! +80% speed, max handling" },
