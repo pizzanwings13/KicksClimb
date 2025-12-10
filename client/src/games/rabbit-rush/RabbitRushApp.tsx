@@ -1170,26 +1170,31 @@ export function RabbitRushApp() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
+    const getCanvasX = (clientX: number) => {
+      const rect = canvas.getBoundingClientRect();
+      return (clientX - rect.left) * (canvas.width / rect.width);
+    };
+    
     const handleTouchStart = (e: TouchEvent) => {
       if (phase !== "playing") return;
       e.preventDefault();
-      rocketRef.current.targetX = e.touches[0].clientX;
+      rocketRef.current.targetX = getCanvasX(e.touches[0].clientX);
     };
     
     const handleTouchMove = (e: TouchEvent) => {
       if (phase !== "playing") return;
       e.preventDefault();
-      rocketRef.current.targetX = e.touches[0].clientX;
+      rocketRef.current.targetX = getCanvasX(e.touches[0].clientX);
     };
     
     const handleMouseMove = (e: MouseEvent) => {
       if (phase !== "playing") return;
-      if (e.buttons === 1) rocketRef.current.targetX = e.clientX;
+      if (e.buttons === 1) rocketRef.current.targetX = getCanvasX(e.clientX);
     };
     
     const handleMouseDown = (e: MouseEvent) => {
       if (phase !== "playing") return;
-      rocketRef.current.targetX = e.clientX;
+      rocketRef.current.targetX = getCanvasX(e.clientX);
     };
     
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -1215,11 +1220,11 @@ export function RabbitRushApp() {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0" />
+    <div className="relative w-screen h-screen overflow-hidden touch-none select-none">
+      <canvas ref={canvasRef} className="absolute inset-0 touch-none" style={{ touchAction: 'none' }} />
       
-      <div className="absolute top-4 right-4 z-20 bg-black/70 px-4 py-2 rounded-xl border-2 border-pink-500 shadow-lg shadow-pink-500/30">
-        <span className="text-white font-bold">
+      <div className="absolute top-4 right-4 z-20 bg-black/70 px-3 py-2 rounded-xl border-2 border-pink-500 shadow-lg shadow-pink-500/30">
+        <span className="text-white font-bold text-sm md:text-base">
           {phase === "playing" 
             ? `Bet: ${gameStateRef.current.wager.toLocaleString()} | +${inGameEarnings.toLocaleString()}` 
             : `${displayKicks.toLocaleString()} KICKS`}
@@ -1256,7 +1261,7 @@ export function RabbitRushApp() {
           
           <button
             onClick={handleCashout}
-            className={`absolute bottom-10 left-1/2 -translate-x-1/2 z-20 w-4/5 max-w-md h-16 text-xl font-bold rounded-xl transition-all ${
+            className={`absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-md h-14 md:h-16 text-lg md:text-xl font-bold rounded-xl transition-all active:scale-95 ${
               gameStateRef.current.hasPickedFirst
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white opacity-100 cursor-pointer shadow-lg shadow-green-500/40"
                 : "bg-gray-600 text-gray-400 opacity-50 cursor-not-allowed"
