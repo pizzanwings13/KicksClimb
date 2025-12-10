@@ -152,7 +152,43 @@ npm run db:push      # Push database schema changes
 
 Wallet detection automatically identifies which wallets are installed and provides appropriate connection options through the WalletConnectModal component.
 
-## Recent Changes (December 7, 2025)
+## Rabbit Rush Game
+A 2D canvas-based flying game where players pilot rockets, dodge obstacles, collect coins, and cash out at the right time.
+
+### Game Features
+- **Ship Selection**: 2 starter ships (Blaze & Luna), additional ships unlockable via KICKS
+- **Weapon System**: Multiple weapons with different fire rates and damage
+- **Color Customization**: Custom rocket trail and engine colors
+- **Shop System**: Purchase ships, weapons, and colors that persist to profile
+- **Destructible Obstacles**: Shoot asteroids to clear paths
+- **Enemy Ships**: Hostile targets that can be destroyed for points
+- **Powerups**: Speed boost, shield, multiplier boosts
+- **Daily/Weekly Leaderboards**: Compete for top scores
+
+### Rabbit Rush Database Schema
+- `rabbitRushInventories`: Player inventory (ships, weapons, colors, stats)
+- `rabbitRushRuns`: Individual game run history
+- `rabbitRushDailyLeaderboard`: Daily leaderboard entries
+- `rabbitRushWeeklyLeaderboard`: Weekly leaderboard entries
+
+### Rabbit Rush API Endpoints
+- `GET /api/rabbit-rush/profile/:walletAddress` - Get player profile and inventory
+- `POST /api/rabbit-rush/profile/:walletAddress/purchase` - Purchase shop item
+- `POST /api/rabbit-rush/profile/:walletAddress/run` - Save completed run
+- `GET /api/rabbit-rush/leaderboard/daily` - Get daily leaderboard
+- `GET /api/rabbit-rush/leaderboard/weekly` - Get weekly leaderboard
+
+## Recent Changes (December 10, 2025)
+- Rabbit Rush fully implemented with 2D canvas flying game
+- Added destructible obstacles with HP system
+- Integrated rabbit character images (Blaze/Luna) in ship cockpits
+- Added sound effects (hit sounds, success chimes, background music)
+- Created dedicated database tables for Rabbit Rush inventory and leaderboards
+- Built complete API layer for profile persistence and leaderboards
+- Added player stats display (runs, wins, best multiplier) on ship select screen
+- Implemented daily/weekly leaderboard modal with rankings
+
+## Previous Changes (December 7, 2025)
 - Increased hazards from 15 to 20 for more competitive gameplay
 - Reduced finish line multiplier from 20x to 10x
 - Changed multiplier system from additive stacking to replacement (landing sets your multiplier)
