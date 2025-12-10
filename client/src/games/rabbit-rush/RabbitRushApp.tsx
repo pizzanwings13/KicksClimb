@@ -69,10 +69,11 @@ const playSuccessSound = () => {
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
-  { id: 1, name: "Luna Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#99bbff", color2: "#6699ff", description: "Starter ship - cool and steady" },
+  { id: 1, name: "Luna Ship", price: 1000, speed: 1.1, handling: 0.28, color1: "#99bbff", color2: "#6699ff", description: "Cool and steady with +10% speed" },
   { id: 2, name: "Thunder Bolt", price: 2500, speed: 1.3, handling: 0.35, color1: "#ffff00", color2: "#ff8800", description: "Fast! +30% speed, better handling" },
   { id: 3, name: "Shadow Phantom", price: 5000, speed: 1.5, handling: 0.4, color1: "#aa00ff", color2: "#5500aa", description: "Elite! +50% speed, superior handling" },
   { id: 4, name: "Golden Eagle", price: 10000, speed: 1.8, handling: 0.5, color1: "#ffd700", color2: "#ff9900", description: "Legendary! +80% speed, max handling" },
+  { id: 5, name: "Cosmic Fury", price: 15000, speed: 2.0, handling: 0.6, color1: "#ff00ff", color2: "#00ff88", description: "Ultimate! 2x speed, best handling" },
 ];
 
 const WEAPONS: WeaponConfig[] = [
@@ -132,7 +133,7 @@ export function RabbitRushApp() {
   const [selectedShip, setSelectedShip] = useState(0);
   const [selectedWeapon, setSelectedWeapon] = useState(0);
   const [selectedColor, setSelectedColor] = useState(0);
-  const [ownedShips, setOwnedShips] = useState<number[]>([0, 1]);
+  const [ownedShips, setOwnedShips] = useState<number[]>([0]);
   const [ownedWeapons, setOwnedWeapons] = useState<number[]>([0]);
   const [ownedColors, setOwnedColors] = useState<number[]>([0]);
   const [shopTab, setShopTab] = useState<"ships" | "weapons" | "colors">("ships");
@@ -214,7 +215,7 @@ export function RabbitRushApp() {
     speed: 0,
     targetX: 0,
     trail: [] as { x: number; y: number; alpha: number }[],
-    baseSpeed: 8
+    baseSpeed: 12
   });
   
   const obstaclesRef = useRef<any[]>([]);
@@ -665,7 +666,7 @@ export function RabbitRushApp() {
       ctx.fillRect(star.x, star.y, star.size, star.size);
     }
     
-    scrollYRef.current -= 5;
+    scrollYRef.current -= 8;
     frameCountRef.current++;
     
     const dx = rocket.targetX - rocket.x;
@@ -962,7 +963,7 @@ export function RabbitRushApp() {
       ctx.fillRect(e.x - 25, ey + 35, (e.hp / 3) * 50, 5);
       
       e.shootTimer++;
-      if (e.shootTimer > 90) {
+      if (e.shootTimer > 45) {
         e.shootTimer = 0;
         bulletsRef.current.push({
           x: e.x,
@@ -1113,8 +1114,8 @@ export function RabbitRushApp() {
         bulletsRef.current.splice(i, 1);
       }
     }
-    if (bulletsRef.current.length > 50) {
-      bulletsRef.current = bulletsRef.current.slice(-50);
+    if (bulletsRef.current.length > 30) {
+      bulletsRef.current = bulletsRef.current.slice(-30);
     }
     
     obstaclesRef.current = obstaclesRef.current.filter(o => o.y - scrollYRef.current < canvas.height + 100);
@@ -1135,8 +1136,8 @@ export function RabbitRushApp() {
     }
     ctx.globalAlpha = 1;
     particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-    if (particlesRef.current.length > 100) {
-      particlesRef.current = particlesRef.current.slice(-100);
+    if (particlesRef.current.length > 50) {
+      particlesRef.current = particlesRef.current.slice(-50);
     }
     
     if (gs.gameActive) {
