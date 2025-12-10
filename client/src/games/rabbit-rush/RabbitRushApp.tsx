@@ -476,6 +476,8 @@ export function RabbitRushApp() {
       console.log('[RabbitRush] Canvas ref:', canvas ? 'available' : 'null');
       if (!canvas) {
         console.error('[RabbitRush] Canvas not available');
+        setIsWagering(false);
+        resetTransactionState();
         return;
       }
       rocketRef.current.x = canvas.width / 2;
@@ -495,8 +497,9 @@ export function RabbitRushApp() {
       
       console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
-      setPhase("playing");
+      setIsWagering(false);
       resetTransactionState();
+      setPhase("playing");
       console.log('[RabbitRush] Game started! Phase set to playing');
       
       requestAnimationFrame(gameLoop);
@@ -511,8 +514,8 @@ export function RabbitRushApp() {
       if (error?.code === "ACTION_REJECTED") {
         console.log('[RabbitRush] User rejected transaction');
       }
-    } finally {
       setIsWagering(false);
+      resetTransactionState();
     }
   };
 
@@ -1253,7 +1256,7 @@ export function RabbitRushApp() {
         </span>
       </div>
 
-      {phase !== "playing" && (isPurchasing || isWagering || isClaiming || (transactionState.status !== "idle" && transactionState.status !== "success")) && (
+      {phase !== "playing" && phase !== "ended" && (isPurchasing || isWagering || isClaiming) && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-pink-500/50 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
             <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4" />
