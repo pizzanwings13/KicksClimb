@@ -1351,16 +1351,18 @@ export function RabbitRushApp() {
             </div>
           </div>
           
-          <button
-            onClick={handleCashout}
-            className={`absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-md h-14 md:h-16 text-lg md:text-xl font-bold rounded-xl transition-all active:scale-95 ${
-              gameStateRef.current.hasPickedFirst
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white opacity-100 cursor-pointer shadow-lg shadow-green-500/40"
-                : "bg-gray-600 text-gray-400 opacity-50 cursor-not-allowed"
-            }`}
-          >
-            CASH OUT
-          </button>
+          <div className="absolute top-16 right-4 z-20">
+            <button
+              onClick={handleCashout}
+              className={`px-3 py-2 rounded-xl font-bold text-sm md:text-base transition-all active:scale-95 ${
+                gameStateRef.current.hasPickedFirst
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-2 border-green-400 shadow-lg shadow-green-500/40"
+                  : "bg-gray-700 text-gray-400 border-2 border-gray-600 cursor-not-allowed"
+              }`}
+            >
+              CASH OUT
+            </button>
+          </div>
         </>
       )}
 
