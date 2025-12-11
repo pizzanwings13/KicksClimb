@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { useWallet } from "@/lib/stores/useWallet";
+import { useRabbitRushState } from "@/lib/stores/useRabbitRushState";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Rocket, ShoppingCart, Palette, Crosshair, Zap } from "lucide-react";
@@ -51,41 +52,6 @@ interface GameState {
   needsInit?: boolean;
 }
 
-const hitSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
-const successSound = typeof Audio !== 'undefined' ? new Audio('/sounds/success.mp3') : null;
-const shootSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hit.mp3') : null;
-
-const playHitSound = () => {
-  if (hitSound) {
-    hitSound.currentTime = 0;
-    hitSound.volume = 0.3;
-    hitSound.play().catch(() => {});
-  }
-};
-
-const playSuccessSound = () => {
-  if (successSound) {
-    successSound.currentTime = 0;
-    successSound.volume = 0.5;
-    successSound.play().catch(() => {});
-  }
-};
-
-const playShootSound = () => {
-  if (shootSound) {
-    shootSound.currentTime = 0;
-    shootSound.volume = 0.1;
-    shootSound.play().catch(() => {});
-  }
-};
-
-const playEnemyDestroyedSound = () => {
-  if (successSound) {
-    const sound = successSound.cloneNode() as HTMLAudioElement;
-    sound.volume = 0.4;
-    sound.play().catch(() => {});
-  }
-};
 
 const SHIPS: ShipConfig[] = [
   { id: 0, name: "Blaze Ship", price: 0, speed: 1.0, handling: 0.25, color1: "#ff6699", color2: "#ff3366", description: "Starter ship - balanced and reliable" },
@@ -155,7 +121,20 @@ export function RabbitRushApp() {
   const eagleImageRef = useRef<HTMLImageElement | null>(null);
   const cosmicImageRef = useRef<HTMLImageElement | null>(null);
   
-  const [phase, setPhase] = useState<GamePhase>("ship_select");
+  const { 
+    phase, 
+    setPhase, 
+    startRun, 
+    endRun, 
+    isWagering, 
+    setWagering, 
+    isClaiming, 
+    setClaiming, 
+    currentRunId,
+    setEndMessage,
+    endMessage 
+  } = useRabbitRushState();
+  
   const [selectedShip, setSelectedShip] = useState(0);
   const [selectedWeapon, setSelectedWeapon] = useState(0);
   const [selectedColor, setSelectedColor] = useState(0);
@@ -168,7 +147,6 @@ export function RabbitRushApp() {
   const [displayKicks, setDisplayKicks] = useState(0);
   const [inGameEarnings, setInGameEarnings] = useState(0);
   const [displayPlayerHp, setDisplayPlayerHp] = useState(3);
-  const [endMessage, setEndMessage] = useState("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<"daily" | "weekly">("daily");
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
@@ -335,8 +313,6 @@ export function RabbitRushApp() {
   };
 
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [isWagering, setIsWagering] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false);
 
   const handleBuyShip = async (ship: ShipConfig) => {
     if (displayKicks >= ship.price && !ownedShips.includes(ship.id) && !isPurchasing) {
@@ -442,52 +418,39 @@ export function RabbitRushApp() {
     }
   };
 
-  const [currentGameId, setCurrentGameId] = useState<number | null>(null);
-
   const handleStartGame = async () => {
     const betValue = parseFloat(betAmount);
-    console.log('[RabbitRush] handleStartGame called, betValue:', betValue, 'isWagering:', isWagering);
     
     if (isNaN(betValue) || betValue < MIN_BET || betValue > Math.min(displayKicks, MAX_BET) || isWagering) {
-      console.log('[RabbitRush] Early return - validation failed or already wagering');
       return;
     }
     
-    setIsWagering(true);
+    setWagering(true);
     resetTransactionState();
     
     try {
-      console.log('[RabbitRush] Starting game with bet:', betValue);
       const txHash = await sendKicksToHouse(betValue.toString());
-      console.log('[RabbitRush] Transaction hash:', txHash);
       
       if (!txHash) {
-        console.log('[RabbitRush] No transaction hash, aborting');
-        setIsWagering(false);
+        setWagering(false);
         resetTransactionState();
         return;
       }
       
-      console.log('[RabbitRush] Calling API to start run');
       const res = await fetch('/api/rabbit-rush/run/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
       });
-      console.log('[RabbitRush] API response status:', res.status);
       
       if (!res.ok) {
-        console.log('[RabbitRush] API error:', res.status);
-        setIsWagering(false);
+        setWagering(false);
         resetTransactionState();
         return;
       }
       
       const data = await res.json();
-      console.log('[RabbitRush] Run started with ID:', data.runId);
-      setCurrentGameId(data.runId);
       
-      console.log('[RabbitRush] Setting up game state...');
       gameStateRef.current.wager = betValue;
       gameStateRef.current.currentMult = 1.0;
       gameStateRef.current.hasShield = false;
@@ -520,31 +483,22 @@ export function RabbitRushApp() {
       bulletsRef.current = [];
       particlesRef.current = [];
       
-      console.log('[RabbitRush] Setting phase to playing...');
       setDisplayMult("1.00");
-      setIsWagering(false);
       resetTransactionState();
-      setPhase("playing");
-      console.log('[RabbitRush] Game started! Phase set to playing');
+      
+      startRun(data.runId, betValue);
       
       setTimeout(() => {
-        console.log('[RabbitRush] Starting game loop after timeout');
         if (gameStateRef.current.gameActive) {
           requestAnimationFrame(gameLoop);
         }
-      }, 100);
+      }, 50);
       
-      console.log('[RabbitRush] Refreshing balance in background...');
       refreshBalance().then(() => {
         setDisplayKicks(parseFloat(kicksBalance) || 0);
       });
     } catch (error: any) {
-      console.error('[RabbitRush] Failed to start game:', error);
-      console.error('[RabbitRush] Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-      if (error?.code === "ACTION_REJECTED") {
-        console.log('[RabbitRush] User rejected transaction');
-      }
-      setIsWagering(false);
+      setWagering(false);
       resetTransactionState();
     }
   };
@@ -557,7 +511,7 @@ export function RabbitRushApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress,
-          runId: runId || currentGameId,
+          runId: runId || currentRunId,
           wager: gameStateRef.current.wager,
           finalMultiplier: gameStateRef.current.currentMult,
           payout,
@@ -569,7 +523,7 @@ export function RabbitRushApp() {
     } catch (error) {
       console.error('Failed to save run:', error);
     }
-  }, [walletAddress, currentGameId]);
+  }, [walletAddress, currentRunId]);
 
   const handleCashout = useCallback(async () => {
     if (!gameStateRef.current.gameActive || !gameStateRef.current.hasPickedFirst || isClaiming) return;
@@ -584,21 +538,21 @@ export function RabbitRushApp() {
       gameLoopRef.current = null;
     }
     
-    setIsClaiming(true);
+    setClaiming(true);
     setEndMessage(`Processing cashout...`);
     setPhase("ended");
     
     try {
       await saveRunResult(true, payout);
       
-      const authMessage = `Request Rabbit Rush claim nonce for run ${currentGameId}`;
+      const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
         setEndMessage(`Claim cancelled. Won ${payout.toLocaleString()} KICKS - claim manually later.`);
         return;
       }
       
-      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentGameId}/claim-nonce`, {
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, authSignature }),
@@ -612,29 +566,28 @@ export function RabbitRushApp() {
       
       setEndMessage(`Claiming ${serverPayout.toLocaleString()} KICKS...`);
       
-      const signature = await signClaimMessage(expectedPayout, currentGameId || 0, nonce, "rabbit-rush");
+      const signature = await signClaimMessage(expectedPayout, currentRunId || 0, nonce, "rabbit-rush");
       if (!signature) {
         setEndMessage(`Claim cancelled. Won ${serverPayout.toLocaleString()} KICKS - claim manually later.`);
         return;
       }
       
-      const claimed = await requestKicksFromHouse(expectedPayout, currentGameId || 0, signature, nonce, "rabbit-rush");
+      const claimed = await requestKicksFromHouse(expectedPayout, currentRunId || 0, signature, nonce, "rabbit-rush");
       
       if (claimed) {
         await refreshBalance();
-        playSuccessSound();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
       } else {
-        setEndMessage(`Claim failed. Contact support with game ID: ${currentGameId}`);
+        setEndMessage(`Claim failed. Contact support with game ID: ${currentRunId}`);
       }
     } catch (error: any) {
       console.error('Cashout error:', error);
       setEndMessage(`Error: ${error.message || 'Claim failed'}. Contact support.`);
     } finally {
-      setIsClaiming(false);
+      setClaiming(false);
       resetTransactionState();
     }
-  }, [saveRunResult, currentGameId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, resetTransactionState, walletAddress]);
+  }, [saveRunResult, currentRunId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, resetTransactionState, walletAddress]);
 
   const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
@@ -758,7 +711,6 @@ export function RabbitRushApp() {
         damage: currentWeapon.damage,
         color: currentWeapon.bulletColor
       });
-      playShootSound();
       gs.shootCooldown = currentWeapon.fireRate;
     }
     
@@ -860,7 +812,6 @@ export function RabbitRushApp() {
         gs.currentMult += c.mult;
         gs.hasPickedFirst = true;
         setDisplayMult(gs.currentMult.toFixed(2));
-        playSuccessSound();
         
         for (let j = 0; j < 15; j++) {
           particlesRef.current.push({
@@ -896,7 +847,6 @@ export function RabbitRushApp() {
         setInGameEarnings(prev => prev + c.value);
         gs.coinsCollected += c.value;
         gs.hasPickedFirst = true;
-        playSuccessSound();
         
         for (let j = 0; j < 12; j++) {
           particlesRef.current.push({
@@ -999,7 +949,6 @@ export function RabbitRushApp() {
         } else {
           gs.playerHp--;
           setDisplayPlayerHp(gs.playerHp);
-          playHitSound();
           for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
               x: rocket.x,
@@ -1076,7 +1025,6 @@ export function RabbitRushApp() {
         } else {
           gs.playerHp--;
           setDisplayPlayerHp(gs.playerHp);
-          playHitSound();
           for (let j = 0; j < 15; j++) {
             particlesRef.current.push({
               x: rocket.x,
@@ -1116,13 +1064,11 @@ export function RabbitRushApp() {
             e.hp -= (b.damage || currentWeapon.damage);
             bulletsRef.current.splice(i, 1);
             bulletHit = true;
-            playHitSound();
             
             if (e.hp <= 0) {
               setInGameEarnings(prev => prev + 100);
               gameStateRef.current.enemiesDestroyed++;
               gameStateRef.current.hasPickedFirst = true;
-              playEnemyDestroyedSound();
               
               for (let k = 0; k < 25; k++) {
                 particlesRef.current.push({
@@ -1147,7 +1093,6 @@ export function RabbitRushApp() {
             if (Math.abs(b.x - o.x) < 45 && Math.abs(b.y - oy) < 45) {
               o.hp -= (b.damage || currentWeapon.damage);
               bulletsRef.current.splice(i, 1);
-              playHitSound();
               
               if (o.hp <= 0) {
                 setInGameEarnings(prev => prev + 50);
@@ -1188,7 +1133,6 @@ export function RabbitRushApp() {
           } else {
             gs.playerHp--;
             setDisplayPlayerHp(gs.playerHp);
-            playHitSound();
             bulletsRef.current.splice(i, 1);
             for (let j = 0; j < 15; j++) {
               particlesRef.current.push({
