@@ -563,18 +563,58 @@ async function updateRabbitRushInventory(userId: number, updates: any) {
 }
 
 async function createRabbitRushRun(userId: number, wager: string) {
-  const [run] = await db.insert(rabbitRushRuns).values({ userId, wager }).returning();
-  return run;
+  // Use raw SQL to only insert essential columns that exist in production
+  const result = await db.execute(sql`
+    INSERT INTO rabbit_rush_runs (user_id, wager, started_at)
+    VALUES (${userId}, ${wager}, NOW())
+    RETURNING id, user_id as "userId", wager, started_at as "startedAt"
+  `);
+  return result.rows[0] as { id: number; userId: number; wager: string; startedAt: Date };
 }
 
 async function getRabbitRushRun(runId: number) {
-  const [run] = await db.select().from(rabbitRushRuns).where(eq(rabbitRushRuns.id, runId));
-  return run;
+  // Use raw SQL to only select columns that exist in production
+  const result = await db.execute(sql`
+    SELECT id, user_id as "userId", wager, final_multiplier as "finalMultiplier", 
+           payout, run_status as "runStatus", claim_nonce as "claimNonce",
+           deposit_tx_hash as "depositTxHash", claim_tx_hash as "claimTxHash",
+           started_at as "startedAt", ended_at as "endedAt"
+    FROM rabbit_rush_runs WHERE id = ${runId}
+  `);
+  return result.rows[0] as any;
 }
 
 async function updateRabbitRushRun(runId: number, updates: any) {
-  const [run] = await db.update(rabbitRushRuns).set(updates).where(eq(rabbitRushRuns.id, runId)).returning();
-  return run;
+  // Update only provided fields using individual queries
+  if (updates.depositTxHash !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET deposit_tx_hash = ${updates.depositTxHash} WHERE id = ${runId}`);
+  }
+  if (updates.finalMultiplier !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET final_multiplier = ${String(updates.finalMultiplier)} WHERE id = ${runId}`);
+  }
+  if (updates.payout !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET payout = ${String(updates.payout)} WHERE id = ${runId}`);
+  }
+  if (updates.runStatus !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET run_status = ${updates.runStatus} WHERE id = ${runId}`);
+  }
+  if (updates.claimNonce !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET claim_nonce = ${updates.claimNonce} WHERE id = ${runId}`);
+  }
+  if (updates.claimTxHash !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET claim_tx_hash = ${updates.claimTxHash} WHERE id = ${runId}`);
+  }
+  if (updates.endedAt !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET ended_at = ${updates.endedAt} WHERE id = ${runId}`);
+  }
+  if (updates.coinsCollected !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET coins_collected = ${updates.coinsCollected} WHERE id = ${runId}`);
+  }
+  if (updates.enemiesDestroyed !== undefined) {
+    await db.execute(sql`UPDATE rabbit_rush_runs SET enemies_destroyed = ${updates.enemiesDestroyed} WHERE id = ${runId}`);
+  }
+  
+  return getRabbitRushRun(runId);
 }
 
 async function getUserRabbitRushRuns(userId: number, limit: number = 10) {
