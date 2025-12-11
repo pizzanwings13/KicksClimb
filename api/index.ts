@@ -1086,7 +1086,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const houseWallet = new ethers.Wallet(houseWalletKey, provider);
           const tokenContract = new ethers.Contract(kicksTokenAddress, ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)"], houseWallet);
           const decimals = await tokenContract.decimals();
-          const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
+          const amountInSmallestUnit = ethers.parseUnits(parseFloat(amount).toFixed(Number(decimals)), decimals);
           const tx = await tokenContract.transfer(walletAddress, amountInSmallestUnit);
           const receipt = await tx.wait();
           txHash = receipt.hash;
