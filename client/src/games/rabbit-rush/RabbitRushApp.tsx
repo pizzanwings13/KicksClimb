@@ -581,11 +581,12 @@ export function RabbitRushApp() {
               setHasServerRun(true);
             }
           } else {
-            throw new Error('Failed to create game record');
+            const errorData = await createRes.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(errorData.error || 'Failed to create game record');
           }
-        } catch (createError) {
+        } catch (createError: any) {
           console.error('Failed to create run:', createError);
-          setEndMessage(`Error creating game record. Contact support with tx: ${depositTxHash?.slice(0, 10)}...`);
+          setEndMessage(`Error: ${createError.message || 'Failed to create game record'}. Tx: ${depositTxHash?.slice(0, 10)}...`);
           return;
         }
       }

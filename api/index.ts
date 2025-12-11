@@ -964,19 +964,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if ((url === '/api/rabbit-rush/run/start' || url.endsWith('/api/rabbit-rush/run/start')) && method === 'POST') {
-      const { walletAddress, wager, depositTxHash } = req.body;
-      if (!depositTxHash) return res.status(400).json({ error: "Deposit transaction hash required" });
-      const user = await getUserByWallet(walletAddress);
-      if (!user) return res.status(404).json({ error: "User not found" });
-      const run = await createRabbitRushRun(user.id, wager.toString());
-      await updateRabbitRushRun(run.id, { depositTxHash });
-      console.log(`[Rabbit Rush] Run started: runId=${run.id}, wager=${wager}, tx=${depositTxHash}`);
-      return res.json({ success: true, runId: run.id });
+      try {
+        const { walletAddress, wager, depositTxHash } = req.body;
+        console.log(`[Rabbit Rush] Run start request: wallet=${walletAddress}, wager=${wager}, tx=${depositTxHash?.slice(0,10)}`);
+        if (!depositTxHash) return res.status(400).json({ error: "Deposit transaction hash required" });
+        if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
+        const user = await getUserByWallet(walletAddress);
+        if (!user) {
+          console.log(`[Rabbit Rush] User not found for wallet: ${walletAddress}`);
+          return res.status(404).json({ error: "User not found. Please connect your wallet first." });
+        }
+        const run = await createRabbitRushRun(user.id, String(wager));
+        await updateRabbitRushRun(run.id, { depositTxHash: String(depositTxHash) });
+        console.log(`[Rabbit Rush] Run created: runId=${run.id}, wager=${wager}, tx=${depositTxHash}`);
+        return res.json({ success: true, runId: run.id });
+      } catch (runStartError: any) {
+        console.error(`[Rabbit Rush] Run start error:`, runStartError);
+        return res.status(500).json({ error: `Failed to create run: ${runStartError.message}` });
+      }
     }
 
-    const claimNonceMatch = url.match(/\/api\/rabbit-rush\/run\/(\d+)\/claim-nonce$/);
-    if (claimNonceMatch && method === 'POST') {
-      const runId = parseInt(claimNonceMatch[1]);
+    const rabbitClaimNonceMatch = url.match(/\/api\/rabbit-rush\/run\/(\d+)\/claim-nonce$/);
+    if (rabbitClaimNonceMatch && method === 'POST') {
+      const runId = parseInt(rabbitClaimNonceMatch[1]);
       const { walletAddress, authSignature } = req.body;
       if (!walletAddress || !authSignature) return res.status(400).json({ error: "Wallet address and authentication signature required" });
       const run = await getRabbitRushRun(runId);
