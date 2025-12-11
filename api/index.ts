@@ -1039,8 +1039,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Authentication failed - signature does not match wallet" });
       if (run.runStatus !== "won") return res.status(400).json({ error: "Run must be won to claim" });
       if (run.claimStatus === "claimed") return res.status(400).json({ error: "Already claimed" });
-      const coinsBonus = run.coinsCollected || 0;
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      // Use stored payout from saveRunResult
+      const storedPayout = parseFloat(run.payout || "0");
+      const expectedPayout = Math.floor(storedPayout);
+      console.log(`[Rabbit Rush Nonce] Using stored payout: ${expectedPayout}`);
       if (expectedPayout <= 0) return res.status(400).json({ error: "No payout available" });
       const nonce = `rabbit-rush-${runId}-${Date.now()}-${crypto.randomUUID()}`;
       await updateRabbitRushRun(runId, { claimNonce: nonce });
@@ -1068,8 +1070,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[Rabbit Rush Claim] Status not won: run.runStatus=${run.runStatus}`);
         return res.status(400).json({ error: `Run status is '${run.runStatus}', must be 'won' to claim` });
       }
-      const coinsBonus = run.coinsCollected || 0;
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      // Use stored payout from saveRunResult (already calculated correctly by client)
+      const storedPayout = parseFloat(run.payout || "0");
+      console.log(`[Rabbit Rush Claim] Using stored payout: ${storedPayout}, wager=${run.wager}, mult=${run.finalMultiplier}`);
+      const expectedPayout = Math.floor(storedPayout);
       if (expectedPayout <= 0) return res.status(400).json({ error: "No payout available" });
       const amount = expectedPayout.toString();
       const expectedMessage = `RABBIT RUSH Claim\nAmount: ${amount} KICKS\nRun ID: ${runId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
