@@ -662,7 +662,7 @@ export function RabbitRushApp() {
     const scrollY = scrollYRef.current;
     const canvas = canvasRef.current!;
     
-    if (Math.random() < 0.02) {
+    if (Math.random() < 0.01) {
       const carrotTypes = [
         { emoji: '🥕', mult: 0.1, color: '#ff6600' },
         { emoji: '🥕', mult: 0.2, color: '#ff7700' },
@@ -678,8 +678,8 @@ export function RabbitRushApp() {
       });
     }
     
-    if (Math.random() < 0.03) {
-      const coinValues = [1, 5];
+    if (Math.random() < 0.045) {
+      const coinValues = [1, 5, 10, 50];
       const value = coinValues[Math.floor(Math.random() * coinValues.length)];
       coinsRef.current.push({
         x: Math.random() * (canvas.width - 100) + 50,
