@@ -6,6 +6,8 @@ type GamePhase = "ship_select" | "shop" | "betting" | "playing" | "ended";
 interface RabbitRushState {
   phase: GamePhase;
   currentRunId: number | null;
+  hasServerRun: boolean;
+  depositTxHash: string | null;
   wager: number;
   currentMult: number;
   coinsCollected: number;
@@ -15,7 +17,9 @@ interface RabbitRushState {
   endMessage: string;
   
   setPhase: (phase: GamePhase) => void;
-  startRun: (runId: number, wager: number) => void;
+  startRun: (runId: number, wager: number, hasServerRun: boolean, txHash: string) => void;
+  setRunId: (runId: number) => void;
+  setHasServerRun: (has: boolean) => void;
   endRun: (message: string) => void;
   setEndMessage: (message: string) => void;
   setWagering: (isWagering: boolean) => void;
@@ -30,6 +34,8 @@ export const useRabbitRushState = create<RabbitRushState>()(
   subscribeWithSelector((set) => ({
     phase: "ship_select",
     currentRunId: null,
+    hasServerRun: false,
+    depositTxHash: null,
     wager: 0,
     currentMult: 1.0,
     coinsCollected: 0,
@@ -40,9 +46,11 @@ export const useRabbitRushState = create<RabbitRushState>()(
     
     setPhase: (phase) => set({ phase }),
     
-    startRun: (runId, wager) => set({
+    startRun: (runId, wager, hasServerRun, txHash) => set({
       phase: "playing",
       currentRunId: runId,
+      hasServerRun,
+      depositTxHash: txHash,
       wager,
       currentMult: 1.0,
       coinsCollected: 0,
@@ -51,6 +59,9 @@ export const useRabbitRushState = create<RabbitRushState>()(
       isClaiming: false,
       endMessage: "",
     }),
+    
+    setRunId: (runId) => set({ currentRunId: runId }),
+    setHasServerRun: (has) => set({ hasServerRun: has }),
     
     endRun: (message) => set({
       phase: "ended",
@@ -67,6 +78,8 @@ export const useRabbitRushState = create<RabbitRushState>()(
     reset: () => set({
       phase: "ship_select",
       currentRunId: null,
+      hasServerRun: false,
+      depositTxHash: null,
       wager: 0,
       currentMult: 1.0,
       coinsCollected: 0,

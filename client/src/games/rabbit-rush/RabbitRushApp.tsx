@@ -131,6 +131,10 @@ export function RabbitRushApp() {
     isClaiming, 
     setClaiming, 
     currentRunId,
+    hasServerRun,
+    depositTxHash,
+    setRunId,
+    setHasServerRun,
     setEndMessage,
     endMessage 
   } = useRabbitRushState();
@@ -438,6 +442,7 @@ export function RabbitRushApp() {
       }
       
       let runId = Date.now();
+      let serverRunCreated = false;
       
       try {
         const controller = new AbortController();
@@ -455,6 +460,7 @@ export function RabbitRushApp() {
         if (res.ok) {
           const data = await res.json();
           runId = data.runId || runId;
+          serverRunCreated = true;
         }
       } catch (apiError) {
         console.warn('API call failed, starting game with local ID:', apiError);
@@ -495,7 +501,7 @@ export function RabbitRushApp() {
       setDisplayMult("1.00");
       resetTransactionState();
       
-      startRun(runId, betValue);
+      startRun(runId, betValue, serverRunCreated, txHash);
       
       setTimeout(() => {
         if (gameStateRef.current.gameActive) {
@@ -552,16 +558,48 @@ export function RabbitRushApp() {
     setPhase("ended");
     
     try {
-      await saveRunResult(true, payout);
+      let actualRunId = currentRunId;
       
-      const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
+      if (!hasServerRun && depositTxHash) {
+        setEndMessage(`Creating game record...`);
+        try {
+          const createRes = await fetch('/api/rabbit-rush/run/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              walletAddress, 
+              wager: gameStateRef.current.wager, 
+              depositTxHash 
+            }),
+          });
+          
+          if (createRes.ok) {
+            const createData = await createRes.json();
+            actualRunId = createData.runId;
+            if (actualRunId) {
+              setRunId(actualRunId);
+              setHasServerRun(true);
+            }
+          } else {
+            throw new Error('Failed to create game record');
+          }
+        } catch (createError) {
+          console.error('Failed to create run:', createError);
+          setEndMessage(`Error creating game record. Contact support with tx: ${depositTxHash?.slice(0, 10)}...`);
+          return;
+        }
+      }
+      
+      await saveRunResult(true, payout, actualRunId || undefined);
+      
+      const authMessage = `Request Rabbit Rush claim nonce for run ${actualRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
         setEndMessage(`Claim cancelled. Won ${payout.toLocaleString()} KICKS - claim manually later.`);
         return;
       }
       
-      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${actualRunId}/claim-nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, authSignature }),
@@ -575,19 +613,19 @@ export function RabbitRushApp() {
       
       setEndMessage(`Claiming ${serverPayout.toLocaleString()} KICKS...`);
       
-      const signature = await signClaimMessage(expectedPayout, currentRunId || 0, nonce, "rabbit-rush");
+      const signature = await signClaimMessage(expectedPayout, actualRunId || 0, nonce, "rabbit-rush");
       if (!signature) {
         setEndMessage(`Claim cancelled. Won ${serverPayout.toLocaleString()} KICKS - claim manually later.`);
         return;
       }
       
-      const claimed = await requestKicksFromHouse(expectedPayout, currentRunId || 0, signature, nonce, "rabbit-rush");
+      const claimed = await requestKicksFromHouse(expectedPayout, actualRunId || 0, signature, nonce, "rabbit-rush");
       
       if (claimed) {
         await refreshBalance();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
       } else {
-        setEndMessage(`Claim failed. Contact support with game ID: ${currentRunId}`);
+        setEndMessage(`Claim failed. Contact support with game ID: ${actualRunId}`);
       }
     } catch (error: any) {
       console.error('Cashout error:', error);
@@ -596,7 +634,7 @@ export function RabbitRushApp() {
       setClaiming(false);
       resetTransactionState();
     }
-  }, [saveRunResult, currentRunId, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, resetTransactionState, walletAddress]);
+  }, [saveRunResult, currentRunId, hasServerRun, depositTxHash, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, resetTransactionState, walletAddress, setRunId, setHasServerRun]);
 
   const endGame = useCallback((message: string) => {
     gameStateRef.current.gameActive = false;
