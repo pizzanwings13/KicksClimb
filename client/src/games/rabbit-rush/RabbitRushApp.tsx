@@ -625,13 +625,19 @@ export function RabbitRushApp() {
       if (claimed) {
         await refreshBalance();
         setEndMessage(`CASHED OUT AT ${mult.toFixed(2)}x! Won ${serverPayout.toLocaleString()} KICKS!`);
+        setClaiming(false);
+        resetTransactionState();
       } else {
-        setEndMessage(`Claim failed. Contact support with game ID: ${actualRunId}`);
+        // Get error from transaction state before resetting
+        const txState = useWallet.getState().transactionState;
+        const errorMsg = txState?.message || 'Unknown error';
+        setEndMessage(`Claim failed: ${errorMsg}. Game ID: ${actualRunId}`);
+        setClaiming(false);
+        resetTransactionState();
       }
     } catch (error: any) {
       console.error('Cashout error:', error);
       setEndMessage(`Error: ${error.message || 'Claim failed'}. Contact support.`);
-    } finally {
       setClaiming(false);
       resetTransactionState();
     }

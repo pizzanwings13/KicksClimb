@@ -1049,14 +1049,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if ((url === '/api/rabbit-rush/claim' || url.endsWith('/api/rabbit-rush/claim')) && method === 'POST') {
       const { walletAddress, runId, signature, nonce, kicksTokenAddress } = req.body;
+      console.log(`[Rabbit Rush Claim] Request: runId=${runId}, wallet=${walletAddress?.slice(0,10)}, nonce=${nonce?.slice(0,10)}`);
       if (!walletAddress || !runId || !signature || !nonce) return res.status(400).json({ error: "Missing required fields" });
       const run = await getRabbitRushRun(parseInt(runId));
+      console.log(`[Rabbit Rush Claim] Run data:`, JSON.stringify(run));
       if (!run) return res.status(404).json({ error: "Run not found" });
       const user = await getUser(run.userId);
-      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Wallet address does not match run owner" });
-      if (run.claimNonce !== nonce) return res.status(400).json({ error: "Invalid or expired nonce" });
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        console.log(`[Rabbit Rush Claim] Wallet mismatch: run.userId=${run.userId}, user.wallet=${user?.walletAddress}, request.wallet=${walletAddress}`);
+        return res.status(403).json({ error: "Wallet address does not match run owner" });
+      }
+      if (run.claimNonce !== nonce) {
+        console.log(`[Rabbit Rush Claim] Nonce mismatch: run.claimNonce=${run.claimNonce}, request.nonce=${nonce}`);
+        return res.status(400).json({ error: `Invalid nonce. Expected: ${run.claimNonce?.slice(0,10)}, Got: ${nonce?.slice(0,10)}` });
+      }
       if (run.claimStatus === "claimed") return res.status(400).json({ error: "Run already claimed" });
-      if (run.runStatus !== "won") return res.status(400).json({ error: "Run must be won to claim" });
+      if (run.runStatus !== "won") {
+        console.log(`[Rabbit Rush Claim] Status not won: run.runStatus=${run.runStatus}`);
+        return res.status(400).json({ error: `Run status is '${run.runStatus}', must be 'won' to claim` });
+      }
       const coinsBonus = run.coinsCollected || 0;
       const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
       if (expectedPayout <= 0) return res.status(400).json({ error: "No payout available" });
