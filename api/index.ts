@@ -1084,9 +1084,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
           const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
           const houseWallet = new ethers.Wallet(houseWalletKey, provider);
-          const tokenContract = new ethers.Contract(kicksTokenAddress, ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)"], houseWallet);
+          const erc20Abi = ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)", "function balanceOf(address) view returns (uint256)"];
+          const tokenContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
           const decimals = await tokenContract.decimals();
           const amountInSmallestUnit = ethers.parseUnits(parseFloat(amount).toFixed(Number(decimals)), decimals);
+          const houseBalance = await tokenContract.balanceOf(houseWallet.address);
+          console.log(`[Rabbit Rush] Transfer: amount=${amount}, decimals=${decimals}, amountWei=${amountInSmallestUnit.toString()}, houseBalance=${houseBalance.toString()}`);
+          if (houseBalance < amountInSmallestUnit) {
+            return res.status(400).json({ error: `Insufficient house balance. Need ${amount} KICKS but have ${ethers.formatUnits(houseBalance, decimals)}` });
+          }
           const tx = await tokenContract.transfer(walletAddress, amountInSmallestUnit);
           const receipt = await tx.wait();
           txHash = receipt.hash;
