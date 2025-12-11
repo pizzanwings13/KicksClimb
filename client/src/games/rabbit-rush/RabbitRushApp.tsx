@@ -437,19 +437,28 @@ export function RabbitRushApp() {
         return;
       }
       
-      const res = await fetch('/api/rabbit-rush/run/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
-      });
+      let runId = Date.now();
       
-      if (!res.ok) {
-        setWagering(false);
-        resetTransactionState();
-        return;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        const res = await fetch('/api/rabbit-rush/run/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (res.ok) {
+          const data = await res.json();
+          runId = data.runId || runId;
+        }
+      } catch (apiError) {
+        console.warn('API call failed, starting game with local ID:', apiError);
       }
-      
-      const data = await res.json();
       
       gameStateRef.current.wager = betValue;
       gameStateRef.current.currentMult = 1.0;
@@ -486,7 +495,7 @@ export function RabbitRushApp() {
       setDisplayMult("1.00");
       resetTransactionState();
       
-      startRun(data.runId, betValue);
+      startRun(runId, betValue);
       
       setTimeout(() => {
         if (gameStateRef.current.gameActive) {
