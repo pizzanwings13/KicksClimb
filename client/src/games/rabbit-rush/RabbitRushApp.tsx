@@ -527,7 +527,12 @@ export function RabbitRushApp() {
       setPhase("playing");
       console.log('[RabbitRush] Game started! Phase set to playing');
       
-      requestAnimationFrame(gameLoop);
+      setTimeout(() => {
+        console.log('[RabbitRush] Starting game loop after timeout');
+        if (gameStateRef.current.gameActive) {
+          requestAnimationFrame(gameLoop);
+        }
+      }, 100);
       
       console.log('[RabbitRush] Refreshing balance in background...');
       refreshBalance().then(() => {
