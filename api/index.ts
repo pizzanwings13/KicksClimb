@@ -93,7 +93,74 @@ const userAchievements = pgTable("user_achievements", {
   maxProgress: integer("max_progress").default(1).notNull(),
 });
 
-const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements };
+const rabbitRushInventories = pgTable("rabbit_rush_inventories", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").default("").notNull(),
+  oddseedHash: text("oddseed_hash").default("").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  ownedShips: text("owned_ships").default('["blaze","luna"]').notNull(),
+  ownedWeapons: text("owned_weapons").default('["laser"]').notNull(),
+  ownedColors: text("owned_colors").default('["#ff6b35"]').notNull(),
+  selectedShip: text("selected_ship").default("blaze").notNull(),
+  selectedWeapon: text("selected_weapon").default("laser").notNull(),
+  selectedColor: text("selected_color").default("#ff6b35").notNull(),
+  totalRuns: integer("total_runs").default(0).notNull(),
+  runsWon: integer("runs_won").default(0).notNull(),
+  runsLost: integer("runs_lost").default(0).notNull(),
+  totalKicksWon: decimal("total_kicks_won", { precision: 36, scale: 18 }).default("0").notNull(),
+  totalKicksLost: decimal("total_kicks_lost", { precision: 36, scale: 18 }).default("0").notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+const rabbitRushRuns = pgTable("rabbit_rush_runs", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").default("").notNull(),
+  oddseedHash: text("oddseed_hash").default("").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  wager: decimal("wager", { precision: 36, scale: 18 }).notNull(),
+  finalMultiplier: decimal("final_multiplier", { precision: 10, scale: 2 }),
+  payout: decimal("payout", { precision: 36, scale: 18 }),
+  coinsCollected: integer("coins_collected").default(0),
+  enemiesDestroyed: integer("enemies_destroyed").default(0),
+  runStatus: text("run_status").default("active").notNull(),
+  depositTxHash: text("deposit_tx_hash"),
+  claimTxHash: text("claim_tx_hash"),
+  claimNonce: text("claim_nonce"),
+  claimStatus: text("claim_status").default("pending"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+});
+
+const rabbitRushDailyLeaderboard = pgTable("rabbit_rush_daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").default("").notNull(),
+  oddseedHash: text("oddseed_hash").default("").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  runsPlayed: integer("runs_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  date: timestamp("date").defaultNow().notNull(),
+});
+
+const rabbitRushWeeklyLeaderboard = pgTable("rabbit_rush_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed").default("").notNull(),
+  oddseedHash: text("oddseed_hash").default("").notNull(),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
+  runsPlayed: integer("runs_played").default(0).notNull(),
+  bestMultiplier: decimal("best_multiplier", { precision: 10, scale: 2 }).default("0").notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard };
 const db = drizzle(pool, { schema });
 
 type User = typeof users.$inferSelect;
@@ -480,6 +547,92 @@ async function hasAchievement(userId: number, achievementId: string) {
   return !!existing && existing.progress >= existing.maxProgress;
 }
 
+async function getRabbitRushInventory(userId: number) {
+  const [inventory] = await db.select().from(rabbitRushInventories).where(eq(rabbitRushInventories.userId, userId));
+  return inventory;
+}
+
+async function createRabbitRushInventory(userId: number) {
+  const [inventory] = await db.insert(rabbitRushInventories).values({ userId }).returning();
+  return inventory;
+}
+
+async function updateRabbitRushInventory(userId: number, updates: any) {
+  const [inventory] = await db.update(rabbitRushInventories).set({ ...updates, updatedAt: new Date() }).where(eq(rabbitRushInventories.userId, userId)).returning();
+  return inventory;
+}
+
+async function createRabbitRushRun(userId: number, wager: string) {
+  const [run] = await db.insert(rabbitRushRuns).values({ userId, wager }).returning();
+  return run;
+}
+
+async function getRabbitRushRun(runId: number) {
+  const [run] = await db.select().from(rabbitRushRuns).where(eq(rabbitRushRuns.id, runId));
+  return run;
+}
+
+async function updateRabbitRushRun(runId: number, updates: any) {
+  const [run] = await db.update(rabbitRushRuns).set(updates).where(eq(rabbitRushRuns.id, runId)).returning();
+  return run;
+}
+
+async function getUserRabbitRushRuns(userId: number, limit: number = 10) {
+  return db.select().from(rabbitRushRuns).where(eq(rabbitRushRuns.userId, userId)).orderBy(desc(rabbitRushRuns.startedAt)).limit(limit);
+}
+
+async function getRabbitRushDailyLeaderboard(limit: number = 10) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const results = await db.select().from(rabbitRushDailyLeaderboard).innerJoin(users, eq(rabbitRushDailyLeaderboard.userId, users.id))
+    .where(and(gte(rabbitRushDailyLeaderboard.date, today), lte(rabbitRushDailyLeaderboard.date, tomorrow)))
+    .orderBy(desc(rabbitRushDailyLeaderboard.totalWinnings)).limit(limit);
+  return results.map(r => ({ ...r.rabbit_rush_daily_leaderboard, user: r.users }));
+}
+
+async function getRabbitRushWeeklyLeaderboard(limit: number = 10) {
+  const now = new Date(); const dayOfWeek = now.getDay();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek); weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+  const results = await db.select().from(rabbitRushWeeklyLeaderboard).innerJoin(users, eq(rabbitRushWeeklyLeaderboard.userId, users.id))
+    .where(and(gte(rabbitRushWeeklyLeaderboard.weekStart, weekStart), lte(rabbitRushWeeklyLeaderboard.weekEnd, weekEnd)))
+    .orderBy(desc(rabbitRushWeeklyLeaderboard.totalWinnings)).limit(limit);
+  return results.map(r => ({ ...r.rabbit_rush_weekly_leaderboard, user: r.users }));
+}
+
+async function updateRabbitRushDailyLeaderboard(userId: number, winnings: string, multiplier: string) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const [existing] = await db.select().from(rabbitRushDailyLeaderboard)
+    .where(and(eq(rabbitRushDailyLeaderboard.userId, userId), gte(rabbitRushDailyLeaderboard.date, today), lte(rabbitRushDailyLeaderboard.date, tomorrow)));
+  if (existing) {
+    await db.update(rabbitRushDailyLeaderboard).set({
+      totalWinnings: (parseFloat(existing.totalWinnings) + parseFloat(winnings)).toString(),
+      runsPlayed: existing.runsPlayed + 1,
+      bestMultiplier: Math.max(parseFloat(existing.bestMultiplier), parseFloat(multiplier)).toString(),
+    }).where(eq(rabbitRushDailyLeaderboard.id, existing.id));
+  } else {
+    await db.insert(rabbitRushDailyLeaderboard).values({ userId, totalWinnings: winnings, runsPlayed: 1, bestMultiplier: multiplier, date: new Date() });
+  }
+}
+
+async function updateRabbitRushWeeklyLeaderboard(userId: number, winnings: string, multiplier: string) {
+  const now = new Date(); const dayOfWeek = now.getDay();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek); weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+  const [existing] = await db.select().from(rabbitRushWeeklyLeaderboard)
+    .where(and(eq(rabbitRushWeeklyLeaderboard.userId, userId), gte(rabbitRushWeeklyLeaderboard.weekStart, weekStart), lte(rabbitRushWeeklyLeaderboard.weekEnd, weekEnd)));
+  if (existing) {
+    await db.update(rabbitRushWeeklyLeaderboard).set({
+      totalWinnings: (parseFloat(existing.totalWinnings) + parseFloat(winnings)).toString(),
+      runsPlayed: existing.runsPlayed + 1,
+      bestMultiplier: Math.max(parseFloat(existing.bestMultiplier), parseFloat(multiplier)).toString(),
+    }).where(eq(rabbitRushWeeklyLeaderboard.id, existing.id));
+  } else {
+    await db.insert(rabbitRushWeeklyLeaderboard).values({ userId, totalWinnings: winnings, runsPlayed: 1, bestMultiplier: multiplier, weekStart, weekEnd });
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -759,6 +912,175 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
       return res.json({ newAchievements, total: newAchievements.length });
+    }
+
+    // Rabbit Rush API routes
+    const rabbitProfileMatch = url.match(/\/api\/rabbit-rush\/profile\/([^\/]+)$/);
+    if (rabbitProfileMatch && method === 'GET') {
+      const walletAddress = rabbitProfileMatch[1];
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      let inventory = await getRabbitRushInventory(user.id);
+      if (!inventory) inventory = await createRabbitRushInventory(user.id);
+      return res.json({ 
+        user: { id: user.id, username: user.username, walletAddress: user.walletAddress },
+        inventory: { ...inventory, ownedShips: JSON.parse(inventory.ownedShips), ownedWeapons: JSON.parse(inventory.ownedWeapons), ownedColors: JSON.parse(inventory.ownedColors) }
+      });
+    }
+
+    if ((url === '/api/rabbit-rush/purchase' || url.endsWith('/api/rabbit-rush/purchase')) && method === 'POST') {
+      const { walletAddress, itemType, itemId, txHash } = req.body;
+      if (!txHash) return res.status(400).json({ error: "Transaction hash required" });
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      let inventory = await getRabbitRushInventory(user.id);
+      if (!inventory) inventory = await createRabbitRushInventory(user.id);
+      const ownedShips = JSON.parse(inventory.ownedShips);
+      const ownedWeapons = JSON.parse(inventory.ownedWeapons);
+      const ownedColors = JSON.parse(inventory.ownedColors);
+      if (itemType === 'ship' && !ownedShips.includes(itemId)) {
+        ownedShips.push(itemId);
+        await updateRabbitRushInventory(user.id, { ownedShips: JSON.stringify(ownedShips) });
+      } else if (itemType === 'weapon' && !ownedWeapons.includes(itemId)) {
+        ownedWeapons.push(itemId);
+        await updateRabbitRushInventory(user.id, { ownedWeapons: JSON.stringify(ownedWeapons) });
+      } else if (itemType === 'color' && !ownedColors.includes(itemId)) {
+        ownedColors.push(itemId);
+        await updateRabbitRushInventory(user.id, { ownedColors: JSON.stringify(ownedColors) });
+      }
+      return res.json({ success: true, ownedShips, ownedWeapons, ownedColors });
+    }
+
+    if ((url === '/api/rabbit-rush/equip' || url.endsWith('/api/rabbit-rush/equip')) && method === 'POST') {
+      const { walletAddress, selectedShip, selectedWeapon, selectedColor } = req.body;
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const updates: any = {};
+      if (selectedShip !== undefined) updates.selectedShip = selectedShip;
+      if (selectedWeapon !== undefined) updates.selectedWeapon = selectedWeapon;
+      if (selectedColor !== undefined) updates.selectedColor = selectedColor;
+      await updateRabbitRushInventory(user.id, updates);
+      return res.json({ success: true });
+    }
+
+    if ((url === '/api/rabbit-rush/run/start' || url.endsWith('/api/rabbit-rush/run/start')) && method === 'POST') {
+      const { walletAddress, wager, depositTxHash } = req.body;
+      if (!depositTxHash) return res.status(400).json({ error: "Deposit transaction hash required" });
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const run = await createRabbitRushRun(user.id, wager.toString());
+      await updateRabbitRushRun(run.id, { depositTxHash });
+      console.log(`[Rabbit Rush] Run started: runId=${run.id}, wager=${wager}, tx=${depositTxHash}`);
+      return res.json({ success: true, runId: run.id });
+    }
+
+    const claimNonceMatch = url.match(/\/api\/rabbit-rush\/run\/(\d+)\/claim-nonce$/);
+    if (claimNonceMatch && method === 'POST') {
+      const runId = parseInt(claimNonceMatch[1]);
+      const { walletAddress, authSignature } = req.body;
+      if (!walletAddress || !authSignature) return res.status(400).json({ error: "Wallet address and authentication signature required" });
+      const run = await getRabbitRushRun(runId);
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      const user = await getUser(run.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Not authorized to claim this run" });
+      const authMessage = `Request Rabbit Rush claim nonce for run ${runId}`;
+      let recoveredAddress: string;
+      try { recoveredAddress = ethers.verifyMessage(authMessage, authSignature); } catch (e) { return res.status(400).json({ error: "Invalid authentication signature" }); }
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Authentication failed - signature does not match wallet" });
+      if (run.runStatus !== "won") return res.status(400).json({ error: "Run must be won to claim" });
+      if (run.claimStatus === "claimed") return res.status(400).json({ error: "Already claimed" });
+      const coinsBonus = run.coinsCollected || 0;
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      if (expectedPayout <= 0) return res.status(400).json({ error: "No payout available" });
+      const nonce = `rabbit-rush-${runId}-${Date.now()}-${crypto.randomUUID()}`;
+      await updateRabbitRushRun(runId, { claimNonce: nonce });
+      return res.json({ nonce, expectedPayout: expectedPayout.toString() });
+    }
+
+    if ((url === '/api/rabbit-rush/claim' || url.endsWith('/api/rabbit-rush/claim')) && method === 'POST') {
+      const { walletAddress, runId, signature, nonce, kicksTokenAddress } = req.body;
+      if (!walletAddress || !runId || !signature || !nonce) return res.status(400).json({ error: "Missing required fields" });
+      const run = await getRabbitRushRun(parseInt(runId));
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      const user = await getUser(run.userId);
+      if (!user || user.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Wallet address does not match run owner" });
+      if (run.claimNonce !== nonce) return res.status(400).json({ error: "Invalid or expired nonce" });
+      if (run.claimStatus === "claimed") return res.status(400).json({ error: "Run already claimed" });
+      if (run.runStatus !== "won") return res.status(400).json({ error: "Run must be won to claim" });
+      const coinsBonus = run.coinsCollected || 0;
+      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      if (expectedPayout <= 0) return res.status(400).json({ error: "No payout available" });
+      const amount = expectedPayout.toString();
+      const expectedMessage = `RABBIT RUSH Claim\nAmount: ${amount} KICKS\nRun ID: ${runId}\nWallet: ${walletAddress}\nNonce: ${nonce}`;
+      let recoveredAddress: string;
+      try { recoveredAddress = ethers.verifyMessage(expectedMessage, signature); } catch (e) { return res.status(400).json({ error: "Invalid signature format" }); }
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(400).json({ error: "Signature verification failed" });
+      await updateRabbitRushRun(parseInt(runId), { claimStatus: "processing", claimNonce: null });
+      let txHash: string | null = null;
+      const houseWalletKey = process.env.HOUSE_WALLET_KEY;
+      if (houseWalletKey && kicksTokenAddress) {
+        try {
+          const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
+          const provider = new ethers.JsonRpcProvider(APECHAIN_RPC);
+          const houseWallet = new ethers.Wallet(houseWalletKey, provider);
+          const tokenContract = new ethers.Contract(kicksTokenAddress, ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)"], houseWallet);
+          const decimals = await tokenContract.decimals();
+          const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
+          const tx = await tokenContract.transfer(walletAddress, amountInSmallestUnit);
+          const receipt = await tx.wait();
+          txHash = receipt.hash;
+          console.log(`[Rabbit Rush] Claim sent: ${amount} KICKS to ${walletAddress}, tx: ${txHash}`);
+        } catch (transferError: any) {
+          console.error("[Rabbit Rush] Token transfer error:", transferError);
+          await updateRabbitRushRun(parseInt(runId), { claimStatus: "pending", claimNonce: null });
+          return res.status(500).json({ error: "Failed to transfer KICKS: " + transferError.message });
+        }
+      }
+      await updateRabbitRushRun(parseInt(runId), { claimStatus: "claimed", claimTxHash: txHash || undefined });
+      return res.json({ success: true, txHash });
+    }
+
+    if ((url === '/api/rabbit-rush/run/end' || url.endsWith('/api/rabbit-rush/run/end')) && method === 'POST') {
+      const { walletAddress, runId, wager, finalMultiplier, payout, coinsCollected, enemiesDestroyed, won } = req.body;
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      let actualRunId = runId;
+      if (!runId) {
+        const run = await createRabbitRushRun(user.id, wager.toString());
+        actualRunId = run.id;
+      }
+      await updateRabbitRushRun(actualRunId, { finalMultiplier: finalMultiplier.toString(), payout: payout.toString(), coinsCollected: coinsCollected || 0, enemiesDestroyed: enemiesDestroyed || 0, runStatus: won ? "won" : "lost", endedAt: new Date() });
+      let inventory = await getRabbitRushInventory(user.id);
+      if (!inventory) inventory = await createRabbitRushInventory(user.id);
+      const newBestMultiplier = Math.max(parseFloat(inventory.bestMultiplier), parseFloat(finalMultiplier));
+      const updates: any = { totalRuns: inventory.totalRuns + 1, bestMultiplier: newBestMultiplier.toString() };
+      if (won) {
+        updates.runsWon = inventory.runsWon + 1;
+        updates.totalKicksWon = (parseFloat(inventory.totalKicksWon) + parseFloat(payout)).toString();
+        await updateRabbitRushDailyLeaderboard(user.id, payout.toString(), finalMultiplier.toString());
+        await updateRabbitRushWeeklyLeaderboard(user.id, payout.toString(), finalMultiplier.toString());
+      } else {
+        updates.runsLost = inventory.runsLost + 1;
+        updates.totalKicksLost = (parseFloat(inventory.totalKicksLost) + parseFloat(wager)).toString();
+      }
+      await updateRabbitRushInventory(user.id, updates);
+      return res.json({ success: true, runId: actualRunId });
+    }
+
+    const leaderboardMatch = url.match(/\/api\/rabbit-rush\/leaderboard\/(daily|weekly)$/);
+    if (leaderboardMatch && method === 'GET') {
+      const type = leaderboardMatch[1];
+      const leaderboard = type === "daily" ? await getRabbitRushDailyLeaderboard(10) : await getRabbitRushWeeklyLeaderboard(10);
+      return res.json({ leaderboard });
+    }
+
+    const runsMatch = url.match(/\/api\/rabbit-rush\/runs\/([^\/]+)$/);
+    if (runsMatch && method === 'GET') {
+      const walletAddress = runsMatch[1];
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const runs = await getUserRabbitRushRuns(user.id, 10);
+      return res.json({ runs });
     }
 
     return res.status(404).json({ error: "Not found" });
