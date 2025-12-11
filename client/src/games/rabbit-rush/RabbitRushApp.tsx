@@ -630,14 +630,18 @@ export function RabbitRushApp() {
       } else {
         // Get error from transaction state before resetting
         const txState = useWallet.getState().transactionState;
-        const errorMsg = txState?.message || 'Unknown error';
-        setEndMessage(`Claim failed: ${errorMsg}. Game ID: ${actualRunId}`);
+        let errorMsg = txState?.message || 'Unknown error';
+        // Truncate long error messages for mobile display
+        if (errorMsg.length > 60) errorMsg = errorMsg.slice(0, 60) + '...';
+        setEndMessage(`Claim failed: ${errorMsg}`);
         setClaiming(false);
         resetTransactionState();
       }
     } catch (error: any) {
       console.error('Cashout error:', error);
-      setEndMessage(`Error: ${error.message || 'Claim failed'}. Contact support.`);
+      let errorMsg = error.message || 'Claim failed';
+      if (errorMsg.length > 60) errorMsg = errorMsg.slice(0, 60) + '...';
+      setEndMessage(`Error: ${errorMsg}`);
       setClaiming(false);
       resetTransactionState();
     }

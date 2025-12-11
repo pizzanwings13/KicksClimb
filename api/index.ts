@@ -1091,11 +1091,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const erc20Abi = ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)", "function balanceOf(address) view returns (uint256)"];
           const tokenContract = new ethers.Contract(kicksTokenAddress, erc20Abi, houseWallet);
           const decimals = await tokenContract.decimals();
-          const amountInSmallestUnit = ethers.parseUnits(parseFloat(amount).toFixed(Number(decimals)), decimals);
+          // Check gas balance first
+          const gasBalance = await provider.getBalance(houseWallet.address);
+          console.log(`[Rabbit Rush] Gas balance: ${ethers.formatEther(gasBalance)} APE`);
+          if (gasBalance < ethers.parseEther("0.001")) {
+            return res.status(400).json({ error: "House wallet needs gas (APE)" });
+          }
+          // Sanity check: payout should be reasonable (less than 10M KICKS)
+          const payoutNum = parseFloat(amount);
+          if (payoutNum > 10000000 || payoutNum < 0) {
+            return res.status(400).json({ error: `Invalid payout: ${payoutNum}` });
+          }
+          const amountInSmallestUnit = ethers.parseUnits(payoutNum.toFixed(Number(decimals)), decimals);
           const houseBalance = await tokenContract.balanceOf(houseWallet.address);
-          console.log(`[Rabbit Rush] Transfer: amount=${amount}, decimals=${decimals}, amountWei=${amountInSmallestUnit.toString()}, houseBalance=${houseBalance.toString()}`);
+          const formattedBalance = ethers.formatUnits(houseBalance, decimals);
+          console.log(`[Rabbit Rush] Transfer: payout=${payoutNum}, decimals=${decimals}, amountWei=${amountInSmallestUnit.toString()}, balance=${formattedBalance}`);
           if (houseBalance < amountInSmallestUnit) {
-            return res.status(400).json({ error: `Insufficient house balance. Need ${amount} KICKS but have ${ethers.formatUnits(houseBalance, decimals)}` });
+            return res.status(400).json({ error: `Low balance: need ${payoutNum}, have ${parseFloat(formattedBalance).toFixed(0)}` });
           }
           const tx = await tokenContract.transfer(walletAddress, amountInSmallestUnit);
           const receipt = await tx.wait();
