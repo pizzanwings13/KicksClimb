@@ -80,9 +80,9 @@ const COLORS: ColorConfig[] = [
   { id: 7, name: "Rainbow Shift", price: 5000, color1: "#ff0088", color2: "#00ffff" },
 ];
 
-const QUICK_AMOUNTS = ["100", "500", "1000", "2500", "5000"];
+const QUICK_AMOUNTS = ["100", "250", "500", "1000", "2500"];
 const MIN_BET = 100;
-const MAX_BET = 10000;
+const MAX_BET = 2500;
 
 export function RabbitRushApp() {
   const { 
@@ -679,7 +679,7 @@ export function RabbitRushApp() {
     }
     
     if (Math.random() < 0.03) {
-      const coinValues = [50, 100, 150, 200];
+      const coinValues = [1, 5];
       const value = coinValues[Math.floor(Math.random() * coinValues.length)];
       coinsRef.current.push({
         x: Math.random() * (canvas.width - 100) + 50,
@@ -696,7 +696,7 @@ export function RabbitRushApp() {
         y: scrollY - 100,
         type: 'shield',
         emoji: '🛡️',
-        color: '#00ffff',
+        color: '#4da6ff',
         size: 45,
         pulse: 0
       });
@@ -868,6 +868,7 @@ export function RabbitRushApp() {
       
       if (Math.abs(c.x - rocket.x) < 45 && Math.abs(cy - rocket.y - 50) < 60) {
         gs.currentMult += c.mult;
+        if (gs.currentMult > 10) gs.currentMult = 10;
         gs.hasPickedFirst = true;
         setDisplayMult(gs.currentMult.toFixed(2));
         
@@ -1000,7 +1001,7 @@ export function RabbitRushApp() {
               vx: (Math.random() - 0.5) * 12,
               vy: (Math.random() - 0.5) * 12,
               life: 35,
-              color: '#00ffff'
+              color: '#4da6ff'
             });
           }
           obstaclesRef.current.splice(i, 1);
@@ -1185,7 +1186,7 @@ export function RabbitRushApp() {
                 vx: (Math.random() - 0.5) * 10,
                 vy: (Math.random() - 0.5) * 10,
                 life: 30,
-                color: '#00ffff'
+                color: '#4da6ff'
               });
             }
           } else {
