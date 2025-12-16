@@ -510,7 +510,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
 
     try {
-      const allowance = await kicksContract.allowance(walletAddress, houseWalletAddress);
+      console.log("[Wallet] Checking allowance...");
+      const allowance = await Promise.race([
+        kicksContract.allowance(walletAddress, houseWalletAddress),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Allowance check timeout")), 15000))
+      ]) as bigint;
+      console.log("[Wallet] Allowance:", allowance.toString());
       return allowance;
     } catch (error) {
       console.error("Error checking allowance:", error);
@@ -555,18 +560,27 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       setTransactionState({ status: "checking", message: "Checking token allowance..." });
       
-      const decimals = await kicksContract.decimals();
+      // Add timeout for decimals call
+      const decimalsPromise = kicksContract.decimals();
+      const decimals = await Promise.race([
+        decimalsPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Network timeout")), 15000))
+      ]) as number;
+      
       const amountInWei = ethers.parseUnits(amount, decimals);
       
       const currentAllowance = await checkAllowance();
       
       if (currentAllowance < amountInWei) {
+        setTransactionState({ status: "approving", message: "Please approve KICKS in your wallet..." });
         await approveTokens(amount);
       }
       
-      setTransactionState({ status: "transferring", message: "Transferring KICKS to house wallet..." });
+      setTransactionState({ status: "transferring", message: "Confirm transfer in your wallet..." });
       
       const tx = await kicksContract.transfer(houseWalletAddress, amountInWei);
+      
+      setTransactionState({ status: "transferring", message: "Waiting for confirmation..." });
       const receipt = await tx.wait();
       
       await get().refreshBalance();
@@ -575,9 +589,14 @@ export const useWallet = create<WalletState>((set, get) => ({
       return receipt.hash;
     } catch (error: any) {
       console.error("Transfer error:", error);
-      const message = error.code === "ACTION_REJECTED" 
-        ? "Transaction rejected by user" 
-        : error.message || "Failed to transfer tokens";
+      let message = "Failed to transfer tokens";
+      if (error.code === "ACTION_REJECTED" || error.code === 4001) {
+        message = "Transaction rejected by user";
+      } else if (error.message?.includes("timeout")) {
+        message = "Network timeout - please try again";
+      } else if (error.message) {
+        message = error.message.slice(0, 60);
+      }
       setTransactionState({ status: "error", message });
       throw error;
     }
