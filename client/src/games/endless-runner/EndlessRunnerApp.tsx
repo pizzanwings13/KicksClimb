@@ -206,13 +206,15 @@ interface CoinProps {
 function CoinMesh({ coin, scrollZ }: CoinProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const z = coin.z + scrollZ;
-  if (z > 10 || z < -50) return null;
+  const visible = z <= 10 && z >= -50;
   
   useFrame(() => {
-    if (meshRef.current) {
+    if (meshRef.current && visible) {
       meshRef.current.rotation.y += 0.05;
     }
   });
+
+  if (!visible) return null;
 
   const color = coin.value >= 50 ? '#FFD700' : coin.value >= 10 ? '#FFA500' : '#FFFF00';
   
@@ -232,14 +234,16 @@ interface CarrotProps {
 function CarrotMesh({ carrot, scrollZ }: CarrotProps) {
   const meshRef = useRef<THREE.Group>(null);
   const z = carrot.z + scrollZ;
-  if (z > 10 || z < -50) return null;
+  const visible = z <= 10 && z >= -50;
   
   useFrame(() => {
-    if (meshRef.current) {
+    if (meshRef.current && visible) {
       meshRef.current.rotation.y += 0.03;
       meshRef.current.position.y = carrot.y + Math.sin(Date.now() * 0.005) * 0.1;
     }
   });
+  
+  if (!visible) return null;
   
   return (
     <group ref={meshRef} position={[carrot.x, carrot.y, z]}>
