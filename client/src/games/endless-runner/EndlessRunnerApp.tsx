@@ -127,6 +127,27 @@ interface PlayerProps {
   hasShield: boolean;
 }
 
+function DashKidModel({ lane, y }: { lane: number; y: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene } = useGLTF('/models/dashkid.glb');
+  const targetX = LANES[lane];
+  
+  const clonedScene = useMemo(() => scene.clone(), [scene]);
+  
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, 0.2);
+      groupRef.current.position.y = y;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[targetX, y, 0]} rotation={[0, Math.PI, 0]} scale={[1.5, 1.5, 1.5]}>
+      <primitive object={clonedScene} />
+    </group>
+  );
+}
+
 function Player({ lane, y, hasShield }: PlayerProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const targetX = LANES[lane];
@@ -140,10 +161,14 @@ function Player({ lane, y, hasShield }: PlayerProps) {
 
   return (
     <group>
-      <mesh ref={meshRef} position={[targetX, y + PLAYER_SIZE / 2, 0]} castShadow>
-        <boxGeometry args={[PLAYER_SIZE, PLAYER_SIZE, PLAYER_SIZE]} />
-        <meshStandardMaterial color="#4169E1" />
-      </mesh>
+      <Suspense fallback={
+        <mesh ref={meshRef} position={[targetX, y + PLAYER_SIZE / 2, 0]} castShadow>
+          <boxGeometry args={[PLAYER_SIZE, PLAYER_SIZE, PLAYER_SIZE]} />
+          <meshStandardMaterial color="#4169E1" />
+        </mesh>
+      }>
+        <DashKidModel lane={lane} y={y} />
+      </Suspense>
       {hasShield && (
         <mesh position={[targetX, y + PLAYER_SIZE / 2, 0]}>
           <sphereGeometry args={[PLAYER_SIZE * 0.8, 16, 16]} />
@@ -153,6 +178,8 @@ function Player({ lane, y, hasShield }: PlayerProps) {
     </group>
   );
 }
+
+useGLTF.preload('/models/dashkid.glb');
 
 interface ObstacleProps {
   obstacle: Obstacle;
