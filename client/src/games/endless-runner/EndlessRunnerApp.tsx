@@ -132,17 +132,26 @@ function DashKidModel({ lane, y }: { lane: number; y: number }) {
   const { scene } = useGLTF('/models/dashkid.glb');
   const targetX = LANES[lane];
   
-  const clonedScene = useMemo(() => scene.clone(), [scene]);
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone();
+    clone.traverse((child: any) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
   
   useFrame(() => {
     if (groupRef.current) {
       groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, 0.2);
-      groupRef.current.position.y = y;
+      groupRef.current.position.y = y + 0.5;
     }
   });
 
   return (
-    <group ref={groupRef} position={[targetX, y, 0]} rotation={[0, Math.PI, 0]} scale={[1.5, 1.5, 1.5]}>
+    <group ref={groupRef} position={[targetX, y + 0.5, 0]} rotation={[0, Math.PI, 0]} scale={[2.5, 2.5, 2.5]}>
       <primitive object={clonedScene} />
     </group>
   );
