@@ -1,7 +1,7 @@
 import { useWallet } from "@/lib/stores/useWallet";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Rabbit, Mountain, ChevronRight, Wallet, LogOut } from "lucide-react";
+import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 
@@ -71,6 +71,14 @@ const GAMES: GameCardProps[] = [
     icon: <Rabbit className="w-6 h-6 text-white" />,
     route: "/rabbit-rush",
     gradient: "bg-gradient-to-br from-orange-500 to-pink-500",
+    available: true,
+  },
+  {
+    title: "Endless Runner",
+    description: "Run through lanes, jump over obstacles, collect coins & carrots. How far can you go?",
+    icon: <Footprints className="w-6 h-6 text-white" />,
+    route: "/endless-runner",
+    gradient: "bg-gradient-to-br from-sky-500 to-blue-600",
     available: true,
   },
 ];

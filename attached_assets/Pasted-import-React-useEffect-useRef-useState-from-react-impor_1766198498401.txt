@@ -1,0 +1,404 @@
+import React, { useEffect, useRef, useState } from ‘react’;
+import { Play, Upload, RotateCcw } from ‘lucide-react’;
+
+const EndlessRunner3D = () => {
+const canvasRef = useRef(null);
+const [gameStarted, setGameStarted] = useState(false);
+const [gameOver, setGameOver] = useState(false);
+const [score, setScore] = useState(0);
+const [highScore, setHighScore] = useState(0);
+const gameStateRef = useRef({
+playerLane: 1,
+playerY: 0,
+isJumping: false,
+jumpVelocity: 0,
+obstacles: [],
+coins: [],
+speed: 0.1,
+distance: 0,
+lastObstacleZ: -10,
+lastCoinZ: -5
+});
+
+useEffect(() => {
+const canvas = canvasRef.current;
+if (!canvas) return;
+
+```
+const ctx = canvas.getContext('2d');
+const width = canvas.width = 800;
+const height = canvas.height = 600;
+
+// Game constants
+const LANES = [-1.5, 0, 1.5];
+const LANE_WIDTH = 2;
+const GROUND_Y = 0;
+const JUMP_STRENGTH = 0.25;
+const GRAVITY = 0.015;
+const PLAYER_SIZE = 0.6;
+
+let animationId;
+const state = gameStateRef.current;
+
+// Simple 3D projection
+const project = (x, y, z) => {
+  const scale = 300 / (z + 5);
+  return {
+    x: width / 2 + x * scale,
+    y: height / 2 - y * scale,
+    scale: scale / 60
+  };
+};
+
+// Draw cube (player/obstacle)
+const drawCube = (x, y, z, size, color) => {
+  const p = project(x, y, z);
+  const s = size * p.scale * 60;
+
+  ctx.fillStyle = color;
+  ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+
+  // Add shading
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(p.x - s / 2, p.y - s / 2, s / 4, s);
+};
+
+// Draw coin
+const drawCoin = (x, y, z, rotation) => {
+  const p = project(x, y, z);
+  const radius = 0.3 * p.scale * 60;
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(rotation);
+
+  // Gold coin
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFA500';
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+};
+
+// Draw track
+const drawTrack = () => {
+  // Sky gradient
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, '#87CEEB');
+  gradient.addColorStop(1, '#E0F6FF');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Ground
+  ctx.fillStyle = '#2D5016';
+  ctx.fillRect(0, height / 2, width, height / 2);
+
+  // Track lanes
+  for (let z = 10; z > -20; z -= 2) {
+    for (let i = 0; i < LANES.length; i++) {
+      const p1 = project(LANES[i] - LANE_WIDTH / 2, 0, z);
+      const p2 = project(LANES[i] + LANE_WIDTH / 2, 0, z);
+      const p3 = project(LANES[i] + LANE_WIDTH / 2, 0, z - 2);
+      const p4 = project(LANES[i] - LANE_WIDTH / 2, 0, z - 2);
+
+      ctx.fillStyle = i === 1 ? '#4A4A4A' : '#3A3A3A';
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.lineTo(p4.x, p4.y);
+      ctx.closePath();
+      ctx.fill();
+
+      // Lane markings
+      if (i < LANES.length - 1 && z % 4 < 2) {
+        const lm1 = project(LANES[i] + LANE_WIDTH / 2, 0, z);
+        const lm2 = project(LANES[i] + LANE_WIDTH / 2, 0, z - 1);
+        ctx.strokeStyle = '#FFFF00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(lm1.x, lm1.y);
+        ctx.lineTo(lm2.x, lm2.y);
+        ctx.stroke();
+      }
+    }
+  }
+};
+
+// Spawn obstacles
+const spawnObstacle = () => {
+  if (state.lastObstacleZ < -5) {
+    const lane = LANES[Math.floor(Math.random() * 3)];
+    state.obstacles.push({
+      x: lane,
+      y: PLAYER_SIZE / 2,
+      z: -20,
+      size: PLAYER_SIZE
+    });
+    state.lastObstacleZ = -20;
+  }
+};
+
+// Spawn coins
+const spawnCoin = () => {
+  if (state.lastCoinZ < -3 && Math.random() > 0.3) {
+    const lane = LANES[Math.floor(Math.random() * 3)];
+    const height = Math.random() > 0.5 ? 1.5 : 0.5;
+    state.coins.push({
+      x: lane,
+      y: height,
+      z: -20,
+      rotation: 0
+    });
+    state.lastCoinZ = -20;
+  }
+};
+
+// Check collision
+const checkCollision = (obj1, obj2, threshold = 0.8) => {
+  return Math.abs(obj1.x - obj2.x) < threshold &&
+         Math.abs(obj1.y - obj2.y) < threshold &&
+         Math.abs(obj1.z - obj2.z) < threshold;
+};
+
+// Game loop
+const gameLoop = () => {
+  if (!gameStarted || gameOver) return;
+
+  ctx.clearRect(0, 0, width, height);
+  drawTrack();
+
+  // Update player jump
+  if (state.isJumping) {
+    state.playerY += state.jumpVelocity;
+    state.jumpVelocity -= GRAVITY;
+
+    if (state.playerY <= GROUND_Y) {
+      state.playerY = GROUND_Y;
+      state.isJumping = false;
+      state.jumpVelocity = 0;
+    }
+  }
+
+  // Move obstacles and coins
+  state.obstacles.forEach(obs => obs.z += state.speed);
+  state.coins.forEach(coin => {
+    coin.z += state.speed;
+    coin.rotation += 0.1;
+  });
+
+  // Remove off-screen objects
+  state.obstacles = state.obstacles.filter(obs => obs.z < 2);
+  state.coins = state.coins.filter(coin => coin.z < 2);
+
+  // Update spawn tracking
+  state.lastObstacleZ += state.speed;
+  state.lastCoinZ += state.speed;
+
+  // Spawn new objects
+  spawnObstacle();
+  spawnCoin();
+
+  // Draw coins
+  state.coins.forEach(coin => {
+    drawCoin(coin.x, coin.y, coin.z, coin.rotation);
+
+    // Check coin collection
+    const player = { x: LANES[state.playerLane], y: state.playerY + PLAYER_SIZE / 2, z: 0 };
+    if (checkCollision(player, coin, 0.7)) {
+      state.coins = state.coins.filter(c => c !== coin);
+      setScore(s => s + 10);
+    }
+  });
+
+  // Draw obstacles
+  state.obstacles.forEach(obs => {
+    drawCube(obs.x, obs.y, obs.z, obs.size, '#8B0000');
+
+    // Check collision
+    const player = { x: LANES[state.playerLane], y: state.playerY + PLAYER_SIZE / 2, z: 0 };
+    if (checkCollision(player, obs)) {
+      setGameOver(true);
+      setHighScore(prev => Math.max(prev, score));
+    }
+  });
+
+  // Draw player
+  drawCube(LANES[state.playerLane], state.playerY + PLAYER_SIZE / 2, 0, PLAYER_SIZE, '#4169E1');
+
+  // Update score
+  state.distance += state.speed;
+  if (Math.floor(state.distance) % 10 === 0 && state.distance > 0) {
+    state.speed = Math.min(state.speed + 0.001, 0.3);
+  }
+  setScore(Math.floor(state.distance * 10));
+
+  animationId = requestAnimationFrame(gameLoop);
+};
+
+// Keyboard controls
+const handleKeyDown = (e) => {
+  if (!gameStarted || gameOver) return;
+
+  if (e.key === 'ArrowLeft' && state.playerLane > 0) {
+    state.playerLane--;
+  } else if (e.key === 'ArrowRight' && state.playerLane < 2) {
+    state.playerLane++;
+  } else if (e.key === ' ' || e.key === 'ArrowUp') {
+    if (!state.isJumping) {
+      state.isJumping = true;
+      state.jumpVelocity = JUMP_STRENGTH;
+    }
+  }
+};
+
+window.addEventListener('keydown', handleKeyDown);
+
+if (gameStarted && !gameOver) {
+  gameLoop();
+}
+
+return () => {
+  window.removeEventListener('keydown', handleKeyDown);
+  if (animationId) cancelAnimationFrame(animationId);
+};
+```
+
+}, [gameStarted, gameOver, score]);
+
+const startGame = () => {
+gameStateRef.current = {
+playerLane: 1,
+playerY: 0,
+isJumping: false,
+jumpVelocity: 0,
+obstacles: [],
+coins: [],
+speed: 0.1,
+distance: 0,
+lastObstacleZ: -10,
+lastCoinZ: -5
+};
+setScore(0);
+setGameOver(false);
+setGameStarted(true);
+};
+
+const handleSwipe = (direction) => {
+if (!gameStarted || gameOver) return;
+const state = gameStateRef.current;
+
+```
+if (direction === 'left' && state.playerLane > 0) {
+  state.playerLane--;
+} else if (direction === 'right' && state.playerLane < 2) {
+  state.playerLane++;
+} else if (direction === 'up' && !state.isJumping) {
+  state.isJumping = true;
+  state.jumpVelocity = 0.25;
+}
+```
+
+};
+
+return (
+<div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-400 to-blue-600 p-4">
+<div className="bg-white rounded-lg shadow-2xl p-6 max-w-4xl w-full">
+<h1 className="text-4xl font-bold text-center mb-2 text-gray-800">
+3D Endless Runner
+</h1>
+<p className="text-center text-gray-600 mb-4">
+Use Arrow Keys or touch buttons to play
+</p>
+
+```
+    <div className="flex justify-between mb-4 text-xl font-semibold">
+      <div className="text-blue-600">Score: {score}</div>
+      <div className="text-green-600">High Score: {highScore}</div>
+    </div>
+
+    <div className="relative">
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={600}
+        className="border-4 border-gray-800 rounded-lg w-full"
+      />
+
+      {!gameStarted && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-white mb-4">Ready to Run?</h2>
+            <p className="text-white mb-6">Collect coins and avoid obstacles!</p>
+            <button
+              onClick={startGame}
+              className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-xl font-bold flex items-center gap-2 mx-auto"
+            >
+              <Play size={24} /> Start Game
+            </button>
+          </div>
+        </div>
+      )}
+
+      {gameOver && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-white mb-4">Game Over!</h2>
+            <p className="text-2xl text-white mb-2">Score: {score}</p>
+            <p className="text-xl text-yellow-400 mb-6">High Score: {highScore}</p>
+            <button
+              onClick={startGame}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-xl font-bold flex items-center gap-2 mx-auto"
+            >
+              <RotateCcw size={24} /> Play Again
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Touch Controls */}
+    <div className="grid grid-cols-3 gap-4 mt-6">
+      <button
+        onClick={() => handleSwipe('left')}
+        className="bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg font-bold text-lg"
+      >
+        ← Left
+      </button>
+      <button
+        onClick={() => handleSwipe('up')}
+        className="bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-bold text-lg"
+      >
+        ↑ Jump
+      </button>
+      <button
+        onClick={() => handleSwipe('right')}
+        className="bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg font-bold text-lg"
+      >
+        Right →
+      </button>
+    </div>
+
+    <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+      <h3 className="font-bold mb-2">Controls:</h3>
+      <ul className="text-sm space-y-1">
+        <li>• <strong>Arrow Left/Right:</strong> Switch lanes</li>
+        <li>• <strong>Arrow Up / Space:</strong> Jump</li>
+        <li>• <strong>Goal:</strong> Collect gold coins (+10 points) and avoid red obstacles</li>
+        <li>• <strong>Note:</strong> 3D avatar support coming - you can use custom .glb/.gltf models with Three.js integration</li>
+      </ul>
+    </div>
+  </div>
+</div>
+```
+
+);
+};
+
+export default EndlessRunner3D;
