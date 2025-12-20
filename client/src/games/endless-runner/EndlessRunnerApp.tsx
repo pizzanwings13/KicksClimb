@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, Environment, Text, useKeyboardControls, KeyboardControls } from '@react-three/drei';
+import { Text, useKeyboardControls, KeyboardControls } from '@react-three/drei';
 import { useLocation } from 'wouter';
 import * as THREE from 'three';
 import { ArrowLeft, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
@@ -127,68 +127,54 @@ interface PlayerProps {
   hasShield: boolean;
 }
 
-function DashKidModel({ lane, y }: { lane: number; y: number }) {
+function Player({ lane, y, hasShield }: PlayerProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const { scene } = useGLTF('/models/dashkid.glb');
   const targetX = LANES[lane];
+  const bobTime = useRef(0);
   
-  const clonedScene = useMemo(() => {
-    const clone = scene.clone();
-    clone.traverse((child: any) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    return clone;
-  }, [scene]);
-  
-  useFrame(() => {
+  useFrame((_, delta) => {
+    bobTime.current += delta * 8;
     if (groupRef.current) {
       groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, 0.2);
-      groupRef.current.position.y = y + 0.5;
+      groupRef.current.position.y = y + PLAYER_SIZE / 2 + Math.sin(bobTime.current) * 0.05;
     }
   });
 
   return (
-    <group ref={groupRef} position={[targetX, y + 0.5, 0]} rotation={[0, Math.PI, 0]} scale={[2.5, 2.5, 2.5]}>
-      <primitive object={clonedScene} />
-    </group>
-  );
-}
-
-function Player({ lane, y, hasShield }: PlayerProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const targetX = LANES[lane];
-  
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.position.x = THREE.MathUtils.lerp(meshRef.current.position.x, targetX, 0.2);
-      meshRef.current.position.y = y + PLAYER_SIZE / 2;
-    }
-  });
-
-  return (
-    <group>
-      <Suspense fallback={
-        <mesh ref={meshRef} position={[targetX, y + PLAYER_SIZE / 2, 0]} castShadow>
-          <boxGeometry args={[PLAYER_SIZE, PLAYER_SIZE, PLAYER_SIZE]} />
-          <meshStandardMaterial color="#4169E1" />
-        </mesh>
-      }>
-        <DashKidModel lane={lane} y={y} />
-      </Suspense>
+    <group ref={groupRef} position={[targetX, y + PLAYER_SIZE / 2, 0]}>
+      <mesh castShadow position={[0, 0, 0]}>
+        <capsuleGeometry args={[0.35, 0.6, 8, 16]} />
+        <meshStandardMaterial color="#ff6b35" />
+      </mesh>
+      <mesh position={[0, 0.6, 0]} castShadow>
+        <sphereGeometry args={[0.35, 16, 16]} />
+        <meshStandardMaterial color="#ffb5a0" />
+      </mesh>
+      <mesh position={[-0.12, 0.85, 0.1]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#000000" />
+      </mesh>
+      <mesh position={[0.12, 0.85, 0.1]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#000000" />
+      </mesh>
+      <mesh position={[-0.15, 1.1, -0.05]} rotation={[0.2, 0, -0.2]}>
+        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
+        <meshStandardMaterial color="#ffb5a0" />
+      </mesh>
+      <mesh position={[0.15, 1.1, -0.05]} rotation={[0.2, 0, 0.2]}>
+        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
+        <meshStandardMaterial color="#ffb5a0" />
+      </mesh>
       {hasShield && (
-        <mesh position={[targetX, y + PLAYER_SIZE / 2, 0]}>
-          <sphereGeometry args={[PLAYER_SIZE * 0.8, 16, 16]} />
+        <mesh position={[0, 0.3, 0]}>
+          <sphereGeometry args={[PLAYER_SIZE * 0.9, 16, 16]} />
           <meshStandardMaterial color="#4da6ff" transparent opacity={0.3} />
         </mesh>
       )}
     </group>
   );
 }
-
-useGLTF.preload('/models/dashkid.glb');
 
 interface ObstacleProps {
   obstacle: Obstacle;
@@ -225,7 +211,7 @@ function CoinMesh({ coin, scrollZ }: CoinProps) {
 
   if (!visible) return null;
 
-  const color = coin.value >= 50 ? '#FFD700' : coin.value >= 10 ? '#FFA500' : '#FFFF00';
+  const color = coin.value >= 100 ? '#FFD700' : coin.value >= 50 ? '#FFA500' : '#FFFF00';
   
   return (
     <mesh ref={meshRef} position={[coin.x, coin.y, z]}>
@@ -367,6 +353,7 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       
       <Ground />
       <Track />
+      <Scenery scrollZ={scrollZ} />
       
       <Player lane={gs.playerLane} y={gs.playerY} hasShield={false} />
       
@@ -381,6 +368,42 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       {gs.carrots.map(carrot => (
         <CarrotMesh key={carrot.id} carrot={carrot} scrollZ={scrollZ} />
       ))}
+    </>
+  );
+}
+
+function Scenery({ scrollZ }: { scrollZ: number }) {
+  const trees = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 30; i++) {
+      arr.push({
+        id: i,
+        x: i % 2 === 0 ? -5 : 5,
+        z: -i * 8,
+        height: 2 + Math.random() * 1.5,
+      });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <>
+      {trees.map(tree => {
+        const z = (tree.z + scrollZ) % 240 - 20;
+        if (z > 15 || z < -60) return null;
+        return (
+          <group key={tree.id} position={[tree.x, 0, z]}>
+            <mesh position={[0, tree.height / 2, 0]} castShadow>
+              <cylinderGeometry args={[0.2, 0.3, tree.height, 8]} />
+              <meshStandardMaterial color="#8B4513" />
+            </mesh>
+            <mesh position={[0, tree.height + 0.8, 0]} castShadow>
+              <coneGeometry args={[1.2, 2, 8]} />
+              <meshStandardMaterial color="#228B22" />
+            </mesh>
+          </group>
+        );
+      })}
     </>
   );
 }
@@ -454,44 +477,55 @@ export function EndlessRunnerApp() {
   const spawnObjects = useCallback(() => {
     const gs = gameStateRef.current;
     
-    if (gs.lastObstacleZ > -8) {
+    if (gs.lastObstacleZ > -4) {
       const lane = LANES[Math.floor(Math.random() * 3)];
+      const secondLane = Math.random() > 0.7 ? LANES[Math.floor(Math.random() * 3)] : null;
       gs.obstacles.push({
         id: idCounter.current++,
         x: lane,
         y: PLAYER_SIZE / 2,
-        z: -80 - scrollZ,
+        z: -50 - scrollZ,
         size: PLAYER_SIZE,
       });
-      gs.lastObstacleZ = -80 - scrollZ;
+      if (secondLane !== null && secondLane !== lane) {
+        gs.obstacles.push({
+          id: idCounter.current++,
+          x: secondLane,
+          y: PLAYER_SIZE / 2,
+          z: -50 - scrollZ,
+          size: PLAYER_SIZE,
+        });
+      }
+      gs.lastObstacleZ = -50 - scrollZ;
     }
     
-    if (gs.lastCoinZ > -5 && Math.random() > 0.4) {
+    if (gs.lastCoinZ > -3 && Math.random() > 0.3) {
       const lane = LANES[Math.floor(Math.random() * 3)];
       const height = Math.random() > 0.5 ? 1.5 : 0.8;
-      const values = [1, 5, 10, 50];
+      const rand = Math.random();
+      const value = rand > 0.9 ? 100 : rand > 0.6 ? 50 : 10;
       gs.coins.push({
         id: idCounter.current++,
         x: lane,
         y: height,
-        z: -60 - scrollZ,
-        value: values[Math.floor(Math.random() * values.length)],
+        z: -40 - scrollZ,
+        value: value,
         rotation: 0,
       });
-      gs.lastCoinZ = -60 - scrollZ;
+      gs.lastCoinZ = -40 - scrollZ;
     }
     
-    if (gs.lastCarrotZ > -12 && Math.random() > 0.85) {
+    if (gs.lastCarrotZ > -10 && Math.random() > 0.88) {
       const lane = LANES[Math.floor(Math.random() * 3)];
-      const mults = [0.1, 0.2, 0.5];
+      const mults = [0.25, 0.5, 0.75];
       gs.carrots.push({
         id: idCounter.current++,
         x: lane,
         y: 1.2,
-        z: -70 - scrollZ,
+        z: -55 - scrollZ,
         mult: mults[Math.floor(Math.random() * mults.length)],
       });
-      gs.lastCarrotZ = -70 - scrollZ;
+      gs.lastCarrotZ = -55 - scrollZ;
     }
     
     gs.obstacles = gs.obstacles.filter(o => o.z + scrollZ > -100);
@@ -559,7 +593,7 @@ export function EndlessRunnerApp() {
   
   const handleCarrotCollect = useCallback((mult: number) => {
     const gs = gameStateRef.current;
-    gs.multiplier = Math.min(gs.multiplier + mult, 10);
+    gs.multiplier = Math.min(gs.multiplier + mult, 5);
     setDisplayMult(gs.multiplier.toFixed(2));
   }, []);
   
