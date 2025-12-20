@@ -182,8 +182,8 @@ interface ObstacleProps {
 }
 
 function ObstacleMesh({ obstacle, scrollZ }: ObstacleProps) {
-  const z = obstacle.z + scrollZ;
-  if (z > 10 || z < -50) return null;
+  const z = -(obstacle.z - scrollZ);
+  if (z > 5 || z < -60) return null;
   
   return (
     <mesh position={[obstacle.x, obstacle.y, z]} castShadow>
@@ -200,8 +200,8 @@ interface CoinProps {
 
 function CoinMesh({ coin, scrollZ }: CoinProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const z = coin.z + scrollZ;
-  const visible = z <= 10 && z >= -50;
+  const z = -(coin.z - scrollZ);
+  const visible = z <= 5 && z >= -60;
   
   useFrame(() => {
     if (meshRef.current && visible) {
@@ -228,8 +228,8 @@ interface CarrotProps {
 
 function CarrotMesh({ carrot, scrollZ }: CarrotProps) {
   const meshRef = useRef<THREE.Group>(null);
-  const z = carrot.z + scrollZ;
-  const visible = z <= 10 && z >= -50;
+  const z = -(carrot.z - scrollZ);
+  const visible = z <= 5 && z >= -60;
   
   useFrame(() => {
     if (meshRef.current && visible) {
@@ -313,10 +313,10 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
     
     for (let i = gs.obstacles.length - 1; i >= 0; i--) {
       const obs = gs.obstacles[i];
-      const obsZ = obs.z + scrollZ;
+      const obsVisualZ = -(obs.z - scrollZ);
       if (Math.abs(playerX - obs.x) < 0.8 && 
           Math.abs(playerY - obs.y) < 1 && 
-          Math.abs(playerZ - obsZ) < 0.8) {
+          Math.abs(playerZ - obsVisualZ) < 0.8) {
         onCollision();
         return;
       }
@@ -324,10 +324,10 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
     
     for (let i = gs.coins.length - 1; i >= 0; i--) {
       const coin = gs.coins[i];
-      const coinZ = coin.z + scrollZ;
+      const coinVisualZ = -(coin.z - scrollZ);
       if (Math.abs(playerX - coin.x) < 0.8 && 
           Math.abs(playerY - coin.y) < 0.8 && 
-          Math.abs(playerZ - coinZ) < 0.8) {
+          Math.abs(playerZ - coinVisualZ) < 0.8) {
         onCoinCollect(coin.value);
         gs.coins.splice(i, 1);
       }
@@ -335,10 +335,10 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
     
     for (let i = gs.carrots.length - 1; i >= 0; i--) {
       const carrot = gs.carrots[i];
-      const carrotZ = carrot.z + scrollZ;
+      const carrotVisualZ = -(carrot.z - scrollZ);
       if (Math.abs(playerX - carrot.x) < 0.8 && 
           Math.abs(playerY - carrot.y) < 0.8 && 
-          Math.abs(playerZ - carrotZ) < 0.8) {
+          Math.abs(playerZ - carrotVisualZ) < 0.8) {
         onCarrotCollect(carrot.mult);
         gs.carrots.splice(i, 1);
       }
@@ -513,81 +513,75 @@ export function EndlessRunnerApp() {
     setDisplayKicks(parseFloat(kicksBalance) || 0);
   }, [kicksBalance]);
   
-  const spawnObjects = useCallback((currentScrollZ: number) => {
+  const spawnObjects = useCallback((currentDistance: number) => {
     const gs = gameStateRef.current;
-    const spawnZ = -50;
     
-    if (currentScrollZ - gs.lastObstacleZ > 6) {
+    while (gs.lastObstacleZ < currentDistance + 60) {
+      gs.lastObstacleZ += 5 + Math.random() * 3;
       const lane = LANES[Math.floor(Math.random() * 3)];
       gs.obstacles.push({
         id: idCounter.current++,
         x: lane,
         y: PLAYER_SIZE / 2,
-        z: spawnZ - currentScrollZ,
+        z: gs.lastObstacleZ,
         size: PLAYER_SIZE,
       });
-      if (Math.random() > 0.6) {
+      if (Math.random() > 0.5) {
         const otherLanes = LANES.filter(l => l !== lane);
         const secondLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
         gs.obstacles.push({
           id: idCounter.current++,
           x: secondLane,
           y: PLAYER_SIZE / 2,
-          z: spawnZ - currentScrollZ,
+          z: gs.lastObstacleZ,
           size: PLAYER_SIZE,
         });
       }
-      gs.lastObstacleZ = currentScrollZ;
     }
     
-    if (currentScrollZ - gs.lastCoinZ > 3) {
-      for (let i = 0; i < 3; i++) {
-        const lane = LANES[Math.floor(Math.random() * 3)];
-        const height = Math.random() > 0.5 ? 1.5 : 0.8;
-        const rand = Math.random();
-        const value = rand > 0.9 ? 100 : rand > 0.5 ? 50 : 10;
-        gs.coins.push({
-          id: idCounter.current++,
-          x: lane,
-          y: height,
-          z: spawnZ - currentScrollZ - i * 3,
-          value: value,
-          rotation: 0,
-        });
-      }
-      gs.lastCoinZ = currentScrollZ;
+    while (gs.lastCoinZ < currentDistance + 60) {
+      gs.lastCoinZ += 2 + Math.random() * 2;
+      const lane = LANES[Math.floor(Math.random() * 3)];
+      const height = Math.random() > 0.5 ? 1.5 : 0.8;
+      const rand = Math.random();
+      const value = rand > 0.9 ? 100 : rand > 0.5 ? 50 : 10;
+      gs.coins.push({
+        id: idCounter.current++,
+        x: lane,
+        y: height,
+        z: gs.lastCoinZ,
+        value: value,
+        rotation: 0,
+      });
     }
     
-    if (currentScrollZ - gs.lastCarrotZ > 15 && Math.random() > 0.5) {
+    while (gs.lastCarrotZ < currentDistance + 60) {
+      gs.lastCarrotZ += 12 + Math.random() * 8;
       const lane = LANES[Math.floor(Math.random() * 3)];
       const mults = [0.25, 0.5, 0.75];
       gs.carrots.push({
         id: idCounter.current++,
         x: lane,
         y: 1.2,
-        z: spawnZ - currentScrollZ,
+        z: gs.lastCarrotZ,
         mult: mults[Math.floor(Math.random() * mults.length)],
       });
-      gs.lastCarrotZ = currentScrollZ;
     }
     
-    gs.obstacles = gs.obstacles.filter(o => o.z + currentScrollZ > -10);
-    gs.coins = gs.coins.filter(c => c.z + currentScrollZ > -10);
-    gs.carrots = gs.carrots.filter(c => c.z + currentScrollZ > -10);
+    gs.obstacles = gs.obstacles.filter(o => o.z > currentDistance - 10);
+    gs.coins = gs.coins.filter(c => c.z > currentDistance - 10);
+    gs.carrots = gs.carrots.filter(c => c.z > currentDistance - 10);
   }, []);
   
   const gameLoop = useCallback(() => {
     const gs = gameStateRef.current;
     if (!gs.gameActive) return;
     
-    setScrollZ(prev => {
-      const newScrollZ = prev + gs.speed;
-      spawnObjects(newScrollZ);
-      return newScrollZ;
-    });
     gs.distance += gs.speed;
     gs.speed = Math.min(gs.speed + SPEED_INCREASE * 0.1, MAX_SPEED);
     
+    spawnObjects(gs.distance);
+    setScrollZ(gs.distance);
     setDisplayDistance(Math.floor(gs.distance * 10));
     
     animationRef.current = requestAnimationFrame(gameLoop);
