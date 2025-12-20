@@ -373,14 +373,18 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
 }
 
 function Scenery({ scrollZ }: { scrollZ: number }) {
-  const trees = useMemo(() => {
+  const sceneryItems = useMemo(() => {
     const arr = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const type = i % 5 === 0 ? 'rock' : i % 3 === 0 ? 'bush' : 'tree';
       arr.push({
         id: i,
-        x: i % 2 === 0 ? -5 : 5,
-        z: -i * 8,
+        x: side * (4 + Math.random() * 3),
+        z: -i * 5,
         height: 2 + Math.random() * 1.5,
+        type,
+        scale: 0.5 + Math.random() * 0.5,
       });
     }
     return arr;
@@ -388,22 +392,57 @@ function Scenery({ scrollZ }: { scrollZ: number }) {
 
   return (
     <>
-      {trees.map(tree => {
-        const z = (tree.z + scrollZ) % 240 - 20;
-        if (z > 15 || z < -60) return null;
-        return (
-          <group key={tree.id} position={[tree.x, 0, z]}>
-            <mesh position={[0, tree.height / 2, 0]} castShadow>
-              <cylinderGeometry args={[0.2, 0.3, tree.height, 8]} />
-              <meshStandardMaterial color="#8B4513" />
+      {sceneryItems.map(item => {
+        const z = (item.z + scrollZ) % 250 - 30;
+        if (z > 20 || z < -70) return null;
+        
+        if (item.type === 'tree') {
+          return (
+            <group key={item.id} position={[item.x, 0, z]}>
+              <mesh position={[0, item.height / 2, 0]} castShadow>
+                <cylinderGeometry args={[0.2, 0.3, item.height, 8]} />
+                <meshStandardMaterial color="#8B4513" />
+              </mesh>
+              <mesh position={[0, item.height + 0.8, 0]} castShadow>
+                <coneGeometry args={[1.2 * item.scale, 2.5, 8]} />
+                <meshStandardMaterial color="#228B22" />
+              </mesh>
+            </group>
+          );
+        } else if (item.type === 'rock') {
+          return (
+            <mesh key={item.id} position={[item.x, 0.3 * item.scale, z]} castShadow>
+              <dodecahedronGeometry args={[0.6 * item.scale, 0]} />
+              <meshStandardMaterial color="#888888" />
             </mesh>
-            <mesh position={[0, tree.height + 0.8, 0]} castShadow>
-              <coneGeometry args={[1.2, 2, 8]} />
-              <meshStandardMaterial color="#228B22" />
+          );
+        } else {
+          return (
+            <mesh key={item.id} position={[item.x, 0.4 * item.scale, z]} castShadow>
+              <sphereGeometry args={[0.8 * item.scale, 8, 8]} />
+              <meshStandardMaterial color="#2d5a1d" />
             </mesh>
-          </group>
-        );
+          );
+        }
       })}
+      
+      <mesh position={[-7, 0.5, (scrollZ % 100) - 50]} castShadow>
+        <boxGeometry args={[1, 3, 0.3]} />
+        <meshStandardMaterial color="#654321" />
+      </mesh>
+      <mesh position={[7, 0.5, (scrollZ % 100) - 50]} castShadow>
+        <boxGeometry args={[1, 3, 0.3]} />
+        <meshStandardMaterial color="#654321" />
+      </mesh>
+      
+      <mesh position={[-7, 0.5, (scrollZ % 100) - 100]} castShadow>
+        <boxGeometry args={[1, 3, 0.3]} />
+        <meshStandardMaterial color="#654321" />
+      </mesh>
+      <mesh position={[7, 0.5, (scrollZ % 100) - 100]} castShadow>
+        <boxGeometry args={[1, 3, 0.3]} />
+        <meshStandardMaterial color="#654321" />
+      </mesh>
     </>
   );
 }
@@ -462,9 +501,9 @@ export function EndlessRunnerApp() {
     multiplier: 1.0,
     wager: 0,
     gameActive: false,
-    lastObstacleZ: -10,
-    lastCoinZ: -5,
-    lastCarrotZ: -8,
+    lastObstacleZ: 0,
+    lastCoinZ: 0,
+    lastCarrotZ: 0,
   });
   
   const animationRef = useRef<number>();
@@ -474,78 +513,80 @@ export function EndlessRunnerApp() {
     setDisplayKicks(parseFloat(kicksBalance) || 0);
   }, [kicksBalance]);
   
-  const spawnObjects = useCallback(() => {
+  const spawnObjects = useCallback((currentScrollZ: number) => {
     const gs = gameStateRef.current;
+    const spawnZ = -50;
     
-    if (gs.lastObstacleZ > -4) {
+    if (currentScrollZ - gs.lastObstacleZ > 6) {
       const lane = LANES[Math.floor(Math.random() * 3)];
-      const secondLane = Math.random() > 0.7 ? LANES[Math.floor(Math.random() * 3)] : null;
       gs.obstacles.push({
         id: idCounter.current++,
         x: lane,
         y: PLAYER_SIZE / 2,
-        z: -50 - scrollZ,
+        z: spawnZ - currentScrollZ,
         size: PLAYER_SIZE,
       });
-      if (secondLane !== null && secondLane !== lane) {
+      if (Math.random() > 0.6) {
+        const otherLanes = LANES.filter(l => l !== lane);
+        const secondLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
         gs.obstacles.push({
           id: idCounter.current++,
           x: secondLane,
           y: PLAYER_SIZE / 2,
-          z: -50 - scrollZ,
+          z: spawnZ - currentScrollZ,
           size: PLAYER_SIZE,
         });
       }
-      gs.lastObstacleZ = -50 - scrollZ;
+      gs.lastObstacleZ = currentScrollZ;
     }
     
-    if (gs.lastCoinZ > -3 && Math.random() > 0.3) {
-      const lane = LANES[Math.floor(Math.random() * 3)];
-      const height = Math.random() > 0.5 ? 1.5 : 0.8;
-      const rand = Math.random();
-      const value = rand > 0.9 ? 100 : rand > 0.6 ? 50 : 10;
-      gs.coins.push({
-        id: idCounter.current++,
-        x: lane,
-        y: height,
-        z: -40 - scrollZ,
-        value: value,
-        rotation: 0,
-      });
-      gs.lastCoinZ = -40 - scrollZ;
+    if (currentScrollZ - gs.lastCoinZ > 3) {
+      for (let i = 0; i < 3; i++) {
+        const lane = LANES[Math.floor(Math.random() * 3)];
+        const height = Math.random() > 0.5 ? 1.5 : 0.8;
+        const rand = Math.random();
+        const value = rand > 0.9 ? 100 : rand > 0.5 ? 50 : 10;
+        gs.coins.push({
+          id: idCounter.current++,
+          x: lane,
+          y: height,
+          z: spawnZ - currentScrollZ - i * 3,
+          value: value,
+          rotation: 0,
+        });
+      }
+      gs.lastCoinZ = currentScrollZ;
     }
     
-    if (gs.lastCarrotZ > -10 && Math.random() > 0.88) {
+    if (currentScrollZ - gs.lastCarrotZ > 15 && Math.random() > 0.5) {
       const lane = LANES[Math.floor(Math.random() * 3)];
       const mults = [0.25, 0.5, 0.75];
       gs.carrots.push({
         id: idCounter.current++,
         x: lane,
         y: 1.2,
-        z: -55 - scrollZ,
+        z: spawnZ - currentScrollZ,
         mult: mults[Math.floor(Math.random() * mults.length)],
       });
-      gs.lastCarrotZ = -55 - scrollZ;
+      gs.lastCarrotZ = currentScrollZ;
     }
     
-    gs.obstacles = gs.obstacles.filter(o => o.z + scrollZ > -100);
-    gs.coins = gs.coins.filter(c => c.z + scrollZ > -100);
-    gs.carrots = gs.carrots.filter(c => c.z + scrollZ > -100);
-    
-    gs.lastObstacleZ += gs.speed;
-    gs.lastCoinZ += gs.speed;
-    gs.lastCarrotZ += gs.speed;
-  }, [scrollZ]);
+    gs.obstacles = gs.obstacles.filter(o => o.z + currentScrollZ > -10);
+    gs.coins = gs.coins.filter(c => c.z + currentScrollZ > -10);
+    gs.carrots = gs.carrots.filter(c => c.z + currentScrollZ > -10);
+  }, []);
   
   const gameLoop = useCallback(() => {
     const gs = gameStateRef.current;
     if (!gs.gameActive) return;
     
-    setScrollZ(prev => prev + gs.speed);
+    setScrollZ(prev => {
+      const newScrollZ = prev + gs.speed;
+      spawnObjects(newScrollZ);
+      return newScrollZ;
+    });
     gs.distance += gs.speed;
     gs.speed = Math.min(gs.speed + SPEED_INCREASE * 0.1, MAX_SPEED);
-    
-    spawnObjects();
     
     setDisplayDistance(Math.floor(gs.distance * 10));
     
