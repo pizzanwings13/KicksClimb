@@ -110,42 +110,22 @@ interface Carrot {
   mult: number;
 }
 
-function CityBuilding({ position, height, width }: { position: [number, number, number]; height: number; width: number }) {
-  const windowRows = Math.floor(height / 1.2);
-  const windowCols = Math.floor(width / 0.8);
-  
-  const windows = useMemo(() => {
-    const wins = [];
-    for (let row = 0; row < windowRows; row++) {
-      for (let col = 0; col < windowCols; col++) {
-        if (Math.random() > 0.3) {
-          wins.push({
-            x: (col - windowCols / 2 + 0.5) * 0.7,
-            y: (row - windowRows / 2 + 0.5) * 1.1 + height / 2,
-            lit: Math.random() > 0.4,
-          });
-        }
-      }
-    }
-    return wins;
-  }, [windowRows, windowCols, height]);
+function CityBuilding({ position, height, width, seed }: { position: [number, number, number]; height: number; width: number; seed: number }) {
+  const litColor = useMemo(() => {
+    const colors = ['#ffee88', '#88ccff', '#ff88aa', '#88ff88'];
+    return colors[seed % colors.length];
+  }, [seed]);
 
   return (
     <group position={position}>
       <mesh>
         <boxGeometry args={[width, height, width * 0.8]} />
-        <meshStandardMaterial color="#1a1a2e" />
+        <meshBasicMaterial color="#1a1a2e" />
       </mesh>
-      {windows.map((win, idx) => (
-        <mesh key={idx} position={[win.x, win.y - height / 2, width * 0.41]}>
-          <planeGeometry args={[0.5, 0.8]} />
-          <meshStandardMaterial
-            color={win.lit ? '#ffee88' : '#334455'}
-            emissive={win.lit ? '#ffcc44' : '#000000'}
-            emissiveIntensity={win.lit ? 0.8 : 0}
-          />
-        </mesh>
-      ))}
+      <mesh position={[0, 0, width * 0.41]}>
+        <planeGeometry args={[width * 0.8, height * 0.9]} />
+        <meshBasicMaterial color={litColor} opacity={0.3} transparent />
+      </mesh>
     </group>
   );
 }
@@ -153,11 +133,13 @@ function CityBuilding({ position, height, width }: { position: [number, number, 
 function CityBackground() {
   const leftBuildings = useMemo(() => {
     const buildings = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 8; i++) {
+      const seed = i * 3 + 1;
       buildings.push({
-        z: -i * 12 - 5,
-        height: 8 + Math.random() * 12,
-        width: 3 + Math.random() * 2,
+        z: -i * 15 - 5,
+        height: 8 + (seed % 5) * 2.5,
+        width: 3 + (seed % 3) * 0.7,
+        seed,
       });
     }
     return buildings;
@@ -165,14 +147,24 @@ function CityBackground() {
 
   const rightBuildings = useMemo(() => {
     const buildings = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 8; i++) {
+      const seed = i * 3 + 2;
       buildings.push({
-        z: -i * 12 - 8,
-        height: 8 + Math.random() * 12,
-        width: 3 + Math.random() * 2,
+        z: -i * 15 - 10,
+        height: 8 + (seed % 5) * 2.5,
+        width: 3 + (seed % 3) * 0.7,
+        seed,
       });
     }
     return buildings;
+  }, []);
+
+  const stars = useMemo(() => {
+    return Array.from({ length: 20 }).map((_, i) => ({
+      x: ((i * 17) % 100) - 50,
+      y: 10 + ((i * 13) % 20),
+      size: 0.1 + ((i * 7) % 3) * 0.05,
+    }));
   }, []);
 
   return (
@@ -183,6 +175,7 @@ function CityBackground() {
           position={[-10 - b.width / 2, b.height / 2 - 0.5, b.z]}
           height={b.height}
           width={b.width}
+          seed={b.seed}
         />
       ))}
       {rightBuildings.map((b, idx) => (
@@ -191,20 +184,21 @@ function CityBackground() {
           position={[10 + b.width / 2, b.height / 2 - 0.5, b.z]}
           height={b.height}
           width={b.width}
+          seed={b.seed}
         />
       ))}
       <mesh position={[0, 15, -80]}>
         <planeGeometry args={[120, 40]} />
         <meshBasicMaterial color="#0a0a1a" />
       </mesh>
-      {Array.from({ length: 50 }).map((_, i) => (
-        <mesh key={`star-${i}`} position={[(Math.random() - 0.5) * 100, 10 + Math.random() * 20, -79]}>
-          <circleGeometry args={[0.1 + Math.random() * 0.1, 8]} />
+      {stars.map((star, i) => (
+        <mesh key={`star-${i}`} position={[star.x, star.y, -79]}>
+          <circleGeometry args={[star.size, 6]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
       ))}
       <mesh position={[30, 25, -78]}>
-        <circleGeometry args={[3, 32]} />
+        <circleGeometry args={[3, 16]} />
         <meshBasicMaterial color="#ffffee" />
       </mesh>
     </group>
@@ -212,38 +206,46 @@ function CityBackground() {
 }
 
 function CityStreet() {
+  const laneLines = useMemo(() => 
+    Array.from({ length: 20 }).map((_, idx) => ({ z: -idx * 10 })), 
+  []);
+  
+  const lamps = useMemo(() => 
+    Array.from({ length: 6 }).map((_, idx) => ({ z: -idx * 25 })), 
+  []);
+
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, -50]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, -50]}>
         <planeGeometry args={[14, 200]} />
-        <meshStandardMaterial color="#2a2a2a" />
+        <meshBasicMaterial color="#2a2a2a" />
       </mesh>
-      {Array.from({ length: 40 }).map((_, idx) => (
-        <mesh key={`line-${idx}`} position={[0, -0.48, -idx * 5]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.2, 2]} />
-          <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.3} />
+      {laneLines.map((line, idx) => (
+        <mesh key={`line-${idx}`} position={[0, -0.48, line.z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.2, 4]} />
+          <meshBasicMaterial color="#ffff00" />
         </mesh>
       ))}
       <mesh position={[-7.5, -0.48, -50]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.15, 200]} />
-        <meshStandardMaterial color="#ffffff" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       <mesh position={[7.5, -0.48, -50]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.15, 200]} />
-        <meshStandardMaterial color="#ffffff" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
-      {Array.from({ length: 10 }).map((_, idx) => (
+      {lamps.map((lamp, idx) => (
         <group key={`lamp-${idx}`}>
-          <mesh position={[-8, 3, -idx * 15 - 5]}>
-            <cylinderGeometry args={[0.1, 0.1, 6, 8]} />
-            <meshStandardMaterial color="#444444" />
+          <mesh position={[-8, 3, lamp.z - 5]}>
+            <boxGeometry args={[0.2, 6, 0.2]} />
+            <meshBasicMaterial color="#444444" />
           </mesh>
-          <pointLight position={[-8, 5.5, -idx * 15 - 5]} color="#ffaa66" intensity={0.5} distance={15} />
-          <mesh position={[8, 3, -idx * 15 - 10]}>
-            <cylinderGeometry args={[0.1, 0.1, 6, 8]} />
-            <meshStandardMaterial color="#444444" />
+          <pointLight position={[-8, 5.5, lamp.z - 5]} color="#ffaa66" intensity={0.3} distance={12} />
+          <mesh position={[8, 3, lamp.z - 10]}>
+            <boxGeometry args={[0.2, 6, 0.2]} />
+            <meshBasicMaterial color="#444444" />
           </mesh>
-          <pointLight position={[8, 5.5, -idx * 15 - 10]} color="#ffaa66" intensity={0.5} distance={15} />
+          <pointLight position={[8, 5.5, lamp.z - 10]} color="#ffaa66" intensity={0.3} distance={12} />
         </group>
       ))}
     </group>
@@ -259,28 +261,36 @@ function FinishLine({ distance, scrollZ }: FinishLineProps) {
   const z = -(distance - scrollZ);
   if (z > 10 || z < -100) return null;
 
+  const checkerPattern = useMemo(() => {
+    const pattern = [];
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 2; j++) {
+        pattern.push({ x: -3 + i * 2, y: 7 + j * 0.5, black: (i + j) % 2 === 0 });
+      }
+    }
+    return pattern;
+  }, []);
+
   return (
     <group position={[0, 0, z]}>
       <mesh position={[-7, 4, 0]}>
-        <cylinderGeometry args={[0.2, 0.2, 8, 8]} />
-        <meshStandardMaterial color="#ffffff" />
+        <boxGeometry args={[0.4, 8, 0.4]} />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       <mesh position={[7, 4, 0]}>
-        <cylinderGeometry args={[0.2, 0.2, 8, 8]} />
-        <meshStandardMaterial color="#ffffff" />
+        <boxGeometry args={[0.4, 8, 0.4]} />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       <mesh position={[0, 7.5, 0]}>
         <boxGeometry args={[14, 1, 0.3]} />
-        <meshStandardMaterial color="#ffffff" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
-      {Array.from({ length: 8 }).map((_, i) =>
-        Array.from({ length: 4 }).map((_, j) => (
-          <mesh key={`check-${i}-${j}`} position={[-5.25 + i * 1.5, 7 + j * 0.25, 0.2]}>
-            <boxGeometry args={[0.7, 0.2, 0.1]} />
-            <meshStandardMaterial color={(i + j) % 2 === 0 ? '#000000' : '#ffffff'} />
-          </mesh>
-        ))
-      )}
+      {checkerPattern.map((c, i) => (
+        <mesh key={`check-${i}`} position={[c.x, c.y, 0.2]}>
+          <boxGeometry args={[1.5, 0.4, 0.1]} />
+          <meshBasicMaterial color={c.black ? '#000000' : '#ffffff'} />
+        </mesh>
+      ))}
       <Text
         position={[0, 9, 0]}
         fontSize={1.5}
@@ -320,51 +330,51 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
 
   return (
     <group ref={groupRef} position={[targetX, y, 0]}>
-      <pointLight position={[0, 2, 0]} color="#ffffff" intensity={2} distance={8} />
+      <pointLight position={[0, 2, 0]} color="#ffffff" intensity={1.5} distance={6} />
       
-      <mesh position={[0, 0.3, 0]} castShadow>
+      <mesh position={[0, 0.3, 0]}>
         <boxGeometry args={[1.2, 0.4, 2.2]} />
-        <meshStandardMaterial color="#ff9999" emissive="#ff6666" emissiveIntensity={0.3} metalness={0.4} roughness={0.4} />
+        <meshBasicMaterial color="#ff9999" />
       </mesh>
       
-      <mesh position={[0, 0.65, -0.2]} castShadow>
+      <mesh position={[0, 0.65, -0.2]}>
         <boxGeometry args={[1, 0.4, 1.2]} />
-        <meshStandardMaterial color="#ff9999" emissive="#ff6666" emissiveIntensity={0.3} metalness={0.4} roughness={0.4} />
+        <meshBasicMaterial color="#ff9999" />
       </mesh>
       
-      <mesh position={[0, 0.65, 0]} castShadow>
+      <mesh position={[0, 0.65, 0]}>
         <boxGeometry args={[0.95, 0.35, 0.9]} />
-        <meshStandardMaterial color="#aaddff" emissive="#88ccff" emissiveIntensity={0.2} metalness={0.9} roughness={0.1} transparent opacity={0.7} />
+        <meshBasicMaterial color="#88ccff" transparent opacity={0.7} />
       </mesh>
       
-      <mesh position={[-0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#333333" />
+      <mesh position={[-0.5, 0.1, 0.7]} rotation={[0, 0, Math.PI / 2]}>
+        <boxGeometry args={[0.3, 0.15, 0.3]} />
+        <meshBasicMaterial color="#333333" />
       </mesh>
-      <mesh position={[0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#333333" />
+      <mesh position={[0.5, 0.1, 0.7]} rotation={[0, 0, Math.PI / 2]}>
+        <boxGeometry args={[0.3, 0.15, 0.3]} />
+        <meshBasicMaterial color="#333333" />
       </mesh>
-      <mesh position={[-0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#333333" />
+      <mesh position={[-0.5, 0.1, -0.7]} rotation={[0, 0, Math.PI / 2]}>
+        <boxGeometry args={[0.3, 0.15, 0.3]} />
+        <meshBasicMaterial color="#333333" />
       </mesh>
-      <mesh position={[0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#333333" />
+      <mesh position={[0.5, 0.1, -0.7]} rotation={[0, 0, Math.PI / 2]}>
+        <boxGeometry args={[0.3, 0.15, 0.3]} />
+        <meshBasicMaterial color="#333333" />
       </mesh>
       
       <mesh position={[0, 0.35, 1.15]}>
         <boxGeometry args={[0.8, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={1} />
+        <meshBasicMaterial color="#ffff00" />
       </mesh>
       <mesh position={[-0.35, 0.35, -1.15]}>
         <boxGeometry args={[0.2, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
       <mesh position={[0.35, 0.35, -1.15]}>
         <boxGeometry args={[0.2, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
     </group>
   );
@@ -386,51 +396,49 @@ function ObstacleCar({ obstacle, scrollZ }: ObstacleProps) {
   
   return (
     <group position={[obstacle.x, 0, z]}>
-      <pointLight position={[0, 1.5, 0]} color="#ffffff" intensity={0.8} distance={5} />
-      
-      <mesh position={[0, 0.3, 0]} castShadow>
+      <mesh position={[0, 0.3, 0]}>
         <boxGeometry args={[1.1, 0.35, 2]} />
-        <meshStandardMaterial color={carColor} emissive={carColor} emissiveIntensity={0.2} metalness={0.5} roughness={0.4} />
+        <meshBasicMaterial color={carColor} />
       </mesh>
       
-      <mesh position={[0, 0.6, -0.15]} castShadow>
+      <mesh position={[0, 0.6, -0.15]}>
         <boxGeometry args={[0.95, 0.35, 1.1]} />
-        <meshStandardMaterial color={carColor} emissive={carColor} emissiveIntensity={0.2} metalness={0.5} roughness={0.4} />
+        <meshBasicMaterial color={carColor} />
       </mesh>
       
       <mesh position={[0, 0.6, 0]}>
         <boxGeometry args={[0.9, 0.3, 0.8]} />
-        <meshStandardMaterial color="#334455" emissive="#223344" emissiveIntensity={0.1} metalness={0.9} roughness={0.1} transparent opacity={0.6} />
+        <meshBasicMaterial color="#445566" transparent opacity={0.6} />
       </mesh>
       
       <mesh position={[-0.45, 0.1, 0.65]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
-        <meshStandardMaterial color="#222222" />
+        <boxGeometry args={[0.25, 0.12, 0.25]} />
+        <meshBasicMaterial color="#222222" />
       </mesh>
       <mesh position={[0.45, 0.1, 0.65]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
-        <meshStandardMaterial color="#222222" />
+        <boxGeometry args={[0.25, 0.12, 0.25]} />
+        <meshBasicMaterial color="#222222" />
       </mesh>
       <mesh position={[-0.45, 0.1, -0.65]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
-        <meshStandardMaterial color="#222222" />
+        <boxGeometry args={[0.25, 0.12, 0.25]} />
+        <meshBasicMaterial color="#222222" />
       </mesh>
       <mesh position={[0.45, 0.1, -0.65]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
-        <meshStandardMaterial color="#222222" />
+        <boxGeometry args={[0.25, 0.12, 0.25]} />
+        <meshBasicMaterial color="#222222" />
       </mesh>
       
       <mesh position={[0, 0.3, 1.05]}>
         <boxGeometry args={[0.7, 0.12, 0.05]} />
-        <meshStandardMaterial color="#ffff88" emissive="#ffff00" emissiveIntensity={0.8} />
+        <meshBasicMaterial color="#ffff88" />
       </mesh>
       <mesh position={[-0.3, 0.3, -1.05]}>
         <boxGeometry args={[0.18, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={1} />
+        <meshBasicMaterial color="#ff3333" />
       </mesh>
       <mesh position={[0.3, 0.3, -1.05]}>
         <boxGeometry args={[0.18, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={1} />
+        <meshBasicMaterial color="#ff3333" />
       </mesh>
     </group>
   );
@@ -458,14 +466,8 @@ function CoinMesh({ coin, scrollZ }: CoinProps) {
   
   return (
     <mesh ref={meshRef} position={[coin.x, coin.y, z]}>
-      <cylinderGeometry args={[0.35, 0.35, 0.12, 16]} />
-      <meshStandardMaterial 
-        color={color} 
-        metalness={0.9} 
-        roughness={0.1} 
-        emissive={color}
-        emissiveIntensity={0.3}
-      />
+      <boxGeometry args={[0.5, 0.5, 0.12]} />
+      <meshBasicMaterial color={color} />
     </mesh>
   );
 }
@@ -483,7 +485,6 @@ function CarrotMesh({ carrot, scrollZ }: CarrotProps) {
   useFrame(() => {
     if (meshRef.current && visible) {
       meshRef.current.rotation.y += 0.03;
-      meshRef.current.position.y = carrot.y + Math.sin(Date.now() * 0.005) * 0.1;
     }
   });
   
@@ -492,12 +493,12 @@ function CarrotMesh({ carrot, scrollZ }: CarrotProps) {
   return (
     <group ref={meshRef} position={[carrot.x, carrot.y, z]}>
       <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI]}>
-        <coneGeometry args={[0.2, 0.6, 8]} />
-        <meshStandardMaterial color="#ff6600" />
+        <boxGeometry args={[0.3, 0.6, 0.3]} />
+        <meshBasicMaterial color="#ff6600" />
       </mesh>
       <mesh position={[0, 0.35, 0]}>
-        <coneGeometry args={[0.15, 0.2, 6]} />
-        <meshStandardMaterial color="#228B22" />
+        <boxGeometry args={[0.25, 0.2, 0.25]} />
+        <meshBasicMaterial color="#228B22" />
       </mesh>
       <Text
         position={[0, 0.6, 0]}
@@ -1121,21 +1122,25 @@ export function EndlessRunnerApp() {
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - touchStartRef.current.x;
     const deltaY = touch.clientY - touchStartRef.current.y;
-    const minSwipe = 30;
+    const minSwipe = 40;
     
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      if (deltaX > minSwipe) {
-        handleSwipe('right');
-      } else if (deltaX < -minSwipe) {
-        handleSwipe('left');
-      }
-    } else {
-      if (deltaY < -minSwipe) {
-        handleSwipe('up');
+    const isSwipe = Math.abs(deltaX) > minSwipe || Math.abs(deltaY) > minSwipe;
+    
+    if (isSwipe && phase === 'playing') {
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX > minSwipe) {
+          handleSwipe('right');
+        } else if (deltaX < -minSwipe) {
+          handleSwipe('left');
+        }
+      } else {
+        if (deltaY < -minSwipe) {
+          handleSwipe('up');
+        }
       }
     }
     touchStartRef.current = null;
-  }, [handleSwipe]);
+  }, [handleSwipe, phase]);
   
   const keyMap = useMemo(() => [
     { name: Controls.left, keys: ['ArrowLeft', 'KeyA'] },
@@ -1156,9 +1161,9 @@ export function EndlessRunnerApp() {
   return (
     <KeyboardControls map={keyMap}>
       <div 
-        className="w-full h-screen bg-gradient-to-b from-slate-900 to-indigo-900 relative overflow-hidden touch-none"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        className="w-full h-screen bg-gradient-to-b from-slate-900 to-indigo-900 relative overflow-hidden"
+        onTouchStart={phase === 'playing' ? handleTouchStart : undefined}
+        onTouchEnd={phase === 'playing' ? handleTouchEnd : undefined}
       >
         <div className="absolute top-4 left-4 z-50 flex gap-2">
           <Button
@@ -1212,7 +1217,7 @@ export function EndlessRunnerApp() {
           </>
         )}
         
-        <Canvas shadows camera={{ position: [0, 5, 8], fov: 75 }}>
+        <Canvas camera={{ position: [0, 5, 8], fov: 75 }} dpr={[1, 1.5]}>
           <Suspense fallback={null}>
             {(phase === 'playing' || phase === 'menu' || phase === 'ended') && (
               <>
