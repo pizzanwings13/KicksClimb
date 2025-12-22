@@ -940,10 +940,12 @@ export function EndlessRunnerApp() {
     }
     
     setIsClaiming(true);
+    setEndMessage(`Processing cashout...`);
+    setPhase('ended');
     
-    if (hasServerRun && currentRunId) {
-      try {
-        await fetch('/api/rabbit-rush/run/end', {
+    try {
+      if (hasServerRun && currentRunId) {
+        const endRes = await fetch('/api/rabbit-rush/run/end', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -957,18 +959,18 @@ export function EndlessRunnerApp() {
             won: true,
           }),
         });
-      } catch (e) {
-        console.error('Failed to save run:', e);
+        
+        if (!endRes.ok) {
+          const errData = await endRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to end run');
+        }
       }
-    }
-    
-    try {
+      
       const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
-        setEndMessage(`Signature cancelled. Collect: ${payout} KICKS`);
+        setEndMessage(`Signature cancelled. Won: ${payout} KICKS`);
         setIsClaiming(false);
-        setPhase('ended');
         return;
       }
       
@@ -978,32 +980,36 @@ export function EndlessRunnerApp() {
         body: JSON.stringify({ walletAddress, authSignature }),
       });
       
-      if (!nonceRes.ok) throw new Error('Failed to get nonce');
-      const { nonce } = await nonceRes.json();
+      if (!nonceRes.ok) {
+        const errData = await nonceRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to get nonce');
+      }
+      const { nonce, expectedPayout } = await nonceRes.json();
+      const serverPayout = parseInt(expectedPayout) || payout;
       
-      const signature = await signClaimMessage(payout.toString(), currentRunId!, nonce, 'rabbit-rush');
+      setEndMessage(`Claiming ${serverPayout.toLocaleString()} KICKS...`);
+      
+      const signature = await signClaimMessage(expectedPayout || payout.toString(), currentRunId!, nonce, 'rabbit-rush');
       if (!signature) {
-        setEndMessage(`Signature cancelled. Collect: ${payout} KICKS`);
+        setEndMessage(`Signature cancelled. Won: ${serverPayout} KICKS`);
         setIsClaiming(false);
-        setPhase('ended');
         return;
       }
       
-      const success = await requestKicksFromHouse(payout.toString(), currentRunId!, signature, nonce, 'rabbit-rush');
+      const success = await requestKicksFromHouse(expectedPayout || payout.toString(), currentRunId!, signature, nonce, 'rabbit-rush');
       
       if (success) {
         await refreshBalance();
-        setEndMessage(`Claimed ${payout.toLocaleString()} KICKS! (${mult.toFixed(2)}x multiplier)`);
+        setEndMessage(`Claimed ${serverPayout.toLocaleString()} KICKS! (${mult.toFixed(2)}x)`);
       } else {
         setEndMessage(`Claim failed. Contact support.`);
       }
     } catch (e: any) {
       console.error('Cashout error:', e);
-      setEndMessage(`Error: ${e.message?.slice(0, 40) || 'Claim failed'}`);
+      setEndMessage(`Error: ${e.message?.slice(0, 50) || 'Claim failed'}`);
     }
     
     setIsClaiming(false);
-    setPhase('ended');
   }, [hasServerRun, currentRunId, walletAddress, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleClaimAfterCrash = useCallback(async () => {
@@ -1016,8 +1022,33 @@ export function EndlessRunnerApp() {
     }
     
     setIsClaiming(true);
+    setEndMessage(`Processing claim...`);
     
     try {
+      if (hasServerRun && currentRunId) {
+        const endRes = await fetch('/api/rabbit-rush/run/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress,
+            runId: currentRunId,
+            wager: 0,
+            finalMultiplier: gs.multiplier,
+            payout,
+            coinsCollected: gs.coinsCollected,
+            enemiesDestroyed: 0,
+            won: true,
+          }),
+        });
+        
+        if (!endRes.ok) {
+          const errData = await endRes.json().catch(() => ({}));
+          if (!errData.error?.includes('already ended')) {
+            throw new Error(errData.error || 'Failed to end run');
+          }
+        }
+      }
+      
       const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
@@ -1032,31 +1063,37 @@ export function EndlessRunnerApp() {
         body: JSON.stringify({ walletAddress, authSignature }),
       });
       
-      if (!nonceRes.ok) throw new Error('Failed to get nonce');
-      const { nonce } = await nonceRes.json();
+      if (!nonceRes.ok) {
+        const errData = await nonceRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to get nonce');
+      }
+      const { nonce, expectedPayout } = await nonceRes.json();
+      const serverPayout = parseInt(expectedPayout) || payout;
       
-      const signature = await signClaimMessage(payout.toString(), currentRunId!, nonce, 'rabbit-rush');
+      setEndMessage(`Claiming ${serverPayout.toLocaleString()} KICKS...`);
+      
+      const signature = await signClaimMessage(expectedPayout || payout.toString(), currentRunId!, nonce, 'rabbit-rush');
       if (!signature) {
-        setEndMessage(`Signature cancelled. Unclaimed: ${payout} KICKS`);
+        setEndMessage(`Signature cancelled. Unclaimed: ${serverPayout} KICKS`);
         setIsClaiming(false);
         return;
       }
       
-      const success = await requestKicksFromHouse(payout.toString(), currentRunId!, signature, nonce, 'rabbit-rush');
+      const success = await requestKicksFromHouse(expectedPayout || payout.toString(), currentRunId!, signature, nonce, 'rabbit-rush');
       
       if (success) {
         await refreshBalance();
-        setEndMessage(`Claimed ${payout.toLocaleString()} KICKS!`);
+        setEndMessage(`Claimed ${serverPayout.toLocaleString()} KICKS!`);
       } else {
         setEndMessage(`Claim failed. Contact support.`);
       }
     } catch (e: any) {
       console.error('Claim error:', e);
-      setEndMessage(`Error: ${e.message?.slice(0, 40) || 'Claim failed'}`);
+      setEndMessage(`Error: ${e.message?.slice(0, 50) || 'Claim failed'}`);
     }
     
     setIsClaiming(false);
-  }, [currentRunId, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+  }, [hasServerRun, currentRunId, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleSwipe = (direction: 'left' | 'right' | 'up') => {
     if (phase !== 'playing') return;
