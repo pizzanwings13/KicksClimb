@@ -320,49 +320,51 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
 
   return (
     <group ref={groupRef} position={[targetX, y, 0]}>
+      <pointLight position={[0, 2, 0]} color="#ffffff" intensity={2} distance={8} />
+      
       <mesh position={[0, 0.3, 0]} castShadow>
         <boxGeometry args={[1.2, 0.4, 2.2]} />
-        <meshStandardMaterial color="#ff8888" metalness={0.6} roughness={0.3} />
+        <meshStandardMaterial color="#ff9999" emissive="#ff6666" emissiveIntensity={0.3} metalness={0.4} roughness={0.4} />
       </mesh>
       
       <mesh position={[0, 0.65, -0.2]} castShadow>
         <boxGeometry args={[1, 0.4, 1.2]} />
-        <meshStandardMaterial color="#ff8888" metalness={0.6} roughness={0.3} />
+        <meshStandardMaterial color="#ff9999" emissive="#ff6666" emissiveIntensity={0.3} metalness={0.4} roughness={0.4} />
       </mesh>
       
       <mesh position={[0, 0.65, 0]} castShadow>
         <boxGeometry args={[0.95, 0.35, 0.9]} />
-        <meshStandardMaterial color="#88ccff" metalness={0.9} roughness={0.1} transparent opacity={0.7} />
+        <meshStandardMaterial color="#aaddff" emissive="#88ccff" emissiveIntensity={0.2} metalness={0.9} roughness={0.1} transparent opacity={0.7} />
       </mesh>
       
       <mesh position={[-0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#222222" />
+        <meshStandardMaterial color="#333333" />
       </mesh>
       <mesh position={[0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#222222" />
+        <meshStandardMaterial color="#333333" />
       </mesh>
       <mesh position={[-0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#222222" />
+        <meshStandardMaterial color="#333333" />
       </mesh>
       <mesh position={[0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
-        <meshStandardMaterial color="#222222" />
+        <meshStandardMaterial color="#333333" />
       </mesh>
       
       <mesh position={[0, 0.35, 1.15]}>
         <boxGeometry args={[0.8, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.5} />
+        <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={1} />
       </mesh>
       <mesh position={[-0.35, 0.35, -1.15]}>
         <boxGeometry args={[0.2, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
       </mesh>
       <mesh position={[0.35, 0.35, -1.15]}>
         <boxGeometry args={[0.2, 0.1, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
       </mesh>
     </group>
   );
