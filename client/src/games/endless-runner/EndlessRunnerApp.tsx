@@ -16,6 +16,10 @@ const INITIAL_SPEED = 0.15;
 const MAX_SPEED = 0.4;
 const SPEED_INCREASE = 0.0005;
 
+const SCENE_FRAME_COUNT = 56;
+const CHARACTER_FRAME_COUNT = 28;
+const BG_FPS = 12;
+const CHARACTER_FPS = 20;
 
 enum Controls {
   left = 'left',
@@ -67,16 +71,110 @@ interface Carrot {
   mult: number;
 }
 
-function Ground() {
+const sceneTextureCache: THREE.Texture[] = [];
+const characterTextureCache: THREE.Texture[] = [];
+let texturesLoaded = false;
+let textureLoadAttempted = false;
+
+async function preloadAllTextures(): Promise<void> {
+  if (texturesLoaded || textureLoadAttempted) return;
+  textureLoadAttempted = true;
+  
+  const loader = new THREE.TextureLoader();
+  
+  const loadTexture = (path: string): Promise<THREE.Texture | null> => {
+    return new Promise((resolve) => {
+      loader.load(
+        path,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          resolve(tex);
+        },
+        undefined,
+        (err) => {
+          console.warn(`Failed to load texture: ${path}`, err);
+          resolve(null);
+        }
+      );
+    });
+  };
+  
+  const scenePromises = [];
+  for (let i = 0; i < SCENE_FRAME_COUNT; i++) {
+    const frameNum = String(i).padStart(5, '0');
+    scenePromises.push(loadTexture(`/sprites/scene/${frameNum}.png`));
+  }
+  
+  const charPromises = [];
+  for (let i = 1; i <= CHARACTER_FRAME_COUNT; i++) {
+    const frameNum = String(i).padStart(4, '0');
+    charPromises.push(loadTexture(`/sprites/character/${frameNum}.png`));
+  }
+  
+  const [sceneTex, charTex] = await Promise.all([
+    Promise.all(scenePromises),
+    Promise.all(charPromises),
+  ]);
+  
+  const validSceneTex = sceneTex.filter((t): t is THREE.Texture => t !== null);
+  const validCharTex = charTex.filter((t): t is THREE.Texture => t !== null);
+  
+  sceneTextureCache.push(...validSceneTex);
+  characterTextureCache.push(...validCharTex);
+  texturesLoaded = validSceneTex.length > 0 || validCharTex.length > 0;
+}
+
+function disposeAllTextures(): void {
+  sceneTextureCache.forEach((tex) => tex.dispose());
+  characterTextureCache.forEach((tex) => tex.dispose());
+  sceneTextureCache.length = 0;
+  characterTextureCache.length = 0;
+  texturesLoaded = false;
+  textureLoadAttempted = false;
+}
+
+function AnimatedBackground() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const frameRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const frameInterval = 1000 / BG_FPS;
+  
+  useFrame(({ clock }) => {
+    if (!meshRef.current || sceneTextureCache.length === 0) return;
+    
+    const time = clock.getElapsedTime() * 1000;
+    if (time - lastTimeRef.current >= frameInterval) {
+      frameRef.current = (frameRef.current + 1) % sceneTextureCache.length;
+      lastTimeRef.current = time;
+      
+      const mat = meshRef.current.material as THREE.MeshBasicMaterial;
+      mat.map = sceneTextureCache[frameRef.current];
+      mat.needsUpdate = true;
+    }
+  });
+
+  if (sceneTextureCache.length === 0) return null;
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-      <planeGeometry args={[20, 200]} />
-      <meshStandardMaterial color="#2a5a1a" />
+    <mesh ref={meshRef} position={[0, 5, -40]}>
+      <planeGeometry args={[60, 40]} />
+      <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
     </mesh>
   );
 }
 
-function Track() {
+function Ground() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
+      <planeGeometry args={[20, 200]} />
+      <meshStandardMaterial color="#4a2c1a" />
+    </mesh>
+  );
+}
+
+function LavaTrack() {
   const segments = useMemo(() => {
     const segs = [];
     for (let z = 50; z > -150; z -= 4) {
@@ -97,20 +195,14 @@ function Track() {
               receiveShadow
             >
               <planeGeometry args={[LANE_WIDTH - 0.1, 4]} />
-              <meshStandardMaterial color={laneIdx === 1 ? '#4a4a4a' : '#3a3a3a'} />
+              <meshStandardMaterial color={laneIdx === 1 ? '#5a3020' : '#4a2515'} />
             </mesh>
           ))}
-          {idx % 2 === 0 && (
-            <>
-              <mesh position={[-1, -0.48, z - 2]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[0.1, 2]} />
-                <meshStandardMaterial color="#ffff00" />
-              </mesh>
-              <mesh position={[1, -0.48, z - 2]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[0.1, 2]} />
-                <meshStandardMaterial color="#ffff00" />
-              </mesh>
-            </>
+          {idx % 3 === 0 && (
+            <mesh position={[0, -0.48, z - 2]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[6.5, 0.3]} />
+              <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={0.5} />
+            </mesh>
           )}
         </group>
       ))}
@@ -118,58 +210,50 @@ function Track() {
   );
 }
 
-interface PlayerProps {
+interface SpritePlayerProps {
   lane: number;
   y: number;
-  hasShield: boolean;
+  isRunning: boolean;
 }
 
-function Player({ lane, y, hasShield }: PlayerProps) {
-  const groupRef = useRef<THREE.Group>(null);
+function SpritePlayer({ lane, y, isRunning }: SpritePlayerProps) {
+  const spriteRef = useRef<THREE.Sprite>(null);
+  const frameRef = useRef(0);
+  const lastTimeRef = useRef(0);
   const targetX = LANES[lane];
-  const bobTime = useRef(0);
+  const currentX = useRef(targetX);
+  const frameInterval = 1000 / CHARACTER_FPS;
   
-  useFrame((_, delta) => {
-    bobTime.current += delta * 8;
-    if (groupRef.current) {
-      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, 0.2);
-      groupRef.current.position.y = y + PLAYER_SIZE / 2 + Math.sin(bobTime.current) * 0.05;
+  useFrame(({ clock }) => {
+    if (!spriteRef.current || characterTextureCache.length === 0) return;
+    
+    currentX.current = THREE.MathUtils.lerp(currentX.current, targetX, 0.2);
+    spriteRef.current.position.x = currentX.current;
+    spriteRef.current.position.y = y + 1.5;
+    
+    if (isRunning) {
+      const time = clock.getElapsedTime() * 1000;
+      if (time - lastTimeRef.current >= frameInterval) {
+        frameRef.current = (frameRef.current + 1) % characterTextureCache.length;
+        lastTimeRef.current = time;
+        
+        const mat = spriteRef.current.material as THREE.SpriteMaterial;
+        mat.map = characterTextureCache[frameRef.current];
+        mat.needsUpdate = true;
+      }
     }
   });
 
+  if (characterTextureCache.length === 0) return null;
+
   return (
-    <group ref={groupRef} position={[targetX, y + PLAYER_SIZE / 2, 0]}>
-      <mesh castShadow position={[0, 0, 0]}>
-        <capsuleGeometry args={[0.35, 0.6, 8, 16]} />
-        <meshStandardMaterial color="#ff6b35" />
-      </mesh>
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <sphereGeometry args={[0.35, 16, 16]} />
-        <meshStandardMaterial color="#ffb5a0" />
-      </mesh>
-      <mesh position={[-0.12, 0.85, 0.1]}>
-        <sphereGeometry args={[0.08, 8, 8]} />
-        <meshStandardMaterial color="#000000" />
-      </mesh>
-      <mesh position={[0.12, 0.85, 0.1]}>
-        <sphereGeometry args={[0.08, 8, 8]} />
-        <meshStandardMaterial color="#000000" />
-      </mesh>
-      <mesh position={[-0.15, 1.1, -0.05]} rotation={[0.2, 0, -0.2]}>
-        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
-        <meshStandardMaterial color="#ffb5a0" />
-      </mesh>
-      <mesh position={[0.15, 1.1, -0.05]} rotation={[0.2, 0, 0.2]}>
-        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
-        <meshStandardMaterial color="#ffb5a0" />
-      </mesh>
-      {hasShield && (
-        <mesh position={[0, 0.3, 0]}>
-          <sphereGeometry args={[PLAYER_SIZE * 0.9, 16, 16]} />
-          <meshStandardMaterial color="#4da6ff" transparent opacity={0.3} />
-        </mesh>
-      )}
-    </group>
+    <sprite ref={spriteRef} position={[targetX, y + 1.5, 0]} scale={[3, 3, 1]}>
+      <spriteMaterial 
+        map={characterTextureCache[0]} 
+        transparent={true} 
+        alphaTest={0.1}
+      />
+    </sprite>
   );
 }
 
@@ -178,15 +262,22 @@ interface ObstacleProps {
   scrollZ: number;
 }
 
-function ObstacleMesh({ obstacle, scrollZ }: ObstacleProps) {
+function LavaRock({ obstacle, scrollZ }: ObstacleProps) {
   const z = -(obstacle.z - scrollZ);
   if (z > 5 || z < -60) return null;
   
   return (
-    <mesh position={[obstacle.x, obstacle.y, z]} castShadow>
-      <boxGeometry args={[obstacle.size, obstacle.size * 1.5, obstacle.size]} />
-      <meshStandardMaterial color="#8B0000" />
-    </mesh>
+    <group position={[obstacle.x, obstacle.y, z]}>
+      <mesh castShadow>
+        <dodecahedronGeometry args={[obstacle.size * 0.7, 0]} />
+        <meshStandardMaterial 
+          color="#3a1a0a" 
+          emissive="#ff2200" 
+          emissiveIntensity={0.3}
+        />
+      </mesh>
+      <pointLight position={[0, 0.5, 0]} color="#ff4400" intensity={0.5} distance={3} />
+    </group>
   );
 }
 
@@ -212,8 +303,14 @@ function CoinMesh({ coin, scrollZ }: CoinProps) {
   
   return (
     <mesh ref={meshRef} position={[coin.x, coin.y, z]}>
-      <cylinderGeometry args={[0.3, 0.3, 0.1, 16]} />
-      <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
+      <cylinderGeometry args={[0.35, 0.35, 0.12, 16]} />
+      <meshStandardMaterial 
+        color={color} 
+        metalness={0.9} 
+        roughness={0.1} 
+        emissive={color}
+        emissiveIntensity={0.3}
+      />
     </mesh>
   );
 }
@@ -344,18 +441,18 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
 
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
-      <fog attach="fog" args={['#87CEEB', 20, 80]} />
+      <ambientLight intensity={0.6} color="#ff9966" />
+      <directionalLight position={[10, 20, 10]} intensity={0.8} color="#ffaa77" castShadow />
+      <pointLight position={[0, 2, 0]} color="#ff4400" intensity={1} distance={20} />
       
+      <AnimatedBackground />
       <Ground />
-      <Track />
-      <Scenery scrollZ={scrollZ} />
+      <LavaTrack />
       
-      <Player lane={gs.playerLane} y={gs.playerY} hasShield={false} />
+      <SpritePlayer lane={gs.playerLane} y={gs.playerY} isRunning={gs.gameActive} />
       
       {gs.obstacles.map(obs => (
-        <ObstacleMesh key={obs.id} obstacle={obs} scrollZ={scrollZ} />
+        <LavaRock key={obs.id} obstacle={obs} scrollZ={scrollZ} />
       ))}
       
       {gs.coins.map(coin => (
@@ -369,82 +466,7 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
   );
 }
 
-function Scenery({ scrollZ }: { scrollZ: number }) {
-  const sceneryItems = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 50; i++) {
-      const side = i % 2 === 0 ? -1 : 1;
-      const type = i % 5 === 0 ? 'rock' : i % 3 === 0 ? 'bush' : 'tree';
-      arr.push({
-        id: i,
-        x: side * (4 + Math.random() * 3),
-        z: -i * 5,
-        height: 2 + Math.random() * 1.5,
-        type,
-        scale: 0.5 + Math.random() * 0.5,
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <>
-      {sceneryItems.map(item => {
-        const z = (item.z + scrollZ) % 250 - 30;
-        if (z > 20 || z < -70) return null;
-        
-        if (item.type === 'tree') {
-          return (
-            <group key={item.id} position={[item.x, 0, z]}>
-              <mesh position={[0, item.height / 2, 0]} castShadow>
-                <cylinderGeometry args={[0.2, 0.3, item.height, 8]} />
-                <meshStandardMaterial color="#8B4513" />
-              </mesh>
-              <mesh position={[0, item.height + 0.8, 0]} castShadow>
-                <coneGeometry args={[1.2 * item.scale, 2.5, 8]} />
-                <meshStandardMaterial color="#228B22" />
-              </mesh>
-            </group>
-          );
-        } else if (item.type === 'rock') {
-          return (
-            <mesh key={item.id} position={[item.x, 0.3 * item.scale, z]} castShadow>
-              <dodecahedronGeometry args={[0.6 * item.scale, 0]} />
-              <meshStandardMaterial color="#888888" />
-            </mesh>
-          );
-        } else {
-          return (
-            <mesh key={item.id} position={[item.x, 0.4 * item.scale, z]} castShadow>
-              <sphereGeometry args={[0.8 * item.scale, 8, 8]} />
-              <meshStandardMaterial color="#2d5a1d" />
-            </mesh>
-          );
-        }
-      })}
-      
-      <mesh position={[-7, 0.5, (scrollZ % 100) - 50]} castShadow>
-        <boxGeometry args={[1, 3, 0.3]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      <mesh position={[7, 0.5, (scrollZ % 100) - 50]} castShadow>
-        <boxGeometry args={[1, 3, 0.3]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      
-      <mesh position={[-7, 0.5, (scrollZ % 100) - 100]} castShadow>
-        <boxGeometry args={[1, 3, 0.3]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      <mesh position={[7, 0.5, (scrollZ % 100) - 100]} castShadow>
-        <boxGeometry args={[1, 3, 0.3]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-    </>
-  );
-}
-
-function GameCamera({ scrollZ }: { scrollZ: number }) {
+function GameCamera() {
   const { camera } = useThree();
   
   useFrame(() => {
@@ -460,16 +482,14 @@ export function EndlessRunnerApp() {
     isConnected, 
     walletAddress, 
     kicksBalance, 
-    sendKicksToHouse, 
     refreshBalance,
     transactionState,
-    resetTransactionState,
     signClaimMessage,
     requestKicksFromHouse,
   } = useWallet();
   
   const [, setLocation] = useLocation();
-  const [phase, setPhase] = useState<'menu' | 'playing' | 'ended'>('menu');
+  const [phase, setPhase] = useState<'loading' | 'menu' | 'playing' | 'ended'>('loading');
   const [isWagering, setIsWagering] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [displayKicks, setDisplayKicks] = useState(0);
@@ -480,8 +500,8 @@ export function EndlessRunnerApp() {
   const [scrollZ, setScrollZ] = useState(0);
   const [currentRunId, setCurrentRunId] = useState<number | null>(null);
   const [hasServerRun, setHasServerRun] = useState(false);
-  const [depositTxHash, setDepositTxHash] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   
   const gameStateRef = useRef<GameState>({
     playerLane: 1,
@@ -504,6 +524,22 @@ export function EndlessRunnerApp() {
   
   const animationRef = useRef<number>();
   const idCounter = useRef(0);
+  
+  useEffect(() => {
+    preloadAllTextures()
+      .then(() => {
+        setLoadingProgress(100);
+        setPhase('menu');
+      })
+      .catch((err) => {
+        console.error('Failed to load textures:', err);
+        setPhase('menu');
+      });
+    
+    return () => {
+      disposeAllTextures();
+    };
+  }, []);
   
   useEffect(() => {
     setDisplayKicks(parseFloat(kicksBalance) || 0);
@@ -842,7 +878,7 @@ export function EndlessRunnerApp() {
 
   return (
     <KeyboardControls map={keyMap}>
-      <div className="w-full h-screen bg-gradient-to-b from-sky-400 to-sky-600 relative overflow-hidden">
+      <div className="w-full h-screen bg-gradient-to-b from-red-900 to-orange-800 relative overflow-hidden">
         <div className="absolute top-4 left-4 z-50 flex gap-2">
           <Button
             variant="ghost"
@@ -886,9 +922,9 @@ export function EndlessRunnerApp() {
         
         <Canvas shadows camera={{ position: [0, 5, 8], fov: 75 }}>
           <Suspense fallback={null}>
-            {phase === 'playing' && (
+            {(phase === 'playing' || phase === 'menu' || phase === 'ended') && (
               <>
-                <GameCamera scrollZ={scrollZ} />
+                <GameCamera />
                 <GameScene 
                   gameState={gameStateRef} 
                   scrollZ={scrollZ}
@@ -898,22 +934,24 @@ export function EndlessRunnerApp() {
                 />
               </>
             )}
-            {phase !== 'playing' && (
-              <>
-                <ambientLight intensity={0.5} />
-                <directionalLight position={[10, 20, 10]} intensity={1} />
-                <Ground />
-                <Track />
-              </>
-            )}
           </Suspense>
         </Canvas>
+        
+        {phase === 'loading' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-40">
+            <div className="text-center p-8">
+              <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Loading Assets...</h2>
+              <p className="text-gray-400">Preparing volcanic cave environment</p>
+            </div>
+          </div>
+        )}
         
         {phase === 'menu' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
             <div className="text-center p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md">
-              <h1 className="text-4xl font-bold text-white mb-2">🏃 ENDLESS RUNNER</h1>
-              <p className="text-gray-300 mb-2">Dodge obstacles, collect KICKS coins!</p>
+              <h1 className="text-4xl font-bold text-white mb-2">🔥 LAVA RUN</h1>
+              <p className="text-gray-300 mb-2">Dash through the volcanic cave!</p>
               <p className="text-yellow-400 text-sm mb-6">Free to play - Collect coins and claim your rewards!</p>
               <Button
                 onClick={handleStartGame}
@@ -969,19 +1007,19 @@ export function EndlessRunnerApp() {
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-4">
             <Button
               onClick={() => handleSwipe('left')}
-              className="w-20 h-16 text-2xl bg-blue-500/80 hover:bg-blue-600"
+              className="w-20 h-16 text-2xl bg-orange-500/80 hover:bg-orange-600"
             >
               ←
             </Button>
             <Button
               onClick={() => handleSwipe('up')}
-              className="w-20 h-16 text-2xl bg-green-500/80 hover:bg-green-600"
+              className="w-20 h-16 text-2xl bg-red-500/80 hover:bg-red-600"
             >
               ↑
             </Button>
             <Button
               onClick={() => handleSwipe('right')}
-              className="w-20 h-16 text-2xl bg-blue-500/80 hover:bg-blue-600"
+              className="w-20 h-16 text-2xl bg-orange-500/80 hover:bg-orange-600"
             >
               →
             </Button>
