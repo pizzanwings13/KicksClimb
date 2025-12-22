@@ -350,11 +350,11 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
         <meshBasicMaterial color="#88ccff" transparent opacity={0.7} />
       </mesh>
       
-      {/* Back seat characters */}
-      <sprite position={[-0.25, 0.95, -0.4]} scale={[0.45, 0.45, 1]}>
+      {/* Back seat characters - inside car cabin */}
+      <sprite position={[-0.28, 0.72, -0.55]} scale={[0.35, 0.35, 1]}>
         <spriteMaterial map={thorTexture} />
       </sprite>
-      <sprite position={[0.25, 0.95, -0.4]} scale={[0.45, 0.45, 1]}>
+      <sprite position={[0.28, 0.72, -0.55]} scale={[0.35, 0.35, 1]}>
         <spriteMaterial map={beanieTexture} />
       </sprite>
       
