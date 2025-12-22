@@ -28,32 +28,32 @@ const DIFFICULTY_PRESETS: DifficultyPreset[] = [
   {
     name: 'Easy',
     color: '#22cc55',
-    initialSpeed: 0.12,
-    maxSpeed: 0.25,
-    speedIncrease: 0.0002,
+    initialSpeed: 0.22,
+    maxSpeed: 0.4,
+    speedIncrease: 0.0003,
     obstacleSpacing: 14,
     doubleObstacleChance: 0.15,
-    finishDistance: 80,
+    finishDistance: 200,
   },
   {
     name: 'Normal',
     color: '#ffaa00',
-    initialSpeed: 0.15,
-    maxSpeed: 0.32,
-    speedIncrease: 0.0003,
+    initialSpeed: 0.28,
+    maxSpeed: 0.5,
+    speedIncrease: 0.0004,
     obstacleSpacing: 11,
     doubleObstacleChance: 0.3,
-    finishDistance: 120,
+    finishDistance: 300,
   },
   {
     name: 'Hard',
     color: '#ff4444',
-    initialSpeed: 0.18,
-    maxSpeed: 0.4,
-    speedIncrease: 0.0004,
+    initialSpeed: 0.35,
+    maxSpeed: 0.6,
+    speedIncrease: 0.0005,
     obstacleSpacing: 8,
     doubleObstacleChance: 0.45,
-    finishDistance: 180,
+    finishDistance: 400,
   },
 ];
 
@@ -1207,13 +1207,13 @@ export function EndlessRunnerApp() {
               <div className="text-white"><span className="font-bold text-yellow-300">+{displayCoins}</span><span className="hidden sm:inline"> Coins</span></div>
             </div>
             
-            <Button
+            <button
               onClick={handleCashout}
               disabled={isClaiming || displayCoins === 0}
-              className="absolute top-16 sm:top-20 right-2 sm:right-4 z-50 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm sm:text-xl px-3 sm:px-6 py-2 sm:py-3 touch-manipulation"
+              className="absolute top-16 sm:top-20 right-2 sm:right-4 z-50 bg-gradient-to-r from-green-500 to-emerald-500 active:from-green-700 active:to-emerald-700 active:scale-95 text-white font-bold text-sm sm:text-xl px-3 sm:px-6 py-2 sm:py-3 rounded-xl border-2 border-green-400 shadow-lg shadow-green-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isClaiming ? '...' : `${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
-            </Button>
+            </button>
           </>
         )}
         
@@ -1253,13 +1253,13 @@ export function EndlessRunnerApp() {
               <div className="text-xs sm:text-sm text-gray-400 mb-4">
                 Swipe or use buttons to control
               </div>
-              <Button
+              <button
                 onClick={handleStartGame}
                 disabled={isWagering}
-                className="text-lg sm:text-xl px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 active:from-cyan-700 active:to-blue-700 touch-manipulation"
+                className="text-lg sm:text-xl px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-cyan-500 to-blue-500 active:from-cyan-700 active:to-blue-700 active:scale-95 text-white font-bold rounded-xl border-2 border-cyan-400 shadow-lg shadow-cyan-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2" /> {isWagering ? 'Starting...' : 'START RACE'}
-              </Button>
+              </button>
             </div>
           </div>
         )}
@@ -1274,29 +1274,28 @@ export function EndlessRunnerApp() {
               </p>
               <div className="flex flex-col gap-3">
                 {displayCoins > 0 && !endMessage.includes('Claimed') && (
-                  <Button
+                  <button
                     onClick={handleClaimAfterCrash}
                     disabled={isClaiming}
-                    className="w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700 touch-manipulation text-sm sm:text-base"
+                    className="w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 active:from-green-700 active:to-emerald-700 active:scale-95 text-white font-bold text-sm sm:text-base rounded-xl border-2 border-green-400 shadow-lg shadow-green-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isClaiming ? 'Claiming...' : `CLAIM ${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
-                  </Button>
+                  </button>
                 )}
                 <div className="flex gap-2 sm:gap-4 justify-center">
-                  <Button
+                  <button
                     onClick={handleStartGame}
                     disabled={isWagering}
-                    className="px-4 sm:px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 active:from-orange-700 active:to-red-700 touch-manipulation text-sm sm:text-base"
+                    className="px-4 sm:px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 active:from-orange-700 active:to-red-700 active:scale-95 text-white font-bold text-sm sm:text-base rounded-xl border-2 border-orange-400 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Play </span>Again
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     onClick={() => setLocation('/')}
-                    variant="outline"
-                    className="px-4 sm:px-6 py-3 touch-manipulation text-sm sm:text-base"
+                    className="px-4 sm:px-6 py-3 bg-slate-700 active:bg-slate-800 active:scale-95 text-white font-bold text-sm sm:text-base rounded-xl border-2 border-slate-500 transition-all"
                   >
                     <span className="hidden sm:inline">Back to </span>Games
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1305,24 +1304,24 @@ export function EndlessRunnerApp() {
         
         {phase === 'playing' && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-3 sm:gap-4">
-            <Button
+            <button
               onClick={() => handleSwipe('left')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 hover:bg-orange-600 active:bg-orange-700 active:scale-95 transition-transform touch-manipulation"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 active:bg-orange-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
             >
               ←
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => handleSwipe('up')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-cyan-500/90 hover:bg-cyan-600 active:bg-cyan-700 active:scale-95 transition-transform touch-manipulation"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-cyan-500/90 active:bg-cyan-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
             >
               ↑
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => handleSwipe('right')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 hover:bg-orange-600 active:bg-orange-700 active:scale-95 transition-transform touch-manipulation"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 active:bg-orange-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
             >
               →
-            </Button>
+            </button>
           </div>
         )}
         
