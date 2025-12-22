@@ -28,31 +28,31 @@ const DIFFICULTY_PRESETS: DifficultyPreset[] = [
   {
     name: 'Easy',
     color: '#22cc55',
-    initialSpeed: 0.06,
-    maxSpeed: 0.15,
-    speedIncrease: 0.0001,
-    obstacleSpacing: 12,
+    initialSpeed: 0.12,
+    maxSpeed: 0.25,
+    speedIncrease: 0.0002,
+    obstacleSpacing: 14,
     doubleObstacleChance: 0.15,
     finishDistance: 80,
   },
   {
     name: 'Normal',
     color: '#ffaa00',
-    initialSpeed: 0.08,
-    maxSpeed: 0.22,
-    speedIncrease: 0.0002,
-    obstacleSpacing: 9,
+    initialSpeed: 0.15,
+    maxSpeed: 0.32,
+    speedIncrease: 0.0003,
+    obstacleSpacing: 11,
     doubleObstacleChance: 0.3,
     finishDistance: 120,
   },
   {
     name: 'Hard',
     color: '#ff4444',
-    initialSpeed: 0.12,
-    maxSpeed: 0.32,
+    initialSpeed: 0.18,
+    maxSpeed: 0.4,
     speedIncrease: 0.0004,
-    obstacleSpacing: 6,
-    doubleObstacleChance: 0.5,
+    obstacleSpacing: 8,
+    doubleObstacleChance: 0.45,
     finishDistance: 180,
   },
 ];
@@ -375,27 +375,62 @@ interface ObstacleProps {
   scrollZ: number;
 }
 
-function TrafficCone({ obstacle, scrollZ }: ObstacleProps) {
+const OBSTACLE_CAR_COLORS = ['#3366ff', '#ffcc00', '#00cc66', '#cc66ff', '#ff6633'];
+
+function ObstacleCar({ obstacle, scrollZ }: ObstacleProps) {
   const z = -(obstacle.z - scrollZ);
   if (z > 5 || z < -60) return null;
   
+  const colorIndex = obstacle.id % OBSTACLE_CAR_COLORS.length;
+  const carColor = OBSTACLE_CAR_COLORS[colorIndex];
+  
   return (
     <group position={[obstacle.x, 0, z]}>
-      <mesh position={[0, 0.05, 0]}>
-        <boxGeometry args={[0.6, 0.1, 0.6]} />
-        <meshStandardMaterial color="#111111" />
+      <pointLight position={[0, 1.5, 0]} color="#ffffff" intensity={0.8} distance={5} />
+      
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <boxGeometry args={[1.1, 0.35, 2]} />
+        <meshStandardMaterial color={carColor} emissive={carColor} emissiveIntensity={0.2} metalness={0.5} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.45, 0]}>
-        <coneGeometry args={[0.25, 0.7, 8]} />
-        <meshStandardMaterial color="#ff6600" emissive="#ff4400" emissiveIntensity={0.3} />
+      
+      <mesh position={[0, 0.6, -0.15]} castShadow>
+        <boxGeometry args={[0.95, 0.35, 1.1]} />
+        <meshStandardMaterial color={carColor} emissive={carColor} emissiveIntensity={0.2} metalness={0.5} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.35, 0.26]}>
-        <boxGeometry args={[0.3, 0.15, 0.02]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+      
+      <mesh position={[0, 0.6, 0]}>
+        <boxGeometry args={[0.9, 0.3, 0.8]} />
+        <meshStandardMaterial color="#334455" emissive="#223344" emissiveIntensity={0.1} metalness={0.9} roughness={0.1} transparent opacity={0.6} />
       </mesh>
-      <mesh position={[0, 0.55, 0.26]}>
-        <boxGeometry args={[0.2, 0.1, 0.02]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+      
+      <mesh position={[-0.45, 0.1, 0.65]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[0.45, 0.1, 0.65]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[-0.45, 0.1, -0.65]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[0.45, 0.1, -0.65]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.12, 12]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      
+      <mesh position={[0, 0.3, 1.05]}>
+        <boxGeometry args={[0.7, 0.12, 0.05]} />
+        <meshStandardMaterial color="#ffff88" emissive="#ffff00" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[-0.3, 0.3, -1.05]}>
+        <boxGeometry args={[0.18, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={1} />
+      </mesh>
+      <mesh position={[0.3, 0.3, -1.05]}>
+        <boxGeometry args={[0.18, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={1} />
       </mesh>
     </group>
   );
@@ -573,7 +608,7 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       <FinishLine distance={gs.finishDistance} scrollZ={scrollZ} />
       
       {gs.obstacles.map(obs => (
-        <TrafficCone key={obs.id} obstacle={obs} scrollZ={scrollZ} />
+        <ObstacleCar key={obs.id} obstacle={obs} scrollZ={scrollZ} />
       ))}
       
       {gs.coins.map(coin => (
