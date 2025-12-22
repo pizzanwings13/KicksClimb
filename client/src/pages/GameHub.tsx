@@ -74,8 +74,8 @@ const GAMES: GameCardProps[] = [
     available: true,
   },
   {
-    title: "Endless Runner",
-    description: "Run through lanes, jump over obstacles, collect coins & carrots. How far can you go?",
+    title: "Night Drive",
+    description: "Race through the neon city at night! Dodge traffic, collect coins & carrots, reach the finish line!",
     icon: <Footprints className="w-6 h-6 text-white" />,
     route: "/endless-runner",
     gradient: "bg-gradient-to-br from-sky-500 to-blue-600",
