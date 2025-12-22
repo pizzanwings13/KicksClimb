@@ -95,9 +95,6 @@ const userAchievements = pgTable("user_achievements", {
 
 const rabbitRushInventories = pgTable("rabbit_rush_inventories", {
   id: serial("id").primaryKey(),
-  oddseed: text("oddseed").default("").notNull(),
-  oddseedHash: text("oddseed_hash").default("").notNull(),
-  oddResult: integer("odd_result"),
   userId: integer("user_id").notNull().references(() => users.id).unique(),
   ownedShips: text("owned_ships").default('["blaze","luna"]').notNull(),
   ownedWeapons: text("owned_weapons").default('["laser"]').notNull(),
@@ -117,9 +114,6 @@ const rabbitRushInventories = pgTable("rabbit_rush_inventories", {
 
 const rabbitRushRuns = pgTable("rabbit_rush_runs", {
   id: serial("id").primaryKey(),
-  oddseed: text("oddseed").default("").notNull(),
-  oddseedHash: text("oddseed_hash").default("").notNull(),
-  oddResult: integer("odd_result"),
   userId: integer("user_id").notNull().references(() => users.id),
   wager: decimal("wager", { precision: 36, scale: 18 }).notNull(),
   finalMultiplier: decimal("final_multiplier", { precision: 10, scale: 2 }),
