@@ -1186,8 +1186,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Already claimed" });
       }
       
-      const coinsBonus = run.coinsCollected || 0;
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      // Use the stored payout from run/end (already includes multiplier calculation)
+      const storedPayout = parseFloat(run.payout || "0");
+      const expectedPayout = Math.floor(storedPayout);
+      console.log(`[Rabbit Rush Nonce] Using stored payout: ${expectedPayout} from run ${runId}`);
       
       if (expectedPayout <= 0) {
         return res.status(400).json({ error: "No payout available" });
@@ -1236,8 +1238,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Run must be won to claim" });
       }
       
-      const coinsBonus = run.coinsCollected || 0;
-      const expectedPayout = Math.floor(parseFloat(run.wager) * parseFloat(run.finalMultiplier || "1")) + coinsBonus;
+      // Use the stored payout from run/end (already includes multiplier calculation)
+      const storedPayout = parseFloat(run.payout || "0");
+      const expectedPayout = Math.floor(storedPayout);
+      console.log(`[Rabbit Rush Claim] Using stored payout: ${expectedPayout} for run ${runId}`);
       
       if (expectedPayout <= 0) {
         return res.status(400).json({ error: "No payout available" });
