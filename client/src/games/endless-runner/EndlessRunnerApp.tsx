@@ -758,6 +758,35 @@ export function EndlessRunnerApp() {
   
   const animationRef = useRef<number>();
   const idCounter = useRef(0);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    bgMusicRef.current = new Audio('/sounds/background.mp3');
+    bgMusicRef.current.loop = true;
+    bgMusicRef.current.volume = 0.3;
+    
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+        bgMusicRef.current = null;
+      }
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (bgMusicRef.current) {
+      bgMusicRef.current.muted = muted;
+    }
+  }, [muted]);
+  
+  useEffect(() => {
+    if (phase === 'playing' && bgMusicRef.current) {
+      bgMusicRef.current.play().catch(() => {});
+    } else if (phase !== 'playing' && bgMusicRef.current) {
+      bgMusicRef.current.pause();
+      bgMusicRef.current.currentTime = 0;
+    }
+  }, [phase]);
   
   useEffect(() => {
     setPhase('menu');
