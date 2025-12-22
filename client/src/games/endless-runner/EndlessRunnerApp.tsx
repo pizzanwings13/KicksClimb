@@ -140,7 +140,9 @@ interface AnimatedBackgroundProps {
 }
 
 function AnimatedBackground({ speed }: AnimatedBackgroundProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const centerRef = useRef<THREE.Mesh>(null);
+  const leftRef = useRef<THREE.Mesh>(null);
+  const rightRef = useRef<THREE.Mesh>(null);
   const frameRef = useRef(0);
   const lastTimeRef = useRef(0);
   const speedNormalized = Math.max(0.3, speed / MAX_SPEED);
@@ -148,26 +150,50 @@ function AnimatedBackground({ speed }: AnimatedBackgroundProps) {
   const frameInterval = 1000 / dynamicFPS;
   
   useFrame(({ clock }) => {
-    if (!meshRef.current || sceneTextureCache.length === 0) return;
+    if (sceneTextureCache.length === 0) return;
     
     const time = clock.getElapsedTime() * 1000;
     if (time - lastTimeRef.current >= frameInterval) {
       frameRef.current = (frameRef.current + 1) % sceneTextureCache.length;
       lastTimeRef.current = time;
       
-      const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-      mat.map = sceneTextureCache[frameRef.current];
-      mat.needsUpdate = true;
+      const texture = sceneTextureCache[frameRef.current];
+      
+      if (centerRef.current) {
+        const mat = centerRef.current.material as THREE.MeshBasicMaterial;
+        mat.map = texture;
+        mat.needsUpdate = true;
+      }
+      if (leftRef.current) {
+        const mat = leftRef.current.material as THREE.MeshBasicMaterial;
+        mat.map = texture;
+        mat.needsUpdate = true;
+      }
+      if (rightRef.current) {
+        const mat = rightRef.current.material as THREE.MeshBasicMaterial;
+        mat.map = texture;
+        mat.needsUpdate = true;
+      }
     }
   });
 
   if (sceneTextureCache.length === 0) return null;
 
   return (
-    <mesh ref={meshRef} position={[0, 8, -30]}>
-      <planeGeometry args={[50, 35]} />
-      <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
-    </mesh>
+    <group>
+      <mesh ref={centerRef} position={[0, 8, -25]}>
+        <planeGeometry args={[40, 30]} />
+        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
+      </mesh>
+      <mesh ref={leftRef} position={[-22, 8, -15]} rotation={[0, Math.PI / 4, 0]}>
+        <planeGeometry args={[30, 30]} />
+        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
+      </mesh>
+      <mesh ref={rightRef} position={[22, 8, -15]} rotation={[0, -Math.PI / 4, 0]}>
+        <planeGeometry args={[30, 30]} />
+        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
+      </mesh>
+    </group>
   );
 }
 
