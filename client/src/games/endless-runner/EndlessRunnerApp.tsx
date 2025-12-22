@@ -135,11 +135,17 @@ function disposeAllTextures(): void {
   textureLoadAttempted = false;
 }
 
-function AnimatedBackground() {
+interface AnimatedBackgroundProps {
+  speed: number;
+}
+
+function AnimatedBackground({ speed }: AnimatedBackgroundProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const frameRef = useRef(0);
   const lastTimeRef = useRef(0);
-  const frameInterval = 1000 / BG_FPS;
+  const speedNormalized = Math.max(0.3, speed / MAX_SPEED);
+  const dynamicFPS = BG_FPS * speedNormalized * 1.5;
+  const frameInterval = 1000 / dynamicFPS;
   
   useFrame(({ clock }) => {
     if (!meshRef.current || sceneTextureCache.length === 0) return;
@@ -158,8 +164,8 @@ function AnimatedBackground() {
   if (sceneTextureCache.length === 0) return null;
 
   return (
-    <mesh ref={meshRef} position={[0, 5, -40]}>
-      <planeGeometry args={[60, 40]} />
+    <mesh ref={meshRef} position={[0, 8, -30]}>
+      <planeGeometry args={[50, 35]} />
       <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
     </mesh>
   );
@@ -214,22 +220,25 @@ interface SpritePlayerProps {
   lane: number;
   y: number;
   isRunning: boolean;
+  speed: number;
 }
 
-function SpritePlayer({ lane, y, isRunning }: SpritePlayerProps) {
+function SpritePlayer({ lane, y, isRunning, speed }: SpritePlayerProps) {
   const spriteRef = useRef<THREE.Sprite>(null);
   const frameRef = useRef(0);
   const lastTimeRef = useRef(0);
   const targetX = LANES[lane];
   const currentX = useRef(targetX);
-  const frameInterval = 1000 / CHARACTER_FPS;
+  const speedNormalized = Math.max(0.4, speed / MAX_SPEED);
+  const dynamicFPS = CHARACTER_FPS * speedNormalized;
+  const frameInterval = 1000 / dynamicFPS;
   
   useFrame(({ clock }) => {
     if (!spriteRef.current || characterTextureCache.length === 0) return;
     
     currentX.current = THREE.MathUtils.lerp(currentX.current, targetX, 0.2);
     spriteRef.current.position.x = currentX.current;
-    spriteRef.current.position.y = y + 1.5;
+    spriteRef.current.position.y = y + 1.2;
     
     if (isRunning) {
       const time = clock.getElapsedTime() * 1000;
@@ -247,7 +256,7 @@ function SpritePlayer({ lane, y, isRunning }: SpritePlayerProps) {
   if (characterTextureCache.length === 0) return null;
 
   return (
-    <sprite ref={spriteRef} position={[targetX, y + 1.5, 0]} scale={[3, 3, 1]}>
+    <sprite ref={spriteRef} position={[targetX, y + 1.2, 0]} scale={[2.5, 2.5, 1]}>
       <spriteMaterial 
         map={characterTextureCache[0]} 
         transparent={true} 
@@ -445,11 +454,11 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       <directionalLight position={[10, 20, 10]} intensity={0.8} color="#ffaa77" castShadow />
       <pointLight position={[0, 2, 0]} color="#ff4400" intensity={1} distance={20} />
       
-      <AnimatedBackground />
+      <AnimatedBackground speed={gs.speed} />
       <Ground />
       <LavaTrack />
       
-      <SpritePlayer lane={gs.playerLane} y={gs.playerY} isRunning={gs.gameActive} />
+      <SpritePlayer lane={gs.playerLane} y={gs.playerY} isRunning={gs.gameActive} speed={gs.speed} />
       
       {gs.obstacles.map(obs => (
         <LavaRock key={obs.id} obstacle={obs} scrollZ={scrollZ} />
