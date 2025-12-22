@@ -640,6 +640,7 @@ export function EndlessRunnerApp() {
     kicksBalance, 
     refreshBalance,
     transactionState,
+    signMessage,
     signClaimMessage,
     requestKicksFromHouse,
   } = useWallet();
@@ -962,10 +963,19 @@ export function EndlessRunnerApp() {
     }
     
     try {
+      const authMessage = `Request Night Drive claim nonce for run ${currentRunId}`;
+      const authSignature = await signMessage(authMessage);
+      if (!authSignature) {
+        setEndMessage(`Signature cancelled. Collect: ${payout} KICKS`);
+        setIsClaiming(false);
+        setPhase('ended');
+        return;
+      }
+      
       const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress }),
+        body: JSON.stringify({ walletAddress, authSignature }),
       });
       
       if (!nonceRes.ok) throw new Error('Failed to get nonce');
@@ -994,7 +1004,7 @@ export function EndlessRunnerApp() {
     
     setIsClaiming(false);
     setPhase('ended');
-  }, [hasServerRun, currentRunId, walletAddress, isClaiming, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+  }, [hasServerRun, currentRunId, walletAddress, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleClaimAfterCrash = useCallback(async () => {
     const gs = gameStateRef.current;
@@ -1008,10 +1018,18 @@ export function EndlessRunnerApp() {
     setIsClaiming(true);
     
     try {
+      const authMessage = `Request Night Drive claim nonce for run ${currentRunId}`;
+      const authSignature = await signMessage(authMessage);
+      if (!authSignature) {
+        setEndMessage(`Signature cancelled. Unclaimed: ${payout} KICKS`);
+        setIsClaiming(false);
+        return;
+      }
+      
       const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress }),
+        body: JSON.stringify({ walletAddress, authSignature }),
       });
       
       if (!nonceRes.ok) throw new Error('Failed to get nonce');
@@ -1038,7 +1056,7 @@ export function EndlessRunnerApp() {
     }
     
     setIsClaiming(false);
-  }, [currentRunId, walletAddress, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+  }, [currentRunId, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleSwipe = (direction: 'left' | 'right' | 'up') => {
     if (phase !== 'playing') return;
