@@ -12,14 +12,50 @@ const LANE_WIDTH = 2;
 const PLAYER_SIZE = 1;
 const JUMP_FORCE = 0.35;
 const GRAVITY = 0.018;
-const INITIAL_SPEED = 0.08;
-const MAX_SPEED = 0.22;
-const SPEED_INCREASE = 0.0002;
 
-const SCENE_FRAME_COUNT = 56;
-const CHARACTER_FRAME_COUNT = 28;
-const BG_FPS = 12;
-const CHARACTER_FPS = 20;
+interface DifficultyPreset {
+  name: string;
+  color: string;
+  initialSpeed: number;
+  maxSpeed: number;
+  speedIncrease: number;
+  obstacleSpacing: number;
+  doubleObstacleChance: number;
+  finishDistance: number;
+}
+
+const DIFFICULTY_PRESETS: DifficultyPreset[] = [
+  {
+    name: 'Easy',
+    color: '#22cc55',
+    initialSpeed: 0.06,
+    maxSpeed: 0.15,
+    speedIncrease: 0.0001,
+    obstacleSpacing: 12,
+    doubleObstacleChance: 0.15,
+    finishDistance: 80,
+  },
+  {
+    name: 'Normal',
+    color: '#ffaa00',
+    initialSpeed: 0.08,
+    maxSpeed: 0.22,
+    speedIncrease: 0.0002,
+    obstacleSpacing: 9,
+    doubleObstacleChance: 0.3,
+    finishDistance: 120,
+  },
+  {
+    name: 'Hard',
+    color: '#ff4444',
+    initialSpeed: 0.12,
+    maxSpeed: 0.32,
+    speedIncrease: 0.0004,
+    obstacleSpacing: 6,
+    doubleObstacleChance: 0.5,
+    finishDistance: 180,
+  },
+];
 
 enum Controls {
   left = 'left',
@@ -44,6 +80,9 @@ interface GameState {
   lastObstacleZ: number;
   lastCoinZ: number;
   lastCarrotZ: number;
+  difficulty: DifficultyPreset;
+  finishDistance: number;
+  finished: boolean;
 }
 
 interface Obstacle {
@@ -71,169 +110,186 @@ interface Carrot {
   mult: number;
 }
 
-const sceneTextureCache: THREE.Texture[] = [];
-const characterTextureCache: THREE.Texture[] = [];
-let texturesLoaded = false;
-let textureLoadAttempted = false;
-
-async function preloadAllTextures(): Promise<void> {
-  if (texturesLoaded || textureLoadAttempted) return;
-  textureLoadAttempted = true;
+function CityBuilding({ position, height, width }: { position: [number, number, number]; height: number; width: number }) {
+  const windowRows = Math.floor(height / 1.2);
+  const windowCols = Math.floor(width / 0.8);
   
-  const loader = new THREE.TextureLoader();
-  
-  const loadTexture = (path: string): Promise<THREE.Texture | null> => {
-    return new Promise((resolve) => {
-      loader.load(
-        path,
-        (tex) => {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.minFilter = THREE.LinearFilter;
-          tex.magFilter = THREE.LinearFilter;
-          resolve(tex);
-        },
-        undefined,
-        (err) => {
-          console.warn(`Failed to load texture: ${path}`, err);
-          resolve(null);
+  const windows = useMemo(() => {
+    const wins = [];
+    for (let row = 0; row < windowRows; row++) {
+      for (let col = 0; col < windowCols; col++) {
+        if (Math.random() > 0.3) {
+          wins.push({
+            x: (col - windowCols / 2 + 0.5) * 0.7,
+            y: (row - windowRows / 2 + 0.5) * 1.1 + height / 2,
+            lit: Math.random() > 0.4,
+          });
         }
-      );
-    });
-  };
-  
-  const scenePromises = [];
-  for (let i = 0; i < SCENE_FRAME_COUNT; i++) {
-    const frameNum = String(i).padStart(5, '0');
-    scenePromises.push(loadTexture(`/sprites/scene/${frameNum}.png`));
-  }
-  
-  const charPromises = [];
-  for (let i = 1; i <= CHARACTER_FRAME_COUNT; i++) {
-    const frameNum = String(i).padStart(4, '0');
-    charPromises.push(loadTexture(`/sprites/character/${frameNum}.png`));
-  }
-  
-  const [sceneTex, charTex] = await Promise.all([
-    Promise.all(scenePromises),
-    Promise.all(charPromises),
-  ]);
-  
-  const validSceneTex = sceneTex.filter((t): t is THREE.Texture => t !== null);
-  const validCharTex = charTex.filter((t): t is THREE.Texture => t !== null);
-  
-  sceneTextureCache.push(...validSceneTex);
-  characterTextureCache.push(...validCharTex);
-  texturesLoaded = validSceneTex.length > 0 || validCharTex.length > 0;
-}
-
-function disposeAllTextures(): void {
-  sceneTextureCache.forEach((tex) => tex.dispose());
-  characterTextureCache.forEach((tex) => tex.dispose());
-  sceneTextureCache.length = 0;
-  characterTextureCache.length = 0;
-  texturesLoaded = false;
-  textureLoadAttempted = false;
-}
-
-interface AnimatedBackgroundProps {
-  speed: number;
-}
-
-function AnimatedBackground({ speed }: AnimatedBackgroundProps) {
-  const centerRef = useRef<THREE.Mesh>(null);
-  const leftRef = useRef<THREE.Mesh>(null);
-  const rightRef = useRef<THREE.Mesh>(null);
-  const frameRef = useRef(0);
-  const lastTimeRef = useRef(0);
-  const speedNormalized = Math.max(0.3, speed / MAX_SPEED);
-  const dynamicFPS = BG_FPS * speedNormalized * 1.5;
-  const frameInterval = 1000 / dynamicFPS;
-  
-  useFrame(({ clock }) => {
-    if (sceneTextureCache.length === 0) return;
-    
-    const time = clock.getElapsedTime() * 1000;
-    if (time - lastTimeRef.current >= frameInterval) {
-      frameRef.current = (frameRef.current + 1) % sceneTextureCache.length;
-      lastTimeRef.current = time;
-      
-      const texture = sceneTextureCache[frameRef.current];
-      
-      if (centerRef.current) {
-        const mat = centerRef.current.material as THREE.MeshBasicMaterial;
-        mat.map = texture;
-        mat.needsUpdate = true;
-      }
-      if (leftRef.current) {
-        const mat = leftRef.current.material as THREE.MeshBasicMaterial;
-        mat.map = texture;
-        mat.needsUpdate = true;
-      }
-      if (rightRef.current) {
-        const mat = rightRef.current.material as THREE.MeshBasicMaterial;
-        mat.map = texture;
-        mat.needsUpdate = true;
       }
     }
-  });
+    return wins;
+  }, [windowRows, windowCols, height]);
 
-  if (sceneTextureCache.length === 0) return null;
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[width, height, width * 0.8]} />
+        <meshStandardMaterial color="#1a1a2e" />
+      </mesh>
+      {windows.map((win, idx) => (
+        <mesh key={idx} position={[win.x, win.y - height / 2, width * 0.41]}>
+          <planeGeometry args={[0.5, 0.8]} />
+          <meshStandardMaterial
+            color={win.lit ? '#ffee88' : '#334455'}
+            emissive={win.lit ? '#ffcc44' : '#000000'}
+            emissiveIntensity={win.lit ? 0.8 : 0}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function CityBackground() {
+  const leftBuildings = useMemo(() => {
+    const buildings = [];
+    for (let i = 0; i < 12; i++) {
+      buildings.push({
+        z: -i * 12 - 5,
+        height: 8 + Math.random() * 12,
+        width: 3 + Math.random() * 2,
+      });
+    }
+    return buildings;
+  }, []);
+
+  const rightBuildings = useMemo(() => {
+    const buildings = [];
+    for (let i = 0; i < 12; i++) {
+      buildings.push({
+        z: -i * 12 - 8,
+        height: 8 + Math.random() * 12,
+        width: 3 + Math.random() * 2,
+      });
+    }
+    return buildings;
+  }, []);
 
   return (
     <group>
-      <mesh ref={leftRef} position={[-18, 6, -10]} rotation={[0, Math.PI / 3, 0]}>
-        <planeGeometry args={[25, 25]} />
-        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
+      {leftBuildings.map((b, idx) => (
+        <CityBuilding
+          key={`left-${idx}`}
+          position={[-10 - b.width / 2, b.height / 2 - 0.5, b.z]}
+          height={b.height}
+          width={b.width}
+        />
+      ))}
+      {rightBuildings.map((b, idx) => (
+        <CityBuilding
+          key={`right-${idx}`}
+          position={[10 + b.width / 2, b.height / 2 - 0.5, b.z]}
+          height={b.height}
+          width={b.width}
+        />
+      ))}
+      <mesh position={[0, 15, -80]}>
+        <planeGeometry args={[120, 40]} />
+        <meshBasicMaterial color="#0a0a1a" />
       </mesh>
-      <mesh ref={rightRef} position={[18, 6, -10]} rotation={[0, -Math.PI / 3, 0]}>
-        <planeGeometry args={[25, 25]} />
-        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
+      {Array.from({ length: 50 }).map((_, i) => (
+        <mesh key={`star-${i}`} position={[(Math.random() - 0.5) * 100, 10 + Math.random() * 20, -79]}>
+          <circleGeometry args={[0.1 + Math.random() * 0.1, 8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+      ))}
+      <mesh position={[30, 25, -78]}>
+        <circleGeometry args={[3, 32]} />
+        <meshBasicMaterial color="#ffffee" />
       </mesh>
     </group>
   );
 }
 
-function Ground() {
+function CityStreet() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-      <planeGeometry args={[20, 200]} />
-      <meshStandardMaterial color="#4a2c1a" />
-    </mesh>
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, -50]} receiveShadow>
+        <planeGeometry args={[14, 200]} />
+        <meshStandardMaterial color="#2a2a2a" />
+      </mesh>
+      {Array.from({ length: 40 }).map((_, idx) => (
+        <mesh key={`line-${idx}`} position={[0, -0.48, -idx * 5]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.2, 2]} />
+          <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.3} />
+        </mesh>
+      ))}
+      <mesh position={[-7.5, -0.48, -50]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.15, 200]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[7.5, -0.48, -50]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.15, 200]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      {Array.from({ length: 10 }).map((_, idx) => (
+        <group key={`lamp-${idx}`}>
+          <mesh position={[-8, 3, -idx * 15 - 5]}>
+            <cylinderGeometry args={[0.1, 0.1, 6, 8]} />
+            <meshStandardMaterial color="#444444" />
+          </mesh>
+          <pointLight position={[-8, 5.5, -idx * 15 - 5]} color="#ffaa66" intensity={0.5} distance={15} />
+          <mesh position={[8, 3, -idx * 15 - 10]}>
+            <cylinderGeometry args={[0.1, 0.1, 6, 8]} />
+            <meshStandardMaterial color="#444444" />
+          </mesh>
+          <pointLight position={[8, 5.5, -idx * 15 - 10]} color="#ffaa66" intensity={0.5} distance={15} />
+        </group>
+      ))}
+    </group>
   );
 }
 
-function LavaTrack() {
-  const segments = useMemo(() => {
-    const segs = [];
-    for (let z = 50; z > -150; z -= 4) {
-      segs.push(z);
-    }
-    return segs;
-  }, []);
+interface FinishLineProps {
+  distance: number;
+  scrollZ: number;
+}
+
+function FinishLine({ distance, scrollZ }: FinishLineProps) {
+  const z = -(distance - scrollZ);
+  if (z > 10 || z < -100) return null;
 
   return (
-    <group>
-      {segments.map((z, idx) => (
-        <group key={idx}>
-          {LANES.map((laneX, laneIdx) => (
-            <mesh 
-              key={`${idx}-${laneIdx}`} 
-              position={[laneX, -0.49, z - 2]} 
-              rotation={[-Math.PI / 2, 0, 0]}
-              receiveShadow
-            >
-              <planeGeometry args={[LANE_WIDTH - 0.1, 4]} />
-              <meshStandardMaterial color={laneIdx === 1 ? '#5a3020' : '#4a2515'} />
-            </mesh>
-          ))}
-          {idx % 3 === 0 && (
-            <mesh position={[0, -0.48, z - 2]} rotation={[-Math.PI / 2, 0, 0]}>
-              <planeGeometry args={[6.5, 0.3]} />
-              <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={0.5} />
-            </mesh>
-          )}
-        </group>
-      ))}
+    <group position={[0, 0, z]}>
+      <mesh position={[-7, 4, 0]}>
+        <cylinderGeometry args={[0.2, 0.2, 8, 8]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[7, 4, 0]}>
+        <cylinderGeometry args={[0.2, 0.2, 8, 8]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[0, 7.5, 0]}>
+        <boxGeometry args={[14, 1, 0.3]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      {Array.from({ length: 8 }).map((_, i) =>
+        Array.from({ length: 4 }).map((_, j) => (
+          <mesh key={`check-${i}-${j}`} position={[-5.25 + i * 1.5, 7 + j * 0.25, 0.2]}>
+            <boxGeometry args={[0.7, 0.2, 0.1]} />
+            <meshStandardMaterial color={(i + j) % 2 === 0 ? '#000000' : '#ffffff'} />
+          </mesh>
+        ))
+      )}
+      <Text
+        position={[0, 9, 0]}
+        fontSize={1.5}
+        color="#00ff00"
+        anchorX="center"
+        anchorY="middle"
+      >
+        FINISH
+      </Text>
     </group>
   );
 }
@@ -317,21 +373,28 @@ interface ObstacleProps {
   scrollZ: number;
 }
 
-function LavaRock({ obstacle, scrollZ }: ObstacleProps) {
+function TrafficCone({ obstacle, scrollZ }: ObstacleProps) {
   const z = -(obstacle.z - scrollZ);
   if (z > 5 || z < -60) return null;
   
   return (
-    <group position={[obstacle.x, obstacle.y, z]}>
-      <mesh castShadow>
-        <dodecahedronGeometry args={[obstacle.size * 0.7, 0]} />
-        <meshStandardMaterial 
-          color="#3a1a0a" 
-          emissive="#ff2200" 
-          emissiveIntensity={0.3}
-        />
+    <group position={[obstacle.x, 0, z]}>
+      <mesh position={[0, 0.05, 0]}>
+        <boxGeometry args={[0.6, 0.1, 0.6]} />
+        <meshStandardMaterial color="#111111" />
       </mesh>
-      <pointLight position={[0, 0.5, 0]} color="#ff4400" intensity={0.5} distance={3} />
+      <mesh position={[0, 0.45, 0]}>
+        <coneGeometry args={[0.25, 0.7, 8]} />
+        <meshStandardMaterial color="#ff6600" emissive="#ff4400" emissiveIntensity={0.3} />
+      </mesh>
+      <mesh position={[0, 0.35, 0.26]}>
+        <boxGeometry args={[0.3, 0.15, 0.02]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[0, 0.55, 0.26]}>
+        <boxGeometry args={[0.2, 0.1, 0.02]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+      </mesh>
     </group>
   );
 }
@@ -496,18 +559,19 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
 
   return (
     <>
-      <ambientLight intensity={0.6} color="#ff9966" />
-      <directionalLight position={[10, 20, 10]} intensity={0.8} color="#ffaa77" castShadow />
-      <pointLight position={[0, 2, 0]} color="#ff4400" intensity={1} distance={20} />
+      <ambientLight intensity={0.15} color="#4466aa" />
+      <directionalLight position={[10, 20, 10]} intensity={0.3} color="#6688cc" castShadow />
+      <fog attach="fog" args={['#0a0a1a', 30, 120]} />
       
-      <AnimatedBackground speed={gs.speed} />
-      <Ground />
-      <LavaTrack />
+      <CityBackground />
+      <CityStreet />
       
       <CarPlayer lane={gs.playerLane} y={gs.playerY} isMoving={gs.gameActive} />
       
+      <FinishLine distance={gs.finishDistance} scrollZ={scrollZ} />
+      
       {gs.obstacles.map(obs => (
-        <LavaRock key={obs.id} obstacle={obs} scrollZ={scrollZ} />
+        <TrafficCone key={obs.id} obstacle={obs} scrollZ={scrollZ} />
       ))}
       
       {gs.coins.map(coin => (
@@ -556,7 +620,7 @@ export function EndlessRunnerApp() {
   const [currentRunId, setCurrentRunId] = useState<number | null>(null);
   const [hasServerRun, setHasServerRun] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [currentDifficulty, setCurrentDifficulty] = useState<DifficultyPreset>(DIFFICULTY_PRESETS[0]);
   
   const gameStateRef = useRef<GameState>({
     playerLane: 1,
@@ -566,7 +630,7 @@ export function EndlessRunnerApp() {
     obstacles: [],
     coins: [],
     carrots: [],
-    speed: INITIAL_SPEED,
+    speed: DIFFICULTY_PRESETS[0].initialSpeed,
     distance: 0,
     coinsCollected: 0,
     multiplier: 1.0,
@@ -575,25 +639,16 @@ export function EndlessRunnerApp() {
     lastObstacleZ: 0,
     lastCoinZ: 0,
     lastCarrotZ: 0,
+    difficulty: DIFFICULTY_PRESETS[0],
+    finishDistance: DIFFICULTY_PRESETS[0].finishDistance,
+    finished: false,
   });
   
   const animationRef = useRef<number>();
   const idCounter = useRef(0);
   
   useEffect(() => {
-    preloadAllTextures()
-      .then(() => {
-        setLoadingProgress(100);
-        setPhase('menu');
-      })
-      .catch((err) => {
-        console.error('Failed to load textures:', err);
-        setPhase('menu');
-      });
-    
-    return () => {
-      disposeAllTextures();
-    };
+    setPhase('menu');
   }, []);
   
   useEffect(() => {
@@ -602,9 +657,10 @@ export function EndlessRunnerApp() {
   
   const spawnObjects = useCallback((currentDistance: number) => {
     const gs = gameStateRef.current;
+    const diff = gs.difficulty;
     
-    while (gs.lastObstacleZ < currentDistance + 60) {
-      gs.lastObstacleZ += 8 + Math.random() * 6;
+    while (gs.lastObstacleZ < Math.min(currentDistance + 60, gs.finishDistance - 5)) {
+      gs.lastObstacleZ += diff.obstacleSpacing + Math.random() * 4;
       const lane = LANES[Math.floor(Math.random() * 3)];
       gs.obstacles.push({
         id: idCounter.current++,
@@ -613,7 +669,7 @@ export function EndlessRunnerApp() {
         z: gs.lastObstacleZ,
         size: PLAYER_SIZE,
       });
-      if (Math.random() > 0.75) {
+      if (Math.random() < diff.doubleObstacleChance) {
         const otherLanes = LANES.filter(l => l !== lane);
         const secondLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
         gs.obstacles.push({
@@ -626,7 +682,7 @@ export function EndlessRunnerApp() {
       }
     }
     
-    while (gs.lastCoinZ < currentDistance + 60) {
+    while (gs.lastCoinZ < Math.min(currentDistance + 60, gs.finishDistance)) {
       gs.lastCoinZ += 2 + Math.random() * 2;
       const lane = LANES[Math.floor(Math.random() * 3)];
       const height = Math.random() > 0.5 ? 1.5 : 0.8;
@@ -642,7 +698,7 @@ export function EndlessRunnerApp() {
       });
     }
     
-    while (gs.lastCarrotZ < currentDistance + 60) {
+    while (gs.lastCarrotZ < Math.min(currentDistance + 60, gs.finishDistance)) {
       gs.lastCarrotZ += 12 + Math.random() * 8;
       const lane = LANES[Math.floor(Math.random() * 3)];
       const mults = [0.25, 0.5, 0.75];
@@ -660,19 +716,59 @@ export function EndlessRunnerApp() {
     gs.carrots = gs.carrots.filter(c => c.z > currentDistance - 10);
   }, []);
   
+  const handleFinish = useCallback(async () => {
+    const gs = gameStateRef.current;
+    gs.gameActive = false;
+    gs.finished = true;
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    
+    const totalPayout = Math.floor(gs.coinsCollected * gs.multiplier * 1.5);
+    setEndMessage(`FINISHED! Won ${totalPayout.toLocaleString()} KICKS (1.5x bonus!)`);
+    setPhase('ended');
+    
+    if (hasServerRun && currentRunId) {
+      try {
+        await fetch('/api/rabbit-rush/run/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress,
+            runId: currentRunId,
+            wager: 0,
+            finalMultiplier: gs.multiplier * 1.5,
+            payout: totalPayout,
+            coinsCollected: gs.coinsCollected,
+            enemiesDestroyed: 0,
+            won: true,
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to save run:', e);
+      }
+    }
+  }, [hasServerRun, currentRunId, walletAddress]);
+  
   const gameLoop = useCallback(() => {
     const gs = gameStateRef.current;
     if (!gs.gameActive) return;
     
     gs.distance += gs.speed;
-    gs.speed = Math.min(gs.speed + SPEED_INCREASE * 0.1, MAX_SPEED);
+    gs.speed = Math.min(gs.speed + gs.difficulty.speedIncrease * 0.1, gs.difficulty.maxSpeed);
+    
+    if (gs.distance >= gs.finishDistance && !gs.finished) {
+      handleFinish();
+      return;
+    }
     
     spawnObjects(gs.distance);
     setScrollZ(gs.distance);
     setDisplayDistance(Math.floor(gs.distance * 10));
     
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [spawnObjects]);
+  }, [spawnObjects, handleFinish]);
   
   const handleCollision = useCallback(async () => {
     const gs = gameStateRef.current;
@@ -746,6 +842,9 @@ export function EndlessRunnerApp() {
     setCurrentRunId(runId);
     setHasServerRun(serverRunCreated);
     
+    const difficulty = DIFFICULTY_PRESETS[Math.floor(Math.random() * DIFFICULTY_PRESETS.length)];
+    setCurrentDifficulty(difficulty);
+    
     gameStateRef.current = {
       playerLane: 1,
       playerY: 0,
@@ -754,7 +853,7 @@ export function EndlessRunnerApp() {
       obstacles: [],
       coins: [],
       carrots: [],
-      speed: INITIAL_SPEED,
+      speed: difficulty.initialSpeed,
       distance: 0,
       coinsCollected: 0,
       multiplier: 1.0,
@@ -763,6 +862,9 @@ export function EndlessRunnerApp() {
       lastObstacleZ: 0,
       lastCoinZ: 0,
       lastCarrotZ: 0,
+      difficulty: difficulty,
+      finishDistance: difficulty.finishDistance,
+      finished: false,
     };
     
     setScrollZ(0);
@@ -933,7 +1035,7 @@ export function EndlessRunnerApp() {
 
   return (
     <KeyboardControls map={keyMap}>
-      <div className="w-full h-screen bg-gradient-to-b from-red-900 to-orange-800 relative overflow-hidden">
+      <div className="w-full h-screen bg-gradient-to-b from-slate-900 to-indigo-900 relative overflow-hidden">
         <div className="absolute top-4 left-4 z-50 flex gap-2">
           <Button
             variant="ghost"
@@ -959,8 +1061,18 @@ export function EndlessRunnerApp() {
         
         {phase === 'playing' && (
           <>
-            <div className="absolute top-20 left-4 z-50 bg-black/50 px-4 py-2 rounded-lg space-y-1">
-              <div className="text-white">Distance: <span className="font-bold text-yellow-400">{displayDistance}m</span></div>
+            <div className="absolute top-20 left-4 z-50 bg-black/70 px-4 py-2 rounded-lg space-y-1">
+              <div className="text-white flex items-center gap-2">
+                Difficulty: 
+                <span className="font-bold px-2 py-0.5 rounded" style={{ backgroundColor: currentDifficulty.color }}>
+                  {currentDifficulty.name}
+                </span>
+              </div>
+              <div className="text-white">
+                Progress: <span className="font-bold text-cyan-400">
+                  {Math.min(100, Math.floor((gameStateRef.current.distance / gameStateRef.current.finishDistance) * 100))}%
+                </span>
+              </div>
               <div className="text-white">Multiplier: <span className="font-bold text-orange-400">{displayMult}x</span></div>
               <div className="text-white">Coins: <span className="font-bold text-yellow-300">+{displayCoins}</span></div>
             </div>
@@ -1004,16 +1116,19 @@ export function EndlessRunnerApp() {
         
         {phase === 'menu' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
-            <div className="text-center p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md">
-              <h1 className="text-4xl font-bold text-white mb-2">🔥 LAVA RUN</h1>
-              <p className="text-gray-300 mb-2">Dash through the volcanic cave!</p>
-              <p className="text-yellow-400 text-sm mb-6">Free to play - Collect coins and claim your rewards!</p>
+            <div className="text-center p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md">
+              <h1 className="text-4xl font-bold text-white mb-2">🌃 NIGHT DRIVE</h1>
+              <p className="text-gray-300 mb-2">Race through the city at night!</p>
+              <p className="text-cyan-400 text-sm mb-4">Free to play - Collect coins and reach the finish line!</p>
+              <div className="text-sm text-gray-400 mb-4">
+                Difficulty is randomly selected each game
+              </div>
               <Button
                 onClick={handleStartGame}
                 disabled={isWagering}
-                className="text-xl px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                className="text-xl px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
-                <Play className="w-6 h-6 mr-2" /> {isWagering ? 'Starting...' : 'PLAY FREE'}
+                <Play className="w-6 h-6 mr-2" /> {isWagering ? 'Starting...' : 'START RACE'}
               </Button>
             </div>
           </div>
@@ -1021,7 +1136,7 @@ export function EndlessRunnerApp() {
         
         {phase === 'ended' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
-            <div className="text-center p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md">
+            <div className="text-center p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md">
               <h2 className="text-2xl font-bold text-white mb-2">{endMessage}</h2>
               <p className="text-gray-300 mb-2">Distance: {displayDistance}m</p>
               <p className="text-yellow-400 mb-4">

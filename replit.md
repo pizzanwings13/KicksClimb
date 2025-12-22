@@ -7,6 +7,7 @@ A multi-game token betting platform on ApeChain where players connect their wall
 - **Platform Hub**: Token Rush serves as the main game selection hub
 - **Kicks Climb**: Fully functional 3D betting game (100 steps, multipliers, hazards)
 - **Rabbit Rush**: Fully functional 2D canvas flying game (rockets, multipliers, enemies, powerups)
+- **Night Drive**: 3D lane-based driving game with procedural city environment
 - Shared wallet connection and user session across all games
 - Database schema with PostgreSQL for users, games, leaderboards, and achievements
 - ApeChain wallet integration (MetaMask, Zerion supported)
@@ -17,6 +18,7 @@ A multi-game token betting platform on ApeChain where players connect their wall
 - **Token Rush Hub** (`/`): Main game selection page after wallet connection
 - **Kicks Climb** (`/kicks-climb`): 3D step-climbing betting game
 - **Rabbit Rush** (`/rabbit-rush`): 2D canvas flying game with rockets and multipliers
+- **Night Drive** (`/endless-runner`): 3D lane-based driving game with city night theme
 - Shared authentication: One wallet connection works across all games
 - Modular game structure: Each game lives in `client/src/games/{game-name}/`
 
