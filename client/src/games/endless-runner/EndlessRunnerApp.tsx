@@ -238,53 +238,77 @@ function LavaTrack() {
   );
 }
 
-interface SpritePlayerProps {
+interface CarPlayerProps {
   lane: number;
   y: number;
-  isRunning: boolean;
-  speed: number;
+  isMoving: boolean;
 }
 
-function SpritePlayer({ lane, y, isRunning, speed }: SpritePlayerProps) {
-  const spriteRef = useRef<THREE.Sprite>(null);
-  const frameRef = useRef(0);
-  const lastTimeRef = useRef(0);
+function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
+  const groupRef = useRef<THREE.Group>(null);
   const targetX = LANES[lane];
   const currentX = useRef(targetX);
-  const speedNormalized = Math.max(0.4, speed / MAX_SPEED);
-  const dynamicFPS = CHARACTER_FPS * speedNormalized;
-  const frameInterval = 1000 / dynamicFPS;
+  const wheelRotation = useRef(0);
   
-  useFrame(({ clock }) => {
-    if (!spriteRef.current || characterTextureCache.length === 0) return;
+  useFrame(() => {
+    if (!groupRef.current) return;
     
-    currentX.current = THREE.MathUtils.lerp(currentX.current, targetX, 0.2);
-    spriteRef.current.position.x = currentX.current;
-    spriteRef.current.position.y = y + 1.2;
+    currentX.current = THREE.MathUtils.lerp(currentX.current, targetX, 0.15);
+    groupRef.current.position.x = currentX.current;
+    groupRef.current.position.y = y;
     
-    if (isRunning) {
-      const time = clock.getElapsedTime() * 1000;
-      if (time - lastTimeRef.current >= frameInterval) {
-        frameRef.current = (frameRef.current + 1) % characterTextureCache.length;
-        lastTimeRef.current = time;
-        
-        const mat = spriteRef.current.material as THREE.SpriteMaterial;
-        mat.map = characterTextureCache[frameRef.current];
-        mat.needsUpdate = true;
-      }
+    if (isMoving) {
+      wheelRotation.current += 0.3;
     }
   });
 
-  if (characterTextureCache.length === 0) return null;
-
   return (
-    <sprite ref={spriteRef} position={[targetX, y + 1.2, 0]} scale={[2.5, 2.5, 1]}>
-      <spriteMaterial 
-        map={characterTextureCache[0]} 
-        transparent={true} 
-        alphaTest={0.1}
-      />
-    </sprite>
+    <group ref={groupRef} position={[targetX, y, 0]}>
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <boxGeometry args={[1.2, 0.4, 2.2]} />
+        <meshStandardMaterial color="#ff3333" metalness={0.6} roughness={0.3} />
+      </mesh>
+      
+      <mesh position={[0, 0.65, -0.2]} castShadow>
+        <boxGeometry args={[1, 0.4, 1.2]} />
+        <meshStandardMaterial color="#ff3333" metalness={0.6} roughness={0.3} />
+      </mesh>
+      
+      <mesh position={[0, 0.65, 0]} castShadow>
+        <boxGeometry args={[0.95, 0.35, 0.9]} />
+        <meshStandardMaterial color="#88ccff" metalness={0.9} roughness={0.1} transparent opacity={0.7} />
+      </mesh>
+      
+      <mesh position={[-0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[0.5, 0.1, 0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[-0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      <mesh position={[0.5, 0.1, -0.7]} rotation={[wheelRotation.current, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.2, 0.2, 0.15, 16]} />
+        <meshStandardMaterial color="#222222" />
+      </mesh>
+      
+      <mesh position={[0, 0.35, 1.15]}>
+        <boxGeometry args={[0.8, 0.15, 0.05]} />
+        <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[-0.35, 0.35, -1.15]}>
+        <boxGeometry args={[0.2, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[0.35, 0.35, -1.15]}>
+        <boxGeometry args={[0.2, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+    </group>
   );
 }
 
@@ -479,6 +503,8 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       <AnimatedBackground speed={gs.speed} />
       <Ground />
       <LavaTrack />
+      
+      <CarPlayer lane={gs.playerLane} y={gs.playerY} isMoving={gs.gameActive} />
       
       {gs.obstacles.map(obs => (
         <LavaRock key={obs.id} obstacle={obs} scrollZ={scrollZ} />
