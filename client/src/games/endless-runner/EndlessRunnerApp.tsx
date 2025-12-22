@@ -181,16 +181,12 @@ function AnimatedBackground({ speed }: AnimatedBackgroundProps) {
 
   return (
     <group>
-      <mesh ref={centerRef} position={[0, 8, -25]}>
-        <planeGeometry args={[40, 30]} />
+      <mesh ref={leftRef} position={[-18, 6, -10]} rotation={[0, Math.PI / 3, 0]}>
+        <planeGeometry args={[25, 25]} />
         <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
       </mesh>
-      <mesh ref={leftRef} position={[-22, 8, -15]} rotation={[0, Math.PI / 4, 0]}>
-        <planeGeometry args={[30, 30]} />
-        <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
-      </mesh>
-      <mesh ref={rightRef} position={[22, 8, -15]} rotation={[0, -Math.PI / 4, 0]}>
-        <planeGeometry args={[30, 30]} />
+      <mesh ref={rightRef} position={[18, 6, -10]} rotation={[0, -Math.PI / 3, 0]}>
+        <planeGeometry args={[25, 25]} />
         <meshBasicMaterial map={sceneTextureCache[0]} transparent={false} />
       </mesh>
     </group>
@@ -483,8 +479,6 @@ function GameScene({ gameState, scrollZ, onCollision, onCoinCollect, onCarrotCol
       <AnimatedBackground speed={gs.speed} />
       <Ground />
       <LavaTrack />
-      
-      <SpritePlayer lane={gs.playerLane} y={gs.playerY} isRunning={gs.gameActive} speed={gs.speed} />
       
       {gs.obstacles.map(obs => (
         <LavaRock key={obs.id} obstacle={obs} scrollZ={scrollZ} />
