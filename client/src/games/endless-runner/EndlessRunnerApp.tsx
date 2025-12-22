@@ -761,9 +761,11 @@ export function EndlessRunnerApp() {
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   
   useEffect(() => {
-    bgMusicRef.current = new Audio('/sounds/nightdrive.mp3');
-    bgMusicRef.current.loop = true;
-    bgMusicRef.current.volume = 0.3;
+    const audio = new Audio('/sounds/background.mp3');
+    audio.loop = true;
+    audio.volume = 0.3;
+    bgMusicRef.current = audio;
+    console.log('[Night Drive] Background music initialized');
     
     return () => {
       if (bgMusicRef.current) {
@@ -776,12 +778,16 @@ export function EndlessRunnerApp() {
   useEffect(() => {
     if (bgMusicRef.current) {
       bgMusicRef.current.muted = muted;
+      console.log('[Night Drive] Muted:', muted);
     }
   }, [muted]);
   
   useEffect(() => {
     if (phase === 'playing' && bgMusicRef.current) {
-      bgMusicRef.current.play().catch(() => {});
+      console.log('[Night Drive] Attempting to play background music...');
+      bgMusicRef.current.play()
+        .then(() => console.log('[Night Drive] Background music playing'))
+        .catch((err) => console.log('[Night Drive] Music play failed:', err.message));
     } else if (phase !== 'playing' && bgMusicRef.current) {
       bgMusicRef.current.pause();
       bgMusicRef.current.currentTime = 0;
