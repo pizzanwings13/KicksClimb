@@ -603,19 +603,24 @@ export const useWallet = create<WalletState>((set, get) => ({
   },
 
   signMessage: async (message: string) => {
+    console.log('[useWallet] signMessage called with:', message.substring(0, 50));
     const { signer, setTransactionState } = get();
     
     if (!signer) {
+      console.log('[useWallet] signMessage: No signer available');
       setTransactionState({ status: "error", message: "Wallet not connected" });
       return null;
     }
 
     try {
+      console.log('[useWallet] signMessage: Calling signer.signMessage...');
       const signature = await signer.signMessage(message);
+      console.log('[useWallet] signMessage: Signature received');
       return signature;
     } catch (error: any) {
-      console.error("Sign message error:", error);
+      console.error("[useWallet] Sign message error:", error);
       if (error.code === "ACTION_REJECTED") {
+        console.log('[useWallet] signMessage: User rejected');
         return null;
       }
       throw error;

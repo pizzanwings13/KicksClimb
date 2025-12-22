@@ -923,8 +923,12 @@ export function EndlessRunnerApp() {
   };
   
   const handleCashout = useCallback(async () => {
+    console.log('[Night Drive] handleCashout called');
     const gs = gameStateRef.current;
-    if (!gs.gameActive || isClaiming) return;
+    if (!gs.gameActive || isClaiming) {
+      console.log('[Night Drive] handleCashout early return - gameActive:', gs.gameActive, 'isClaiming:', isClaiming);
+      return;
+    }
     
     gs.gameActive = false;
     if (animationRef.current) {
@@ -933,6 +937,7 @@ export function EndlessRunnerApp() {
     
     const mult = gs.multiplier;
     const payout = Math.floor(gs.coinsCollected * mult);
+    console.log('[Night Drive] Cashout payout:', payout, 'runId:', currentRunId);
     
     if (payout <= 0) {
       setEndMessage(`No coins collected. Try again!`);
@@ -968,7 +973,9 @@ export function EndlessRunnerApp() {
       }
       
       const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
+      console.log('[Night Drive] Requesting auth signature for:', authMessage);
       const authSignature = await signMessage(authMessage);
+      console.log('[Night Drive] Auth signature result:', authSignature ? 'success' : 'null/cancelled');
       if (!authSignature) {
         setEndMessage(`Signature cancelled. Won: ${payout} KICKS`);
         setIsClaiming(false);
@@ -1014,8 +1021,10 @@ export function EndlessRunnerApp() {
   }, [hasServerRun, currentRunId, walletAddress, isClaiming, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleClaimAfterCrash = useCallback(async () => {
+    console.log('[Night Drive] handleClaimAfterCrash called');
     const gs = gameStateRef.current;
     const payout = Math.floor(gs.coinsCollected * gs.multiplier);
+    console.log('[Night Drive] Claim payout:', payout, 'runId:', currentRunId, 'hasServerRun:', hasServerRun);
     
     if (payout <= 0) {
       setEndMessage(`No coins to claim`);
@@ -1051,7 +1060,9 @@ export function EndlessRunnerApp() {
       }
       
       const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
+      console.log('[Night Drive Claim] Requesting auth signature...');
       const authSignature = await signMessage(authMessage);
+      console.log('[Night Drive Claim] Auth signature result:', authSignature ? 'success' : 'null/cancelled');
       if (!authSignature) {
         setEndMessage(`Signature cancelled. Unclaimed: ${payout} KICKS`);
         setIsClaiming(false);
