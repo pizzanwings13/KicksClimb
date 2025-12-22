@@ -322,12 +322,12 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
     <group ref={groupRef} position={[targetX, y, 0]}>
       <mesh position={[0, 0.3, 0]} castShadow>
         <boxGeometry args={[1.2, 0.4, 2.2]} />
-        <meshStandardMaterial color="#ff3333" metalness={0.6} roughness={0.3} />
+        <meshStandardMaterial color="#ff8888" metalness={0.6} roughness={0.3} />
       </mesh>
       
       <mesh position={[0, 0.65, -0.2]} castShadow>
         <boxGeometry args={[1, 0.4, 1.2]} />
-        <meshStandardMaterial color="#ff3333" metalness={0.6} roughness={0.3} />
+        <meshStandardMaterial color="#ff8888" metalness={0.6} roughness={0.3} />
       </mesh>
       
       <mesh position={[0, 0.65, 0]} castShadow>
