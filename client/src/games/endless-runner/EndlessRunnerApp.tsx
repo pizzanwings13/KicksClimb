@@ -16,9 +16,6 @@ const INITIAL_SPEED = 0.15;
 const MAX_SPEED = 0.4;
 const SPEED_INCREASE = 0.0005;
 
-const QUICK_AMOUNTS = ["100", "250", "500", "1000", "2500"];
-const MIN_BET = 100;
-const MAX_BET = 2500;
 
 enum Controls {
   left = 'left',
@@ -472,8 +469,7 @@ export function EndlessRunnerApp() {
   } = useWallet();
   
   const [, setLocation] = useLocation();
-  const [phase, setPhase] = useState<'menu' | 'betting' | 'playing' | 'ended'>('menu');
-  const [betAmount, setBetAmount] = useState("100");
+  const [phase, setPhase] = useState<'menu' | 'playing' | 'ended'>('menu');
   const [isWagering, setIsWagering] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [displayKicks, setDisplayKicks] = useState(0);
@@ -595,7 +591,8 @@ export function EndlessRunnerApp() {
       cancelAnimationFrame(animationRef.current);
     }
     
-    setEndMessage(`CRASHED! Lost ${gs.wager.toLocaleString()} KICKS`);
+    const totalPayout = Math.floor(gs.coinsCollected * gs.multiplier);
+    setEndMessage(`CRASHED! Collected ${totalPayout.toLocaleString()} KICKS`);
     setPhase('ended');
     
     if (hasServerRun && currentRunId) {
@@ -606,12 +603,12 @@ export function EndlessRunnerApp() {
           body: JSON.stringify({
             walletAddress,
             runId: currentRunId,
-            wager: gs.wager,
+            wager: 0,
             finalMultiplier: gs.multiplier,
-            payout: 0,
+            payout: totalPayout,
             coinsCollected: gs.coinsCollected,
             enemiesDestroyed: 0,
-            won: false,
+            won: gs.coinsCollected > 0,
           }),
         });
       } catch (e) {
@@ -633,83 +630,64 @@ export function EndlessRunnerApp() {
   }, []);
   
   const handleStartGame = async () => {
-    const betValue = parseFloat(betAmount);
-    if (isNaN(betValue) || betValue < MIN_BET || betValue > Math.min(displayKicks, MAX_BET) || isWagering) {
-      return;
-    }
+    if (isWagering) return;
     
     setIsWagering(true);
-    resetTransactionState();
+    
+    let runId = Date.now();
+    let serverRunCreated = false;
     
     try {
-      const txHash = await sendKicksToHouse(betValue.toString());
-      if (!txHash) {
-        setIsWagering(false);
-        return;
+      const res = await fetch('/api/rabbit-rush/run/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, wager: 0, depositTxHash: 'free-play' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        runId = data.runId || runId;
+        serverRunCreated = true;
       }
-      
-      setDepositTxHash(txHash);
-      
-      let runId = Date.now();
-      let serverRunCreated = false;
-      
-      try {
-        const res = await fetch('/api/rabbit-rush/run/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress, wager: betValue, depositTxHash: txHash }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          runId = data.runId || runId;
-          serverRunCreated = true;
-        }
-      } catch (e) {
-        console.warn('API failed, using local ID');
-      }
-      
-      setCurrentRunId(runId);
-      setHasServerRun(serverRunCreated);
-      
-      gameStateRef.current = {
-        playerLane: 1,
-        playerY: 0,
-        isJumping: false,
-        jumpVelocity: 0,
-        obstacles: [],
-        coins: [],
-        carrots: [],
-        speed: INITIAL_SPEED,
-        distance: 0,
-        coinsCollected: 0,
-        multiplier: 1.0,
-        wager: betValue,
-        gameActive: true,
-        lastObstacleZ: -10,
-        lastCoinZ: -5,
-        lastCarrotZ: -8,
-      };
-      
-      setScrollZ(0);
-      setDisplayMult("1.00");
-      setDisplayCoins(0);
-      setDisplayDistance(0);
-      idCounter.current = 0;
-      
-      setIsWagering(false);
-      setPhase('playing');
-      
-      setTimeout(() => {
-        if (gameStateRef.current.gameActive) {
-          gameLoop();
-        }
-      }, 100);
-      
-      refreshBalance();
     } catch (e) {
-      setIsWagering(false);
-      resetTransactionState();
+      console.warn('API failed, using local ID');
     }
+    
+    setCurrentRunId(runId);
+    setHasServerRun(serverRunCreated);
+    
+    gameStateRef.current = {
+      playerLane: 1,
+      playerY: 0,
+      isJumping: false,
+      jumpVelocity: 0,
+      obstacles: [],
+      coins: [],
+      carrots: [],
+      speed: INITIAL_SPEED,
+      distance: 0,
+      coinsCollected: 0,
+      multiplier: 1.0,
+      wager: 0,
+      gameActive: true,
+      lastObstacleZ: 0,
+      lastCoinZ: 0,
+      lastCarrotZ: 0,
+    };
+    
+    setScrollZ(0);
+    setDisplayMult("1.00");
+    setDisplayCoins(0);
+    setDisplayDistance(0);
+    idCounter.current = 0;
+    
+    setIsWagering(false);
+    setPhase('playing');
+    
+    setTimeout(() => {
+      if (gameStateRef.current.gameActive) {
+        gameLoop();
+      }
+    }, 100);
   };
   
   const handleCashout = useCallback(async () => {
@@ -721,10 +699,16 @@ export function EndlessRunnerApp() {
       cancelAnimationFrame(animationRef.current);
     }
     
-    setIsClaiming(true);
-    
     const mult = gs.multiplier;
-    const payout = Math.floor(gs.wager * mult) + gs.coinsCollected;
+    const payout = Math.floor(gs.coinsCollected * mult);
+    
+    if (payout <= 0) {
+      setEndMessage(`No coins collected. Try again!`);
+      setPhase('ended');
+      return;
+    }
+    
+    setIsClaiming(true);
     
     if (hasServerRun && currentRunId) {
       try {
@@ -734,7 +718,7 @@ export function EndlessRunnerApp() {
           body: JSON.stringify({
             walletAddress,
             runId: currentRunId,
-            wager: gs.wager,
+            wager: 0,
             finalMultiplier: mult,
             payout,
             coinsCollected: gs.coinsCollected,
@@ -759,7 +743,7 @@ export function EndlessRunnerApp() {
       
       const signature = await signClaimMessage(payout.toString(), currentRunId!, nonce, 'rabbit-rush');
       if (!signature) {
-        setEndMessage(`Signature cancelled. Payout: ${payout} KICKS`);
+        setEndMessage(`Signature cancelled. Collect: ${payout} KICKS`);
         setIsClaiming(false);
         setPhase('ended');
         return;
@@ -769,7 +753,7 @@ export function EndlessRunnerApp() {
       
       if (success) {
         await refreshBalance();
-        setEndMessage(`CASHED OUT at ${mult.toFixed(2)}x! Won ${payout.toLocaleString()} KICKS!`);
+        setEndMessage(`Claimed ${payout.toLocaleString()} KICKS! (${mult.toFixed(2)}x multiplier)`);
       } else {
         setEndMessage(`Claim failed. Contact support.`);
       }
@@ -781,6 +765,50 @@ export function EndlessRunnerApp() {
     setIsClaiming(false);
     setPhase('ended');
   }, [hasServerRun, currentRunId, walletAddress, isClaiming, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+  
+  const handleClaimAfterCrash = useCallback(async () => {
+    const gs = gameStateRef.current;
+    const payout = Math.floor(gs.coinsCollected * gs.multiplier);
+    
+    if (payout <= 0) {
+      setEndMessage(`No coins to claim`);
+      return;
+    }
+    
+    setIsClaiming(true);
+    
+    try {
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress }),
+      });
+      
+      if (!nonceRes.ok) throw new Error('Failed to get nonce');
+      const { nonce } = await nonceRes.json();
+      
+      const signature = await signClaimMessage(payout.toString(), currentRunId!, nonce, 'rabbit-rush');
+      if (!signature) {
+        setEndMessage(`Signature cancelled. Unclaimed: ${payout} KICKS`);
+        setIsClaiming(false);
+        return;
+      }
+      
+      const success = await requestKicksFromHouse(payout.toString(), currentRunId!, signature, nonce, 'rabbit-rush');
+      
+      if (success) {
+        await refreshBalance();
+        setEndMessage(`Claimed ${payout.toLocaleString()} KICKS!`);
+      } else {
+        setEndMessage(`Claim failed. Contact support.`);
+      }
+    } catch (e: any) {
+      console.error('Claim error:', e);
+      setEndMessage(`Error: ${e.message?.slice(0, 40) || 'Claim failed'}`);
+    }
+    
+    setIsClaiming(false);
+  }, [currentRunId, walletAddress, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
   const handleSwipe = (direction: 'left' | 'right' | 'up') => {
     if (phase !== 'playing') return;
@@ -848,10 +876,10 @@ export function EndlessRunnerApp() {
             
             <Button
               onClick={handleCashout}
-              disabled={isClaiming}
+              disabled={isClaiming || displayCoins === 0}
               className="absolute top-20 right-4 z-50 bg-green-500 hover:bg-green-600 text-white text-xl px-6 py-3"
             >
-              {isClaiming ? 'Claiming...' : `CASH OUT (${(gameStateRef.current.wager * gameStateRef.current.multiplier + gameStateRef.current.coinsCollected).toFixed(0)} KICKS)`}
+              {isClaiming ? 'Claiming...' : `CLAIM ${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
             </Button>
           </>
         )}
@@ -885,59 +913,14 @@ export function EndlessRunnerApp() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
             <div className="text-center p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md">
               <h1 className="text-4xl font-bold text-white mb-2">🏃 ENDLESS RUNNER</h1>
-              <p className="text-gray-300 mb-6">Dodge obstacles, collect coins & carrots!</p>
-              <Button
-                onClick={() => setPhase('betting')}
-                className="text-xl px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              >
-                <Play className="w-6 h-6 mr-2" /> START
-              </Button>
-            </div>
-          </div>
-        )}
-        
-        {phase === 'betting' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
-            <div className="p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md w-full mx-4">
-              <h2 className="text-2xl font-bold text-white mb-4 text-center">Place Your Bet</h2>
-              
-              <div className="flex flex-wrap gap-2 justify-center mb-4">
-                {QUICK_AMOUNTS.map(amt => (
-                  <Button
-                    key={amt}
-                    onClick={() => setBetAmount(amt)}
-                    variant={betAmount === amt ? "default" : "outline"}
-                    className={betAmount === amt ? "bg-orange-500" : ""}
-                  >
-                    {amt}
-                  </Button>
-                ))}
-              </div>
-              
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(e.target.value)}
-                placeholder="Enter wager"
-                min={MIN_BET}
-                max={Math.min(displayKicks, MAX_BET)}
-                className="w-full px-4 py-3 text-lg text-center rounded-xl border-2 border-orange-500 bg-white/10 text-white mb-4"
-              />
-              
+              <p className="text-gray-300 mb-2">Dodge obstacles, collect KICKS coins!</p>
+              <p className="text-yellow-400 text-sm mb-6">Free to play - Collect coins and claim your rewards!</p>
               <Button
                 onClick={handleStartGame}
-                disabled={isWagering || parseFloat(betAmount) < MIN_BET || parseFloat(betAmount) > Math.min(displayKicks, MAX_BET)}
-                className="w-full text-xl py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                disabled={isWagering}
+                className="text-xl px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
               >
-                {isWagering ? 'Processing...' : `BET ${betAmount} KICKS`}
-              </Button>
-              
-              <Button
-                onClick={() => setPhase('menu')}
-                variant="ghost"
-                className="w-full mt-2 text-gray-400"
-              >
-                Back
+                <Play className="w-6 h-6 mr-2" /> {isWagering ? 'Starting...' : 'PLAY FREE'}
               </Button>
             </div>
           </div>
@@ -947,21 +930,36 @@ export function EndlessRunnerApp() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
             <div className="text-center p-8 bg-gray-900/90 rounded-2xl border border-orange-500/50 max-w-md">
               <h2 className="text-2xl font-bold text-white mb-2">{endMessage}</h2>
-              <p className="text-gray-300 mb-4">Distance: {displayDistance}m</p>
-              <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={() => setPhase('betting')}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500"
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" /> Play Again
-                </Button>
-                <Button
-                  onClick={() => setLocation('/')}
-                  variant="outline"
-                  className="px-6 py-3"
-                >
-                  Back to Games
-                </Button>
+              <p className="text-gray-300 mb-2">Distance: {displayDistance}m</p>
+              <p className="text-yellow-400 mb-4">
+                Coins: {displayCoins} × {displayMult}x = {Math.floor(displayCoins * parseFloat(displayMult))} KICKS
+              </p>
+              <div className="flex flex-col gap-3">
+                {displayCoins > 0 && !endMessage.includes('Claimed') && (
+                  <Button
+                    onClick={handleClaimAfterCrash}
+                    disabled={isClaiming}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  >
+                    {isClaiming ? 'Claiming...' : `CLAIM ${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
+                  </Button>
+                )}
+                <div className="flex gap-4 justify-center">
+                  <Button
+                    onClick={handleStartGame}
+                    disabled={isWagering}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500"
+                  >
+                    <RotateCcw className="w-5 h-5 mr-2" /> Play Again
+                  </Button>
+                  <Button
+                    onClick={() => setLocation('/')}
+                    variant="outline"
+                    className="px-6 py-3"
+                  >
+                    Back to Games
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
