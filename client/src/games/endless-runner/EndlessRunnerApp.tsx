@@ -1267,7 +1267,7 @@ export function EndlessRunnerApp() {
               <button
                 onClick={handleStartGame}
                 disabled={isWagering}
-                className="text-lg sm:text-xl px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-cyan-500 to-blue-500 active:from-cyan-700 active:to-blue-700 active:scale-95 text-white font-bold rounded-xl border-2 border-cyan-400 shadow-lg shadow-cyan-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="mx-auto text-lg sm:text-xl px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-cyan-500 to-blue-500 active:from-cyan-700 active:to-blue-700 active:scale-95 text-white font-bold rounded-xl border-2 border-cyan-400 shadow-lg shadow-cyan-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2" /> {isWagering ? 'Starting...' : 'START RACE'}
               </button>
