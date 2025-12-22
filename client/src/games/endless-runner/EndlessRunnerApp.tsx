@@ -761,7 +761,7 @@ export function EndlessRunnerApp() {
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   
   useEffect(() => {
-    bgMusicRef.current = new Audio('/sounds/background.mp3');
+    bgMusicRef.current = new Audio('/sounds/nightdrive.mp3');
     bgMusicRef.current.loop = true;
     bgMusicRef.current.volume = 0.3;
     
