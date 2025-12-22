@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, useKeyboardControls, KeyboardControls, useTexture } from '@react-three/drei';
+import { Text, useKeyboardControls, KeyboardControls } from '@react-three/drei';
 import { useLocation } from 'wouter';
 import * as THREE from 'three';
 import { ArrowLeft, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
@@ -316,9 +316,6 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
   const currentX = useRef(targetX);
   const wheelRotation = useRef(0);
   
-  const thorTexture = useTexture('/textures/character-thor.png');
-  const beanieTexture = useTexture('/textures/character-beanie.png');
-  
   useFrame(() => {
     if (!groupRef.current) return;
     
@@ -331,60 +328,125 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
     }
   });
 
+  const mainColor = '#e10600';
+  const accentColor = '#ffffff';
+  const darkColor = '#1a1a1a';
+
   return (
     <group ref={groupRef} position={[targetX, y, 0]}>
       <pointLight position={[0, 2, 0]} color="#ffffff" intensity={1.5} distance={6} />
       
-      <mesh position={[0, 0.3, 0]}>
-        <boxGeometry args={[1.2, 0.4, 2.2]} />
-        <meshBasicMaterial color="#ff9999" />
+      {/* F1 Main body - long narrow nose */}
+      <mesh position={[0, 0.25, 0.3]}>
+        <boxGeometry args={[0.5, 0.2, 2.4]} />
+        <meshBasicMaterial color={mainColor} />
       </mesh>
       
-      <mesh position={[0, 0.65, -0.2]}>
-        <boxGeometry args={[1, 0.4, 1.2]} />
-        <meshBasicMaterial color="#ff9999" />
+      {/* F1 Nose cone */}
+      <mesh position={[0, 0.22, 1.6]}>
+        <boxGeometry args={[0.3, 0.15, 0.4]} />
+        <meshBasicMaterial color={mainColor} />
       </mesh>
       
-      <mesh position={[0, 0.65, 0]}>
-        <boxGeometry args={[0.95, 0.35, 0.9]} />
-        <meshBasicMaterial color="#88ccff" transparent opacity={0.7} />
+      {/* Cockpit area */}
+      <mesh position={[0, 0.35, -0.3]}>
+        <boxGeometry args={[0.6, 0.25, 0.8]} />
+        <meshBasicMaterial color={darkColor} />
       </mesh>
       
-      {/* Back seat characters - inside car cabin */}
-      <sprite position={[-0.28, 0.72, -0.55]} scale={[0.35, 0.35, 1]}>
-        <spriteMaterial map={thorTexture} />
-      </sprite>
-      <sprite position={[0.28, 0.72, -0.55]} scale={[0.35, 0.35, 1]}>
-        <spriteMaterial map={beanieTexture} />
-      </sprite>
+      {/* Driver helmet */}
+      <mesh position={[0, 0.55, -0.3]}>
+        <sphereGeometry args={[0.18, 8, 8]} />
+        <meshBasicMaterial color={accentColor} />
+      </mesh>
       
-      <mesh position={[-0.5, 0.1, 0.7]} rotation={[0, 0, Math.PI / 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.3]} />
+      {/* Halo protection */}
+      <mesh position={[0, 0.52, -0.1]}>
+        <boxGeometry args={[0.5, 0.06, 0.06]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
-      <mesh position={[0.5, 0.1, 0.7]} rotation={[0, 0, Math.PI / 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.3]} />
+      <mesh position={[0, 0.52, -0.5]}>
+        <boxGeometry args={[0.5, 0.06, 0.06]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
-      <mesh position={[-0.5, 0.1, -0.7]} rotation={[0, 0, Math.PI / 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.3]} />
-        <meshBasicMaterial color="#333333" />
-      </mesh>
-      <mesh position={[0.5, 0.1, -0.7]} rotation={[0, 0, Math.PI / 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.3]} />
+      <mesh position={[0, 0.52, -0.3]}>
+        <boxGeometry args={[0.06, 0.06, 0.5]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
       
-      <mesh position={[0, 0.35, 1.15]}>
-        <boxGeometry args={[0.8, 0.15, 0.05]} />
+      {/* Side pods */}
+      <mesh position={[-0.45, 0.22, 0]}>
+        <boxGeometry args={[0.35, 0.18, 1.2]} />
+        <meshBasicMaterial color={mainColor} />
+      </mesh>
+      <mesh position={[0.45, 0.22, 0]}>
+        <boxGeometry args={[0.35, 0.18, 1.2]} />
+        <meshBasicMaterial color={mainColor} />
+      </mesh>
+      
+      {/* Front wing */}
+      <mesh position={[0, 0.1, 1.7]}>
+        <boxGeometry args={[1.4, 0.04, 0.25]} />
+        <meshBasicMaterial color={mainColor} />
+      </mesh>
+      <mesh position={[-0.6, 0.14, 1.7]}>
+        <boxGeometry args={[0.08, 0.12, 0.2]} />
+        <meshBasicMaterial color={accentColor} />
+      </mesh>
+      <mesh position={[0.6, 0.14, 1.7]}>
+        <boxGeometry args={[0.08, 0.12, 0.2]} />
+        <meshBasicMaterial color={accentColor} />
+      </mesh>
+      
+      {/* Rear wing */}
+      <mesh position={[0, 0.5, -1.1]}>
+        <boxGeometry args={[1.1, 0.2, 0.08]} />
+        <meshBasicMaterial color={mainColor} />
+      </mesh>
+      <mesh position={[-0.45, 0.38, -1.1]}>
+        <boxGeometry args={[0.05, 0.25, 0.15]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      <mesh position={[0.45, 0.38, -1.1]}>
+        <boxGeometry args={[0.05, 0.25, 0.15]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      
+      {/* Engine cover */}
+      <mesh position={[0, 0.35, -0.8]}>
+        <boxGeometry args={[0.4, 0.15, 0.5]} />
+        <meshBasicMaterial color={mainColor} />
+      </mesh>
+      
+      {/* Front wheels */}
+      <mesh position={[-0.7, 0.15, 1.1]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.15, 12]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      <mesh position={[0.7, 0.15, 1.1]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.15, 12]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      
+      {/* Rear wheels - larger */}
+      <mesh position={[-0.65, 0.18, -0.8]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.22, 0.22, 0.2, 12]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      <mesh position={[0.65, 0.18, -0.8]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.22, 0.22, 0.2, 12]} />
+        <meshBasicMaterial color={darkColor} />
+      </mesh>
+      
+      {/* Headlights / front lights */}
+      <mesh position={[0, 0.2, 1.85]}>
+        <boxGeometry args={[0.2, 0.06, 0.02]} />
         <meshBasicMaterial color="#ffff00" />
       </mesh>
-      <mesh position={[-0.35, 0.35, -1.15]}>
-        <boxGeometry args={[0.2, 0.1, 0.05]} />
-        <meshBasicMaterial color="#ff0000" />
-      </mesh>
-      <mesh position={[0.35, 0.35, -1.15]}>
-        <boxGeometry args={[0.2, 0.1, 0.05]} />
+      
+      {/* Rear lights */}
+      <mesh position={[0, 0.35, -1.2]}>
+        <boxGeometry args={[0.3, 0.08, 0.02]} />
         <meshBasicMaterial color="#ff0000" />
       </mesh>
     </group>
