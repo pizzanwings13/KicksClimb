@@ -1370,7 +1370,7 @@ export function EndlessRunnerApp() {
               <p className="text-gray-300 mb-2 text-sm sm:text-base">Race through the city at night!</p>
               <p className="text-cyan-400 text-xs sm:text-sm mb-4">Free to play - Collect coins and reach the finish!</p>
               <div className="text-xs sm:text-sm text-gray-400 mb-4">
-                Swipe or use buttons to control
+                Swipe to control
               </div>
               <button
                 onClick={handleStartGame}
@@ -1421,28 +1421,6 @@ export function EndlessRunnerApp() {
           </div>
         )}
         
-        {phase === 'playing' && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-3 sm:gap-4">
-            <button
-              onClick={() => handleSwipe('left')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 active:bg-orange-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => handleSwipe('up')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-cyan-500/90 active:bg-cyan-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
-            >
-              ↑
-            </button>
-            <button
-              onClick={() => handleSwipe('right')}
-              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 active:bg-orange-700 active:scale-95 text-white font-bold rounded-xl transition-transform"
-            >
-              →
-            </button>
-          </div>
-        )}
         
         {(isWagering || isClaiming) && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-50">
