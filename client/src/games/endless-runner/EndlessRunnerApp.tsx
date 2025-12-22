@@ -1095,7 +1095,7 @@ export function EndlessRunnerApp() {
     setIsClaiming(false);
   }, [hasServerRun, currentRunId, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
   
-  const handleSwipe = (direction: 'left' | 'right' | 'up') => {
+  const handleSwipe = useCallback((direction: 'left' | 'right' | 'up') => {
     if (phase !== 'playing') return;
     const gs = gameStateRef.current;
     
@@ -1107,7 +1107,35 @@ export function EndlessRunnerApp() {
       gs.isJumping = true;
       gs.jumpVelocity = JUMP_FORCE;
     }
-  };
+  }, [phase]);
+  
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, []);
+  
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const minSwipe = 30;
+    
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > minSwipe) {
+        handleSwipe('right');
+      } else if (deltaX < -minSwipe) {
+        handleSwipe('left');
+      }
+    } else {
+      if (deltaY < -minSwipe) {
+        handleSwipe('up');
+      }
+    }
+    touchStartRef.current = null;
+  }, [handleSwipe]);
   
   const keyMap = useMemo(() => [
     { name: Controls.left, keys: ['ArrowLeft', 'KeyA'] },
@@ -1127,7 +1155,11 @@ export function EndlessRunnerApp() {
 
   return (
     <KeyboardControls map={keyMap}>
-      <div className="w-full h-screen bg-gradient-to-b from-slate-900 to-indigo-900 relative overflow-hidden">
+      <div 
+        className="w-full h-screen bg-gradient-to-b from-slate-900 to-indigo-900 relative overflow-hidden touch-none"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="absolute top-4 left-4 z-50 flex gap-2">
           <Button
             variant="ghost"
@@ -1153,28 +1185,29 @@ export function EndlessRunnerApp() {
         
         {phase === 'playing' && (
           <>
-            <div className="absolute top-20 left-4 z-50 bg-black/70 px-4 py-2 rounded-lg space-y-1">
-              <div className="text-white flex items-center gap-2">
-                Difficulty: 
-                <span className="font-bold px-2 py-0.5 rounded" style={{ backgroundColor: currentDifficulty.color }}>
+            <div className="absolute top-16 sm:top-20 left-2 sm:left-4 z-50 bg-black/70 px-2 sm:px-4 py-1 sm:py-2 rounded-lg space-y-0.5 sm:space-y-1 text-xs sm:text-base">
+              <div className="text-white flex items-center gap-1 sm:gap-2">
+                <span className="hidden sm:inline">Difficulty:</span>
+                <span className="font-bold px-1 sm:px-2 py-0.5 rounded text-xs sm:text-sm" style={{ backgroundColor: currentDifficulty.color }}>
                   {currentDifficulty.name}
                 </span>
               </div>
               <div className="text-white">
-                Progress: <span className="font-bold text-cyan-400">
+                <span className="font-bold text-cyan-400">
                   {Math.min(100, Math.floor((gameStateRef.current.distance / gameStateRef.current.finishDistance) * 100))}%
                 </span>
+                <span className="hidden sm:inline"> Progress</span>
               </div>
-              <div className="text-white">Multiplier: <span className="font-bold text-orange-400">{displayMult}x</span></div>
-              <div className="text-white">Coins: <span className="font-bold text-yellow-300">+{displayCoins}</span></div>
+              <div className="text-white"><span className="font-bold text-orange-400">{displayMult}x</span><span className="hidden sm:inline"> Mult</span></div>
+              <div className="text-white"><span className="font-bold text-yellow-300">+{displayCoins}</span><span className="hidden sm:inline"> Coins</span></div>
             </div>
             
             <Button
               onClick={handleCashout}
               disabled={isClaiming || displayCoins === 0}
-              className="absolute top-20 right-4 z-50 bg-green-500 hover:bg-green-600 text-white text-xl px-6 py-3"
+              className="absolute top-16 sm:top-20 right-2 sm:right-4 z-50 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm sm:text-xl px-3 sm:px-6 py-2 sm:py-3 touch-manipulation"
             >
-              {isClaiming ? 'Claiming...' : `CLAIM ${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
+              {isClaiming ? '...' : `${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
             </Button>
           </>
         )}
@@ -1207,57 +1240,57 @@ export function EndlessRunnerApp() {
         )}
         
         {phase === 'menu' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
-            <div className="text-center p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md">
-              <h1 className="text-4xl font-bold text-white mb-2">🌃 NIGHT DRIVE</h1>
-              <p className="text-gray-300 mb-2">Race through the city at night!</p>
-              <p className="text-cyan-400 text-sm mb-4">Free to play - Collect coins and reach the finish line!</p>
-              <div className="text-sm text-gray-400 mb-4">
-                Difficulty is randomly selected each game
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40 p-4">
+            <div className="text-center p-4 sm:p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md w-full mx-4">
+              <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">🌃 NIGHT DRIVE</h1>
+              <p className="text-gray-300 mb-2 text-sm sm:text-base">Race through the city at night!</p>
+              <p className="text-cyan-400 text-xs sm:text-sm mb-4">Free to play - Collect coins and reach the finish!</p>
+              <div className="text-xs sm:text-sm text-gray-400 mb-4">
+                Swipe or use buttons to control
               </div>
               <Button
                 onClick={handleStartGame}
                 disabled={isWagering}
-                className="text-xl px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                className="text-lg sm:text-xl px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 active:from-cyan-700 active:to-blue-700 touch-manipulation"
               >
-                <Play className="w-6 h-6 mr-2" /> {isWagering ? 'Starting...' : 'START RACE'}
+                <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2" /> {isWagering ? 'Starting...' : 'START RACE'}
               </Button>
             </div>
           </div>
         )}
         
         {phase === 'ended' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40">
-            <div className="text-center p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md">
-              <h2 className="text-2xl font-bold text-white mb-2">{endMessage}</h2>
-              <p className="text-gray-300 mb-2">Distance: {displayDistance}m</p>
-              <p className="text-yellow-400 mb-4">
-                Coins: {displayCoins} × {displayMult}x = {Math.floor(displayCoins * parseFloat(displayMult))} KICKS
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40 p-4">
+            <div className="text-center p-4 sm:p-8 bg-slate-900/90 rounded-2xl border border-cyan-500/50 max-w-md w-full mx-4">
+              <h2 className="text-lg sm:text-2xl font-bold text-white mb-2">{endMessage}</h2>
+              <p className="text-gray-300 mb-2 text-sm sm:text-base">Distance: {displayDistance}m</p>
+              <p className="text-yellow-400 mb-4 text-sm sm:text-base">
+                {displayCoins} × {displayMult}x = {Math.floor(displayCoins * parseFloat(displayMult))} KICKS
               </p>
               <div className="flex flex-col gap-3">
                 {displayCoins > 0 && !endMessage.includes('Claimed') && (
                   <Button
                     onClick={handleClaimAfterCrash}
                     disabled={isClaiming}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                    className="w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700 touch-manipulation text-sm sm:text-base"
                   >
                     {isClaiming ? 'Claiming...' : `CLAIM ${Math.floor(displayCoins * parseFloat(displayMult))} KICKS`}
                   </Button>
                 )}
-                <div className="flex gap-4 justify-center">
+                <div className="flex gap-2 sm:gap-4 justify-center">
                   <Button
                     onClick={handleStartGame}
                     disabled={isWagering}
-                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500"
+                    className="px-4 sm:px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 active:from-orange-700 active:to-red-700 touch-manipulation text-sm sm:text-base"
                   >
-                    <RotateCcw className="w-5 h-5 mr-2" /> Play Again
+                    <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Play </span>Again
                   </Button>
                   <Button
                     onClick={() => setLocation('/')}
                     variant="outline"
-                    className="px-6 py-3"
+                    className="px-4 sm:px-6 py-3 touch-manipulation text-sm sm:text-base"
                   >
-                    Back to Games
+                    <span className="hidden sm:inline">Back to </span>Games
                   </Button>
                 </div>
               </div>
@@ -1266,22 +1299,22 @@ export function EndlessRunnerApp() {
         )}
         
         {phase === 'playing' && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-4">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-3 sm:gap-4">
             <Button
               onClick={() => handleSwipe('left')}
-              className="w-20 h-16 text-2xl bg-orange-500/80 hover:bg-orange-600"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 hover:bg-orange-600 active:bg-orange-700 active:scale-95 transition-transform touch-manipulation"
             >
               ←
             </Button>
             <Button
               onClick={() => handleSwipe('up')}
-              className="w-20 h-16 text-2xl bg-red-500/80 hover:bg-red-600"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-cyan-500/90 hover:bg-cyan-600 active:bg-cyan-700 active:scale-95 transition-transform touch-manipulation"
             >
               ↑
             </Button>
             <Button
               onClick={() => handleSwipe('right')}
-              className="w-20 h-16 text-2xl bg-orange-500/80 hover:bg-orange-600"
+              className="w-16 h-14 sm:w-20 sm:h-16 text-2xl sm:text-3xl bg-orange-500/90 hover:bg-orange-600 active:bg-orange-700 active:scale-95 transition-transform touch-manipulation"
             >
               →
             </Button>
