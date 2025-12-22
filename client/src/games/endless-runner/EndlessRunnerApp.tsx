@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, useKeyboardControls, KeyboardControls } from '@react-three/drei';
+import { Text, useKeyboardControls, KeyboardControls, useTexture } from '@react-three/drei';
 import { useLocation } from 'wouter';
 import * as THREE from 'three';
 import { ArrowLeft, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
@@ -316,6 +316,9 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
   const currentX = useRef(targetX);
   const wheelRotation = useRef(0);
   
+  const thorTexture = useTexture('/textures/character-thor.png');
+  const beanieTexture = useTexture('/textures/character-beanie.png');
+  
   useFrame(() => {
     if (!groupRef.current) return;
     
@@ -346,6 +349,14 @@ function CarPlayer({ lane, y, isMoving }: CarPlayerProps) {
         <boxGeometry args={[0.95, 0.35, 0.9]} />
         <meshBasicMaterial color="#88ccff" transparent opacity={0.7} />
       </mesh>
+      
+      {/* Back seat characters */}
+      <sprite position={[-0.25, 0.95, -0.4]} scale={[0.45, 0.45, 1]}>
+        <spriteMaterial map={thorTexture} />
+      </sprite>
+      <sprite position={[0.25, 0.95, -0.4]} scale={[0.45, 0.45, 1]}>
+        <spriteMaterial map={beanieTexture} />
+      </sprite>
       
       <mesh position={[-0.5, 0.1, 0.7]} rotation={[0, 0, Math.PI / 2]}>
         <boxGeometry args={[0.3, 0.15, 0.3]} />
