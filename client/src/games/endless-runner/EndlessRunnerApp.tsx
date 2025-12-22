@@ -12,9 +12,9 @@ const LANE_WIDTH = 2;
 const PLAYER_SIZE = 1;
 const JUMP_FORCE = 0.35;
 const GRAVITY = 0.018;
-const INITIAL_SPEED = 0.15;
-const MAX_SPEED = 0.4;
-const SPEED_INCREASE = 0.0005;
+const INITIAL_SPEED = 0.08;
+const MAX_SPEED = 0.22;
+const SPEED_INCREASE = 0.0002;
 
 const SCENE_FRAME_COUNT = 56;
 const CHARACTER_FRAME_COUNT = 28;
@@ -604,7 +604,7 @@ export function EndlessRunnerApp() {
     const gs = gameStateRef.current;
     
     while (gs.lastObstacleZ < currentDistance + 60) {
-      gs.lastObstacleZ += 5 + Math.random() * 3;
+      gs.lastObstacleZ += 8 + Math.random() * 6;
       const lane = LANES[Math.floor(Math.random() * 3)];
       gs.obstacles.push({
         id: idCounter.current++,
@@ -613,7 +613,7 @@ export function EndlessRunnerApp() {
         z: gs.lastObstacleZ,
         size: PLAYER_SIZE,
       });
-      if (Math.random() > 0.5) {
+      if (Math.random() > 0.75) {
         const otherLanes = LANES.filter(l => l !== lane);
         const secondLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
         gs.obstacles.push({
