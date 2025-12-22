@@ -963,7 +963,7 @@ export function EndlessRunnerApp() {
     }
     
     try {
-      const authMessage = `Request Night Drive claim nonce for run ${currentRunId}`;
+      const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
         setEndMessage(`Signature cancelled. Collect: ${payout} KICKS`);
@@ -1018,7 +1018,7 @@ export function EndlessRunnerApp() {
     setIsClaiming(true);
     
     try {
-      const authMessage = `Request Night Drive claim nonce for run ${currentRunId}`;
+      const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
         setEndMessage(`Signature cancelled. Unclaimed: ${payout} KICKS`);
