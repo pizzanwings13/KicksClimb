@@ -137,9 +137,6 @@ const rabbitRushRuns = pgTable("rabbit_rush_runs", {
 
 const rabbitRushDailyLeaderboard = pgTable("rabbit_rush_daily_leaderboard", {
   id: serial("id").primaryKey(),
-  oddseed: text("oddseed").default("").notNull(),
-  oddseedHash: text("oddseed_hash").default("").notNull(),
-  oddResult: integer("odd_result"),
   userId: integer("user_id").notNull().references(() => users.id),
   totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
   runsPlayed: integer("runs_played").default(0).notNull(),
@@ -149,9 +146,6 @@ const rabbitRushDailyLeaderboard = pgTable("rabbit_rush_daily_leaderboard", {
 
 const rabbitRushWeeklyLeaderboard = pgTable("rabbit_rush_weekly_leaderboard", {
   id: serial("id").primaryKey(),
-  oddseed: text("oddseed").default("").notNull(),
-  oddseedHash: text("oddseed_hash").default("").notNull(),
-  oddResult: integer("odd_result"),
   userId: integer("user_id").notNull().references(() => users.id),
   totalWinnings: decimal("total_winnings", { precision: 36, scale: 18 }).default("0").notNull(),
   runsPlayed: integer("runs_played").default(0).notNull(),
