@@ -150,15 +150,14 @@ const rabbitRushWeeklyLeaderboard = pgTable("rabbit_rush_weekly_leaderboard", {
 
 const bunnyBladeWeeklyLeaderboard = pgTable("bunny_blade_weekly_leaderboard", {
   id: serial("id").primaryKey(),
-  walletAddress: varchar("wallet_address", { length: 42 }).notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   username: text("username").notNull(),
   highScore: integer("high_score").default(0).notNull(),
   totalKicks: integer("total_kicks").default(0).notNull(),
   gamesPlayed: integer("games_played").default(0).notNull(),
-  highestLevel: integer("highest_level").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
   weekStart: timestamp("week_start").notNull(),
   weekEnd: timestamp("week_end").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard };
@@ -688,18 +687,19 @@ function getSaturdayWeekBoundaries(): { weekStart: Date; weekEnd: Date } {
 
 async function getBunnyBladeWeeklyLeaderboard(limit: number = 50) {
   const { weekStart, weekEnd } = getSaturdayWeekBoundaries();
-  return db.select().from(bunnyBladeWeeklyLeaderboard)
+  const results = await db.select().from(bunnyBladeWeeklyLeaderboard)
+    .innerJoin(users, eq(bunnyBladeWeeklyLeaderboard.userId, users.id))
     .where(and(gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart), lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)))
     .orderBy(desc(bunnyBladeWeeklyLeaderboard.highScore))
     .limit(limit);
+  return results.map(r => ({ ...r.bunny_blade_weekly_leaderboard, user: r.users }));
 }
 
-async function upsertBunnyBladeWeeklyScore(walletAddress: string, username: string, score: number, kicks: number, level: number) {
+async function upsertBunnyBladeWeeklyScore(userId: number, username: string, score: number, kicks: number, level: number) {
   const { weekStart, weekEnd } = getSaturdayWeekBoundaries();
-  const normalizedWallet = walletAddress.toLowerCase();
   const [existing] = await db.select().from(bunnyBladeWeeklyLeaderboard)
     .where(and(
-      eq(bunnyBladeWeeklyLeaderboard.walletAddress, normalizedWallet),
+      eq(bunnyBladeWeeklyLeaderboard.userId, userId),
       gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart),
       lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)
     ));
@@ -710,11 +710,10 @@ async function upsertBunnyBladeWeeklyScore(walletAddress: string, username: stri
       totalKicks: existing.totalKicks + kicks,
       gamesPlayed: existing.gamesPlayed + 1,
       highestLevel: Math.max(existing.highestLevel, level),
-      updatedAt: new Date(),
     }).where(eq(bunnyBladeWeeklyLeaderboard.id, existing.id));
   } else {
     await db.insert(bunnyBladeWeeklyLeaderboard).values({
-      walletAddress: normalizedWallet,
+      userId,
       username,
       highScore: score,
       totalKicks: kicks,
@@ -1232,8 +1231,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if ((url === '/api/bunny-blade/score' || url.endsWith('/api/bunny-blade/score')) && method === 'POST') {
       const { walletAddress, username, score, kicks, level } = req.body;
       if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
       const playerUsername = username || `Player_${walletAddress.slice(0, 6)}`;
-      await upsertBunnyBladeWeeklyScore(walletAddress, playerUsername, score || 0, kicks || 0, level || 0);
+      await upsertBunnyBladeWeeklyScore(user.id, playerUsername, score || 0, kicks || 0, level || 0);
       const leaderboard = await getBunnyBladeWeeklyLeaderboard(50);
       return res.json({ success: true, leaderboard });
     }
