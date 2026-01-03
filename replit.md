@@ -180,6 +180,42 @@ A 2D canvas-based flying game where players pilot rockets, dodge obstacles, coll
 - `GET /api/rabbit-rush/leaderboard/daily` - Get daily leaderboard
 - `GET /api/rabbit-rush/leaderboard/weekly` - Get weekly leaderboard
 
+## Rabbits Blade Game
+A 2D canvas-based fruit-ninja style slicing game where players slice fruits and avoid bombs to earn KICKS.
+
+### Game Features
+- **10 Level System**: Progress through 10 increasingly difficult levels
+- **60-Second Timer**: Each level lasts 60 seconds - survive to advance
+- **Slicing Mechanics**: Swipe/drag to slice targets for points
+- **Target Types**: Carrots (15pts), Leaves (10pts), Gold Coins (50pts)
+- **Hazards**: Bombs (-1 life), Thor Hammer (destroys ALL targets on screen)
+- **Blade Upgrades**: Purchase different blades with earned KICKS
+- **KICKS Claiming**: Claim earned KICKS via wallet signing at victory
+
+### Level Difficulty Scaling (LEVEL_CONFIGS)
+- **Level 1-3 (Easy)**: Low spawn rate, few bombs, slow speed
+- **Level 4-6 (Medium)**: Moderate spawns, 10-15% bomb chance
+- **Level 7-9 (Hard)**: Fast spawns, 20% bomb chance, 8-10% Thor chance
+- **Level 10 (Expert)**: Maximum difficulty, high coin chance (10%)
+
+### Rabbits Blade Mechanics
+- **Lives System**: Start with 3 lives, lose 1 per bomb sliced
+- **Streak System**: Consecutive slices without missing increase streak multiplier
+- **Thor Lightning**: Slicing Thor hammer triggers lightning to ALL targets, destroying them for points
+- **Victory Condition**: Complete level 10 to win and claim KICKS
+
+### Rabbits Blade Files
+- `client/src/games/bunny-blade/BunnyBladeApp.tsx` - Main game component
+- `client/public/textures/rabbits-blade-logo.png` - Game logo
+- `client/public/textures/thor-bunny.png` - Thor hammer powerup sprite
+
+## Recent Changes (January 3, 2026)
+- Rabbits Blade fully implemented with 10-level system
+- Added 60-second timer per level with visual countdown
+- Implemented Thor lightning effect that destroys all targets
+- Added wallet claiming flow using Rabbit Rush API pattern
+- Level configs define spawn rates, bomb/thor chances, and speed multipliers
+
 ## Recent Changes (December 10, 2025)
 - Rabbit Rush fully implemented with 2D canvas flying game
 - Added destructible obstacles with HP system
