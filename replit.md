@@ -203,6 +203,14 @@ A 2D canvas-based fruit-ninja style slicing game where players slice fruits and 
 - **Streak System**: Consecutive slices without missing increase streak multiplier
 - **Thor Lightning**: Slicing Thor hammer triggers lightning to ALL targets, destroying them for points
 - **Victory Condition**: Complete level 10 to win and claim KICKS
+- **Weekly Leaderboard**: Compete for top scores, resets every Saturday at midnight UTC
+
+### Rabbits Blade Database Schema
+- `bunnyBladeWeeklyLeaderboard`: Weekly leaderboard entries with username, high score, total kicks, games played
+
+### Rabbits Blade API Endpoints
+- `GET /api/bunny-blade/leaderboard/weekly` - Get weekly leaderboard with reset countdown
+- `POST /api/bunny-blade/score` - Submit score with username for leaderboard
 
 ### Rabbits Blade Files
 - `client/src/games/bunny-blade/BunnyBladeApp.tsx` - Main game component
@@ -210,6 +218,10 @@ A 2D canvas-based fruit-ninja style slicing game where players slice fruits and 
 - `client/public/textures/thor-bunny.png` - Thor hammer powerup sprite
 
 ## Recent Changes (January 3, 2026)
+- Added weekly leaderboard for Rabbits Blade (resets Saturday at midnight UTC)
+- Added username prompt to save player names to leaderboard
+- Enhanced Thor lightning effect with screen flash, thicker bolts, branch lightning
+- Fixed claimed KICKS display to show earned amount after claiming
 - Rabbits Blade fully implemented with 10-level system
 - Added 60-second timer per level with visual countdown
 - Implemented Thor lightning effect that destroys all targets
