@@ -1032,16 +1032,6 @@ export function BunnyBladeApp() {
             </div>
           )}
           
-          <div className="flex items-center gap-3">
-            {gameState.phase === 'playing' && (
-              <button
-                onClick={() => setGameState(prev => ({ ...prev, showShop: !prev.showShop }))}
-                className="p-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
-                <ShoppingCart className="w-5 h-5" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -1244,9 +1234,17 @@ export function BunnyBladeApp() {
       </div>
 
       {gameState.phase === 'playing' && (
-        <div className="fixed bottom-4 right-4 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50 z-50">
-          <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
-        </div>
+        <>
+          <div className="fixed bottom-4 right-4 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50 z-50">
+            <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
+          </div>
+          <button
+            onClick={() => setGameState(prev => ({ ...prev, showShop: !prev.showShop }))}
+            className="fixed bottom-4 left-4 p-3 bg-red-600/90 hover:bg-red-700 text-white rounded-lg transition-colors z-50 border border-red-400/50"
+          >
+            <ShoppingCart className="w-6 h-6" />
+          </button>
+        </>
       )}
     </div>
   );
