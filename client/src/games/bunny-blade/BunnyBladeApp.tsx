@@ -362,21 +362,59 @@ export function BunnyBladeApp() {
   }, [walletAddress, gameState.runId]);
 
   const claimKicks = useCallback(async () => {
-    if (!walletAddress || gameState.kicks <= 0 || !gameState.runId) return;
+    if (!walletAddress || gameState.kicks <= 0) {
+      console.log('[BunnyBlade] Claim blocked: wallet=', walletAddress, 'kicks=', gameState.kicks);
+      return;
+    }
     
     setClaimError(null);
     setGameState(prev => ({ ...prev, phase: 'claiming' }));
 
     try {
-      await saveRunResult(true, gameState.kicks);
+      let currentRunId = gameState.runId;
+      
+      if (!currentRunId) {
+        console.log('[BunnyBlade] No runId, creating one...');
+        const res = await fetch('/api/rabbit-rush/run/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, wager: 0 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentRunId = data.runId;
+          setGameState(prev => ({ ...prev, runId: currentRunId }));
+        } else {
+          throw new Error('Failed to create run for claim');
+        }
+      }
 
-      const authMessage = `Request Rabbit Rush claim nonce for run ${gameState.runId}`;
+      if (!currentRunId) {
+        throw new Error('Unable to create claim session');
+      }
+
+      await fetch('/api/rabbit-rush/run/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          runId: currentRunId,
+          wager: 0,
+          finalMultiplier: 1,
+          payout: gameState.kicks,
+          coinsCollected: 0,
+          enemiesDestroyed: 0,
+          won: true,
+        }),
+      });
+
+      const authMessage = `Request Rabbit Rush claim nonce for run ${currentRunId}`;
       const authSignature = await signMessage(authMessage);
       if (!authSignature) {
         throw new Error('Signature cancelled');
       }
 
-      const nonceRes = await fetch(`/api/rabbit-rush/run/${gameState.runId}/claim-nonce`, {
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${currentRunId}/claim-nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, authSignature })
@@ -388,7 +426,7 @@ export function BunnyBladeApp() {
       }
 
       const { nonce, expectedPayout } = await nonceRes.json();
-      const runIdNum = parseInt(gameState.runId, 10);
+      const runIdNum = parseInt(currentRunId, 10);
       
       const signature = await signClaimMessage(expectedPayout, runIdNum, nonce, 'rabbit-rush');
       if (!signature) {
@@ -404,10 +442,11 @@ export function BunnyBladeApp() {
         throw new Error('Claim failed');
       }
     } catch (error: any) {
+      console.error('[BunnyBlade] Claim error:', error);
       setClaimError(error.message || 'Failed to claim KICKS');
       setGameState(prev => ({ ...prev, phase: 'ended' }));
     }
-  }, [walletAddress, gameState.kicks, gameState.runId, saveRunResult, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+  }, [walletAddress, gameState.kicks, gameState.runId, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
