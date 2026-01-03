@@ -1123,7 +1123,8 @@ export async function registerRoutes(
     try {
       const { walletAddress, wager, depositTxHash } = req.body;
       
-      if (!depositTxHash) {
+      const wagerAmount = parseFloat(wager) || 0;
+      if (wagerAmount > 0 && !depositTxHash) {
         return res.status(400).json({ error: "Deposit transaction hash required" });
       }
       
@@ -1132,12 +1133,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
       
-      const run = await storage.createRabbitRushRun(user.id, wager.toString());
-      await storage.updateRabbitRushRun(run.id, {
-        depositTxHash: depositTxHash,
-      });
+      const run = await storage.createRabbitRushRun(user.id, wagerAmount.toString());
+      if (depositTxHash) {
+        await storage.updateRabbitRushRun(run.id, {
+          depositTxHash: depositTxHash,
+        });
+      }
       
-      console.log(`Game run started: runId=${run.id}, wager=${wager}, depositTxHash=${depositTxHash}`);
+      console.log(`Game run started: runId=${run.id}, wager=${wagerAmount}, depositTxHash=${depositTxHash || 'free-play'}`);
       res.json({ success: true, runId: run.id });
     } catch (error) {
       console.error("Start run error:", error);
