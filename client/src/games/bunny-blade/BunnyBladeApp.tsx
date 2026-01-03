@@ -142,6 +142,12 @@ export function BunnyBladeApp() {
   }, [kicksBalance]);
 
   useEffect(() => {
+    if (walletAddress) {
+      refreshBalance();
+    }
+  }, [walletAddress, refreshBalance]);
+
+  useEffect(() => {
     const img = new Image();
     img.src = '/textures/thor-bunny.png';
     img.onload = () => {
@@ -875,10 +881,14 @@ export function BunnyBladeApp() {
 
   const buyBlade = async (bladeName: string) => {
     const blade = BLADES[bladeName];
+    console.log('buyBlade called:', bladeName, 'cost:', blade.cost, 'displayKicks:', displayKicks, 'isPurchasing:', isPurchasing);
+    
     if (displayKicks >= blade.cost && !gameState.unlockedBlades.includes(bladeName) && !isPurchasing) {
       setIsPurchasing(true);
+      console.log('Starting purchase, calling sendKicksToHouse...');
       try {
         const txHash = await sendKicksToHouse(blade.cost.toString());
+        console.log('sendKicksToHouse result:', txHash);
         if (txHash) {
           setGameState(prev => ({
             ...prev,
@@ -901,6 +911,8 @@ export function BunnyBladeApp() {
         setIsPurchasing(false);
         resetTransactionState();
       }
+    } else {
+      console.log('Purchase condition not met');
     }
   };
 
@@ -997,6 +1009,9 @@ export function BunnyBladeApp() {
             >
               {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
+            <div className="bg-yellow-500/20 px-3 py-1 rounded-lg">
+              <span className="text-yellow-400 font-bold text-sm">{displayKicks.toFixed(0)} KICKS</span>
+            </div>
           </div>
           
           {gameState.phase === 'playing' && (
