@@ -99,7 +99,7 @@ const BLADES: Record<string, Blade> = {
 };
 
 export function BunnyBladeApp() {
-  const { kicksBalance, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, sendKicksToHouse, resetTransactionState } = useWallet();
+  const { isConnected, kicksBalance, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, sendKicksToHouse, resetTransactionState } = useWallet();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -138,20 +138,19 @@ export function BunnyBladeApp() {
   });
 
   useEffect(() => {
+    if (!isConnected) {
+      setLocation("/");
+    }
+  }, [isConnected, setLocation]);
+
+  useEffect(() => {
     const balance = parseFloat(kicksBalance) || 0;
-    console.log('[BunnyBlade] kicksBalance changed:', kicksBalance, '-> displayKicks:', balance);
     setDisplayKicks(balance);
   }, [kicksBalance]);
 
   useEffect(() => {
-    console.log('[BunnyBlade] walletAddress:', walletAddress);
     if (walletAddress) {
-      console.log('[BunnyBlade] Wallet connected, refreshing balance...');
-      refreshBalance().then(() => {
-        console.log('[BunnyBlade] Balance refresh complete');
-      }).catch(err => {
-        console.error('[BunnyBlade] Balance refresh error:', err);
-      });
+      refreshBalance();
     }
   }, [walletAddress, refreshBalance]);
 
@@ -999,6 +998,10 @@ export function BunnyBladeApp() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (!isConnected) {
+    return null;
+  }
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black overflow-hidden touch-none select-none flex flex-col">
