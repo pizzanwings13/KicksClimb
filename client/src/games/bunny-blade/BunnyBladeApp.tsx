@@ -138,6 +138,13 @@ export function BunnyBladeApp() {
     runId: null
   });
 
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [weekEnd, setWeekEnd] = useState<Date | null>(null);
+  const [username, setUsername] = useState('');
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [pendingScore, setPendingScore] = useState<{score: number, kicks: number, level: number} | null>(null);
+
   useEffect(() => {
     if (!isConnected) {
       setLocation("/");
@@ -479,6 +486,72 @@ export function BunnyBladeApp() {
       setGameState(prev => ({ ...prev, phase: 'ended' }));
     }
   }, [walletAddress, gameState.kicks, gameState.runId, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bunny-blade/leaderboard/weekly');
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboardData(data.leaderboard || []);
+        if (data.weekEnd) {
+          setWeekEnd(new Date(data.weekEnd));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    }
+  }, []);
+
+  const submitScore = useCallback(async (playerUsername: string, score: number, kicks: number, level: number) => {
+    if (!walletAddress) return;
+    try {
+      await fetch('/api/bunny-blade/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, username: playerUsername, score, kicks, level })
+      });
+      await fetchLeaderboard();
+    } catch (error) {
+      console.error('Failed to submit score:', error);
+    }
+  }, [walletAddress, fetchLeaderboard]);
+
+  const handleUsernameSubmit = useCallback(async () => {
+    if (!username.trim() || !pendingScore) return;
+    setShowUsernamePrompt(false);
+    await submitScore(username.trim(), pendingScore.score, pendingScore.kicks, pendingScore.level);
+    setPendingScore(null);
+  }, [username, pendingScore, submitScore]);
+
+  const getTimeUntilReset = useCallback(() => {
+    if (!weekEnd) return 'Loading...';
+    const now = new Date();
+    const diff = weekEnd.getTime() - now.getTime();
+    if (diff <= 0) return 'Resetting soon...';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }, [weekEnd]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  useEffect(() => {
+    if (gameState.phase === 'victory' || gameState.gameOver) {
+      if (gameState.score > 0) {
+        if (!username) {
+          setPendingScore({ score: gameState.score, kicks: gameState.kicks, level: gameState.level });
+          setShowUsernamePrompt(true);
+        } else {
+          submitScore(username, gameState.score, gameState.kicks, gameState.level);
+        }
+      }
+    }
+  }, [gameState.phase, gameState.gameOver, gameState.score, gameState.kicks, gameState.level, username, submitScore]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1119,6 +1192,12 @@ export function BunnyBladeApp() {
             >
               {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
+            <button
+              onClick={() => { fetchLeaderboard(); setShowLeaderboard(true); }}
+              className="p-2 bg-yellow-600/80 hover:bg-yellow-500 text-white rounded-lg transition-colors"
+            >
+              <Trophy className="w-5 h-5" />
+            </button>
           </div>
           
           {gameState.phase === 'playing' && (
@@ -1371,6 +1450,99 @@ export function BunnyBladeApp() {
             <ShoppingCart className="w-6 h-6" />
           </button>
         </>
+      )}
+
+      {showLeaderboard && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl border-4 border-yellow-500 max-w-md w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-yellow-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-400" />
+                <h2 className="text-xl font-bold text-white">Weekly Leaderboard</h2>
+              </div>
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+            </div>
+            <div className="p-4 text-center border-b border-yellow-500/30">
+              <p className="text-gray-400 text-sm">Resets Saturday at midnight UTC</p>
+              <p className="text-yellow-400 font-bold">{getTimeUntilReset()}</p>
+            </div>
+            <div className="overflow-y-auto max-h-[50vh] p-4">
+              {leaderboardData.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No scores yet this week. Be the first!</p>
+              ) : (
+                <div className="space-y-2">
+                  {leaderboardData.map((entry, index) => (
+                    <div 
+                      key={entry.id} 
+                      className={`flex items-center gap-3 p-3 rounded-lg ${
+                        index === 0 ? 'bg-yellow-500/20 border border-yellow-500/50' :
+                        index === 1 ? 'bg-gray-400/20 border border-gray-400/50' :
+                        index === 2 ? 'bg-orange-600/20 border border-orange-600/50' :
+                        'bg-white/5'
+                      }`}
+                    >
+                      <span className={`font-bold text-lg w-8 ${
+                        index === 0 ? 'text-yellow-400' :
+                        index === 1 ? 'text-gray-300' :
+                        index === 2 ? 'text-orange-400' :
+                        'text-gray-500'
+                      }`}>
+                        #{index + 1}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold">{entry.username}</p>
+                        <p className="text-gray-400 text-xs">Level {entry.highestLevel} | {entry.gamesPlayed} games</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-yellow-400 font-bold">{entry.highScore.toLocaleString()}</p>
+                        <p className="text-green-400 text-xs">{entry.totalKicks} KICKS</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUsernamePrompt && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl border-4 border-yellow-500 max-w-sm w-full p-6">
+            <h2 className="text-2xl font-bold text-white mb-4 text-center">Enter Your Name</h2>
+            <p className="text-gray-400 text-sm text-center mb-4">Save your score to the weekly leaderboard!</p>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Your username..."
+              maxLength={20}
+              className="w-full px-4 py-3 bg-black/50 border-2 border-yellow-500/50 rounded-xl text-white text-center text-lg focus:outline-none focus:border-yellow-400 mb-4"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleUsernameSubmit()}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowUsernamePrompt(false); setPendingScore(null); }}
+                className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleUsernameSubmit}
+                disabled={!username.trim()}
+                className="flex-1 px-4 py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold rounded-xl transition-colors"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
