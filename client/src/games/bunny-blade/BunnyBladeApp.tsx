@@ -152,6 +152,24 @@ export function BunnyBladeApp() {
   }, [isConnected, setLocation]);
 
   useEffect(() => {
+    const fetchSavedUsername = async () => {
+      if (!walletAddress) return;
+      try {
+        const res = await fetch(`/api/user/${walletAddress}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user?.username && !data.user.username.startsWith('Player_')) {
+            setUsername(data.user.username);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch saved username:', error);
+      }
+    };
+    fetchSavedUsername();
+  }, [walletAddress]);
+
+  useEffect(() => {
     const balance = parseFloat(kicksBalance) || 0;
     setDisplayKicks(balance);
   }, [kicksBalance]);
@@ -519,9 +537,22 @@ export function BunnyBladeApp() {
   const handleUsernameSubmit = useCallback(async () => {
     if (!username.trim() || !pendingScore) return;
     setShowUsernamePrompt(false);
+    
+    if (walletAddress) {
+      try {
+        await fetch(`/api/user/${walletAddress}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username.trim() })
+        });
+      } catch (error) {
+        console.error('Failed to save username:', error);
+      }
+    }
+    
     await submitScore(username.trim(), pendingScore.score, pendingScore.kicks, pendingScore.level);
     setPendingScore(null);
-  }, [username, pendingScore, submitScore]);
+  }, [username, pendingScore, submitScore, walletAddress]);
 
   const getTimeUntilReset = useCallback(() => {
     if (!weekEnd) return 'Loading...';
