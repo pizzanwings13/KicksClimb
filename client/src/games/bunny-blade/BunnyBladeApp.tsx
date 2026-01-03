@@ -106,6 +106,7 @@ export function BunnyBladeApp() {
   const [muted, setMuted] = useState(false);
   const [displayKicks, setDisplayKicks] = useState(0);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimedKicks, setClaimedKicks] = useState<number | null>(null);
   const thorImageRef = useRef<HTMLImageElement | null>(null);
   const lastTimeRef = useRef<number>(Date.now());
   const sliceSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -437,7 +438,8 @@ export function BunnyBladeApp() {
 
       if (claimed) {
         await refreshBalance();
-        setGameState(prev => ({ ...prev, phase: 'ended', kicks: 0 }));
+        setClaimedKicks(gameState.kicks);
+        setGameState(prev => ({ ...prev, phase: 'ended' }));
       } else {
         throw new Error('Claim failed');
       }
@@ -963,6 +965,8 @@ export function BunnyBladeApp() {
   };
 
   const startGame = async () => {
+    setClaimedKicks(null);
+    setClaimError(null);
     gameRef.current = {
       targets: [],
       particles: [],
@@ -1263,12 +1267,16 @@ export function BunnyBladeApp() {
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">💀 Game Over!</h2>
                 <p className="text-lg text-gray-300 mb-2">Reached Level {gameState.level}/{MAX_LEVEL}</p>
                 <p className="text-xl sm:text-2xl text-yellow-300 mb-2">Score: {gameState.score}</p>
-                <p className="text-lg text-green-400 mb-2">KICKS Earned: {gameState.kicks}</p>
+                {claimedKicks !== null ? (
+                  <p className="text-lg text-green-400 mb-2">Claimed: {claimedKicks} KICKS</p>
+                ) : (
+                  <p className="text-lg text-green-400 mb-2">KICKS Earned: {gameState.kicks}</p>
+                )}
                 {claimError && (
                   <p className="text-red-400 text-sm mb-4">{claimError}</p>
                 )}
                 <div className="flex gap-3 justify-center flex-wrap">
-                  {gameState.kicks > 0 && walletAddress && (
+                  {gameState.kicks > 0 && walletAddress && claimedKicks === null && (
                     <button
                       onClick={claimKicks}
                       className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
