@@ -139,18 +139,21 @@ export function BunnyBladeApp() {
 
   useEffect(() => {
     const balance = parseFloat(kicksBalance) || 0;
-    console.log('kicksBalance changed:', kicksBalance, '-> displayKicks:', balance);
+    console.log('[BunnyBlade] kicksBalance changed:', kicksBalance, '-> displayKicks:', balance);
     setDisplayKicks(balance);
   }, [kicksBalance]);
 
   useEffect(() => {
+    console.log('[BunnyBlade] walletAddress:', walletAddress);
     if (walletAddress) {
-      console.log('Wallet connected, refreshing balance...');
+      console.log('[BunnyBlade] Wallet connected, refreshing balance...');
       refreshBalance().then(() => {
-        console.log('Balance refreshed, kicksBalance:', kicksBalance);
+        console.log('[BunnyBlade] Balance refresh complete');
+      }).catch(err => {
+        console.error('[BunnyBlade] Balance refresh error:', err);
       });
     }
-  }, [walletAddress]);
+  }, [walletAddress, refreshBalance]);
 
   useEffect(() => {
     const img = new Image();
