@@ -107,6 +107,19 @@ export function BunnyBladeApp() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const thorImageRef = useRef<HTMLImageElement | null>(null);
   const lastTimeRef = useRef<number>(Date.now());
+  const sliceSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    sliceSoundRef.current = new Audio('/sounds/hit.mp3');
+    sliceSoundRef.current.volume = 0.3;
+  }, []);
+
+  const playSliceSound = useCallback(() => {
+    if (!muted && sliceSoundRef.current) {
+      sliceSoundRef.current.currentTime = 0;
+      sliceSoundRef.current.play().catch(() => {});
+    }
+  }, [muted]);
   
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
@@ -664,6 +677,7 @@ export function BunnyBladeApp() {
             target.sliced = true;
             createSliceParticles(target.x, target.y, target.color, 15);
             createSlashEffect(target.x, target.y);
+            playSliceSound();
 
             if (target.type === 'thor') {
               activateThor();
@@ -701,7 +715,7 @@ export function BunnyBladeApp() {
               if (target.type === 'heart') {
                 return {
                   ...prev,
-                  lives: Math.min(prev.lives + 1, 5),
+                  lives: Math.min(prev.lives + 1, 3),
                   streak: prev.streak + 1
                 };
               }
@@ -856,7 +870,7 @@ export function BunnyBladeApp() {
       canvas.removeEventListener('touchend', handleTouchEnd);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [gameState.phase, gameState.showShop, gameState.level, gameState.activeBlade, spawnTarget, createSliceParticles, createSlashEffect, activateThor]);
+  }, [gameState.phase, gameState.showShop, gameState.level, gameState.activeBlade, spawnTarget, createSliceParticles, createSlashEffect, activateThor, playSliceSound]);
 
   const buyBlade = (bladeName: string) => {
     const blade = BLADES[bladeName];
@@ -982,7 +996,7 @@ export function BunnyBladeApp() {
                 <span className="font-bold text-sm sm:text-base">{gameState.score}</span>
               </div>
               <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
+                {[...Array(3)].map((_, i) => (
                   <Heart 
                     key={i} 
                     className={`w-4 h-4 sm:w-5 sm:h-5 ${i < gameState.lives ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} 
@@ -1021,12 +1035,6 @@ export function BunnyBladeApp() {
             style={{ imageRendering: 'crisp-edges' }}
           />
 
-          {gameState.phase === 'playing' && (
-            <div className="absolute bottom-4 left-4 bg-black/70 px-4 py-2 rounded-lg border border-yellow-500/50">
-              <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
-            </div>
-          )}
-
           {gameState.phase === 'menu' && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
               <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-2xl border-4 border-red-500 text-center max-w-md mx-4">
@@ -1040,7 +1048,7 @@ export function BunnyBladeApp() {
                 <div className="text-xs sm:text-sm text-gray-400 mb-6 space-y-1">
                   <p>🥕 Carrots = 15pts | 🍃 Leaves = 10pts</p>
                   <p>🍍 Pineapple = 25pts | 🪙 Coins = 50pts</p>
-                  <p>💗 Hearts = +1 Life (max 5)</p>
+                  <p>💗 Hearts = +1 Life (max 3)</p>
                   <p>💣 Don't slice bombs! ⚡ Thor = Destroy ALL!</p>
                 </div>
                 <button
@@ -1202,6 +1210,12 @@ export function BunnyBladeApp() {
           )}
         </div>
       </div>
+
+      {gameState.phase === 'playing' && (
+        <div className="fixed bottom-4 left-4 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50 z-50">
+          <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
+        </div>
+      )}
     </div>
   );
 }
