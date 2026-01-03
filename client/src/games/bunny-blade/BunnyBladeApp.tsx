@@ -99,7 +99,8 @@ const BLADES: Record<string, Blade> = {
 };
 
 export function BunnyBladeApp() {
-  const { kicksBalance, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance } = useWallet();
+  const { kicksBalance, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance, sendKicksToHouse, resetTransactionState } = useWallet();
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [muted, setMuted] = useState(false);
@@ -872,15 +873,34 @@ export function BunnyBladeApp() {
     };
   }, [gameState.phase, gameState.showShop, gameState.level, gameState.activeBlade, spawnTarget, createSliceParticles, createSlashEffect, activateThor, playSliceSound]);
 
-  const buyBlade = (bladeName: string) => {
+  const buyBlade = async (bladeName: string) => {
     const blade = BLADES[bladeName];
-    if (gameState.kicks >= blade.cost && !gameState.unlockedBlades.includes(bladeName)) {
-      setGameState(prev => ({
-        ...prev,
-        kicks: prev.kicks - blade.cost,
-        unlockedBlades: [...prev.unlockedBlades, bladeName],
-        activeBlade: bladeName
-      }));
+    if (displayKicks >= blade.cost && !gameState.unlockedBlades.includes(bladeName) && !isPurchasing) {
+      setIsPurchasing(true);
+      try {
+        const txHash = await sendKicksToHouse(blade.cost.toString());
+        if (txHash) {
+          setGameState(prev => ({
+            ...prev,
+            unlockedBlades: [...prev.unlockedBlades, bladeName],
+            activeBlade: bladeName
+          }));
+          await refreshBalance();
+          setDisplayKicks(parseFloat(kicksBalance) || 0);
+          if (walletAddress) {
+            await fetch('/api/rabbit-rush/purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress, itemType: 'blade', itemId: bladeName, txHash }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Blade purchase failed:', error);
+      } finally {
+        setIsPurchasing(false);
+        resetTransactionState();
+      }
     }
   };
 
@@ -1127,7 +1147,10 @@ export function BunnyBladeApp() {
                     <X size={24} />
                   </button>
                 </div>
-                <div className="text-yellow-300 mb-4">Your KICKS: {gameState.kicks}</div>
+                <div className="text-yellow-300 mb-4">Your Wallet: {displayKicks.toFixed(0)} KICKS</div>
+                {isPurchasing && (
+                  <div className="text-center text-yellow-400 mb-4 animate-pulse">Processing purchase...</div>
+                )}
                 {Object.entries(BLADES).map(([name, blade]) => (
                   <div
                     key={name}
@@ -1156,14 +1179,14 @@ export function BunnyBladeApp() {
                     ) : (
                       <button
                         onClick={() => buyBlade(name)}
-                        disabled={gameState.kicks < blade.cost}
+                        disabled={displayKicks < blade.cost || isPurchasing}
                         className={`px-3 py-2 rounded text-white text-sm font-bold ${
-                          gameState.kicks >= blade.cost
+                          displayKicks >= blade.cost && !isPurchasing
                             ? 'bg-yellow-600 hover:bg-yellow-700'
                             : 'bg-gray-600 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        {blade.cost} KICKS
+                        {isPurchasing ? '...' : `${blade.cost} KICKS`}
                       </button>
                     )}
                   </div>
