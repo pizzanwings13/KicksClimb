@@ -81,6 +81,14 @@ const GAMES: GameCardProps[] = [
     gradient: "bg-gradient-to-br from-sky-500 to-blue-600",
     available: true,
   },
+  {
+    title: "Bunny Blade",
+    description: "Slice vegetables and coins! Avoid bombs, catch Thor's Hammer for ultimate destruction!",
+    icon: <Rabbit className="w-6 h-6 text-white" />,
+    route: "/bunny-blade",
+    gradient: "bg-gradient-to-br from-purple-600 to-pink-600",
+    available: true,
+  },
 ];
 
 export function GameHub() {

@@ -8,6 +8,7 @@ import { GameHub } from "./pages/GameHub";
 import { KicksClimbApp } from "./games/kicks-climb/KicksClimbApp";
 import { RabbitRushApp } from "./games/rabbit-rush/RabbitRushApp";
 import { EndlessRunnerApp } from "./games/endless-runner/EndlessRunnerApp";
+import { BunnyBladeApp } from "./games/bunny-blade/BunnyBladeApp";
 import NotFound from "./pages/not-found";
 import { WalletConnectModal } from "./components/game/WalletConnectModal";
 import { useWallet } from "./lib/stores/useWallet";
@@ -141,6 +142,9 @@ function App() {
         </Route>
         <Route path="/endless-runner">
           <EndlessRunnerApp />
+        </Route>
+        <Route path="/bunny-blade">
+          <BunnyBladeApp />
         </Route>
         <Route path="/">
           {isConnected ? <GameHub /> : <ConnectWalletPage />}
