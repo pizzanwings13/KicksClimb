@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sword, ShoppingCart, X, ArrowLeft, Volume2, VolumeX, Heart, Flame, Zap } from 'lucide-react';
+import { Sword, ShoppingCart, X, ArrowLeft, Volume2, VolumeX, Heart, Flame, Zap, Clock, Trophy, Loader2 } from 'lucide-react';
 import { useWallet } from '../../lib/stores/useWallet';
 import { useLocation } from 'wouter';
 
@@ -13,7 +13,9 @@ interface GameState {
   gameOver: boolean;
   showShop: boolean;
   lives: number;
-  phase: 'menu' | 'playing' | 'ended';
+  phase: 'menu' | 'playing' | 'levelComplete' | 'victory' | 'ended' | 'claiming';
+  timeRemaining: number;
+  runId: string | null;
 }
 
 interface Blade {
@@ -34,7 +36,6 @@ interface Target {
   rotation: number;
   rotSpeed: number;
   hitByThor?: boolean;
-  sliceAngle?: number;
 }
 
 interface Particle {
@@ -64,6 +65,31 @@ interface LightningBolt {
   segments: { x: number; y: number }[];
 }
 
+interface LevelConfig {
+  spawnInterval: number;
+  maxTargets: number;
+  bombChance: number;
+  thorChance: number;
+  speedMult: number;
+  coinChance: number;
+}
+
+const LEVEL_CONFIGS: Record<number, LevelConfig> = {
+  1: { spawnInterval: 45, maxTargets: 6, bombChance: 0.05, thorChance: 0.01, speedMult: 1.0, coinChance: 0.1 },
+  2: { spawnInterval: 40, maxTargets: 7, bombChance: 0.08, thorChance: 0.012, speedMult: 1.1, coinChance: 0.12 },
+  3: { spawnInterval: 35, maxTargets: 8, bombChance: 0.10, thorChance: 0.014, speedMult: 1.2, coinChance: 0.14 },
+  4: { spawnInterval: 32, maxTargets: 9, bombChance: 0.12, thorChance: 0.016, speedMult: 1.3, coinChance: 0.16 },
+  5: { spawnInterval: 28, maxTargets: 10, bombChance: 0.14, thorChance: 0.018, speedMult: 1.4, coinChance: 0.18 },
+  6: { spawnInterval: 25, maxTargets: 11, bombChance: 0.16, thorChance: 0.02, speedMult: 1.5, coinChance: 0.2 },
+  7: { spawnInterval: 22, maxTargets: 12, bombChance: 0.18, thorChance: 0.022, speedMult: 1.6, coinChance: 0.22 },
+  8: { spawnInterval: 20, maxTargets: 13, bombChance: 0.20, thorChance: 0.024, speedMult: 1.7, coinChance: 0.24 },
+  9: { spawnInterval: 18, maxTargets: 14, bombChance: 0.22, thorChance: 0.026, speedMult: 1.8, coinChance: 0.26 },
+  10: { spawnInterval: 15, maxTargets: 15, bombChance: 0.25, thorChance: 0.03, speedMult: 2.0, coinChance: 0.3 },
+};
+
+const LEVEL_TIME = 60;
+const MAX_LEVEL = 10;
+
 const BLADES: Record<string, Blade> = {
   Wooden: { radius: 25, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
   Steel: { radius: 35, color: '#C0C0C0', cost: 2500, name: 'Steel Blade' },
@@ -71,12 +97,14 @@ const BLADES: Record<string, Blade> = {
 };
 
 export function BunnyBladeApp() {
-  const { kicksBalance } = useWallet();
+  const { kicksBalance, walletAddress, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance } = useWallet();
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [muted, setMuted] = useState(false);
   const [displayKicks, setDisplayKicks] = useState(0);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const thorImageRef = useRef<HTMLImageElement | null>(null);
+  const lastTimeRef = useRef<number>(Date.now());
   
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
@@ -88,7 +116,9 @@ export function BunnyBladeApp() {
     gameOver: false,
     showShop: false,
     lives: 3,
-    phase: 'menu'
+    phase: 'menu',
+    timeRemaining: LEVEL_TIME,
+    runId: null
   });
 
   useEffect(() => {
@@ -115,7 +145,8 @@ export function BunnyBladeApp() {
     lightningBolts: [] as LightningBolt[],
     thorActive: false,
     thorTimer: 0,
-    lastSliceTime: 0
+    lastSliceTime: 0,
+    frameCount: 0
   });
 
   const createSliceParticles = useCallback((x: number, y: number, color: string, count: number = 12) => {
@@ -169,37 +200,53 @@ export function BunnyBladeApp() {
     gameRef.current.thorActive = true;
     gameRef.current.thorTimer = 180;
 
+    let pointsEarned = 0;
+    let kicksEarned = 0;
+
     gameRef.current.targets.forEach(target => {
       if (target.type !== 'thor' && !target.sliced) {
         gameRef.current.lightningBolts.push({
           startX: 400,
-          startY: 80,
+          startY: 150,
           endX: target.x,
           endY: target.y,
-          life: 30,
-          segments: generateLightningSegments(400, 80, target.x, target.y)
+          life: 40,
+          segments: generateLightningSegments(400, 150, target.x, target.y)
         });
+        
+        createSliceParticles(target.x, target.y, '#00BFFF', 20);
+        target.sliced = true;
         target.hitByThor = true;
+
+        if (target.type !== 'bomb') {
+          const points = target.type === 'coin' ? 50 : target.type === 'carrot' ? 15 : 10;
+          pointsEarned += points;
+          kicksEarned += Math.floor(points / 2);
+        }
       }
     });
-  }, [generateLightningSegments]);
 
-  const getDifficulty = useCallback((level: number) => {
-    const speedMult = 1.2 + (level * 0.2);
-    const spawnRate = Math.max(15, 50 - (level * 4));
-    return { speedMult, spawnRate };
-  }, []);
+    setGameState(prev => ({
+      ...prev,
+      score: prev.score + pointsEarned,
+      kicks: prev.kicks + kicksEarned
+    }));
+  }, [generateLightningSegments, createSliceParticles]);
 
   const spawnTarget = useCallback((level: number) => {
-    const { speedMult } = getDifficulty(level);
+    const config = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[10];
     
-    if (Math.random() < 0.012) {
+    if (gameRef.current.targets.filter(t => !t.sliced).length >= config.maxTargets) {
+      return;
+    }
+
+    if (Math.random() < config.thorChance) {
       gameRef.current.targets.push({
         type: 'thor',
         x: Math.random() * 600 + 100,
-        y: 600,
+        y: 620,
         vx: (Math.random() - 0.5) * 2,
-        vy: -(Math.random() * 5 + 12) * speedMult,
+        vy: -(Math.random() * 5 + 12) * config.speedMult,
         color: '#4169E1',
         sliced: false,
         rotation: 0,
@@ -208,14 +255,18 @@ export function BunnyBladeApp() {
       return;
     }
 
-    const types: string[] = [];
-    types.push('carrot', 'carrot', 'carrot');
-    types.push('leaf', 'leaf');
-    if (level >= 2) types.push('coin', 'coin');
-    if (level >= 3) types.push('bomb');
-    if (level >= 5) types.push('bomb');
-
-    const type = types[Math.floor(Math.random() * types.length)];
+    let type: string;
+    const rand = Math.random();
+    
+    if (rand < config.bombChance) {
+      type = 'bomb';
+    } else if (rand < config.bombChance + config.coinChance) {
+      type = 'coin';
+    } else if (rand < config.bombChance + config.coinChance + 0.3) {
+      type = 'carrot';
+    } else {
+      type = 'leaf';
+    }
 
     const colors: Record<string, string> = {
       carrot: '#FF6B00',
@@ -243,13 +294,82 @@ export function BunnyBladeApp() {
       x: startX,
       y: 620,
       vx,
-      vy: -(Math.random() * 6 + 14) * speedMult,
+      vy: -(Math.random() * 6 + 14) * config.speedMult,
       color: colors[type],
       sliced: false,
       rotation: 0,
       rotSpeed: (Math.random() - 0.5) * 0.25
     });
-  }, [getDifficulty]);
+  }, []);
+
+  const saveRunResult = useCallback(async (won: boolean, payout: number) => {
+    if (!walletAddress || !gameState.runId) return;
+    try {
+      await fetch('/api/rabbit-rush/run/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          runId: gameState.runId,
+          wager: 0,
+          finalMultiplier: 1,
+          payout,
+          coinsCollected: 0,
+          enemiesDestroyed: 0,
+          won,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to save run:', error);
+    }
+  }, [walletAddress, gameState.runId]);
+
+  const claimKicks = useCallback(async () => {
+    if (!walletAddress || gameState.kicks <= 0 || !gameState.runId) return;
+    
+    setClaimError(null);
+    setGameState(prev => ({ ...prev, phase: 'claiming' }));
+
+    try {
+      await saveRunResult(true, gameState.kicks);
+
+      const authMessage = `Request Rabbit Rush claim nonce for run ${gameState.runId}`;
+      const authSignature = await signMessage(authMessage);
+      if (!authSignature) {
+        throw new Error('Signature cancelled');
+      }
+
+      const nonceRes = await fetch(`/api/rabbit-rush/run/${gameState.runId}/claim-nonce`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, authSignature })
+      });
+
+      if (!nonceRes.ok) {
+        const errorData = await nonceRes.json();
+        throw new Error(errorData.error || 'Failed to get claim nonce');
+      }
+
+      const { nonce, expectedPayout } = await nonceRes.json();
+      
+      const signature = await signClaimMessage(expectedPayout, gameState.runId, nonce, 'rabbit-rush');
+      if (!signature) {
+        throw new Error('Claim signature cancelled');
+      }
+
+      const claimed = await requestKicksFromHouse(expectedPayout, gameState.runId, signature, nonce, 'rabbit-rush');
+
+      if (claimed) {
+        await refreshBalance();
+        setGameState(prev => ({ ...prev, phase: 'ended', kicks: 0 }));
+      } else {
+        throw new Error('Claim failed');
+      }
+    } catch (error: any) {
+      setClaimError(error.message || 'Failed to claim KICKS');
+      setGameState(prev => ({ ...prev, phase: 'ended' }));
+    }
+  }, [walletAddress, gameState.kicks, gameState.runId, saveRunResult, signMessage, signClaimMessage, requestKicksFromHouse, refreshBalance]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -323,15 +443,37 @@ export function BunnyBladeApp() {
         return;
       }
 
+      gameRef.current.frameCount++;
+
+      const now = Date.now();
+      const deltaTime = (now - lastTimeRef.current) / 1000;
+      lastTimeRef.current = now;
+
+      if (gameRef.current.frameCount % 60 === 0) {
+        setGameState(prev => {
+          const newTime = Math.max(0, prev.timeRemaining - 1);
+          
+          if (newTime <= 0) {
+            if (prev.level >= MAX_LEVEL) {
+              return { ...prev, timeRemaining: 0, phase: 'victory' };
+            } else {
+              return { ...prev, timeRemaining: 0, phase: 'levelComplete' };
+            }
+          }
+          
+          return { ...prev, timeRemaining: newTime };
+        });
+      }
+
       const gradient = ctx.createLinearGradient(0, 0, 0, 600);
       gradient.addColorStop(0, '#1a0a2e');
       gradient.addColorStop(1, '#0a0a1a');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 800, 600);
 
-      const { spawnRate } = getDifficulty(gameState.level);
+      const config = LEVEL_CONFIGS[gameState.level] || LEVEL_CONFIGS[10];
       gameRef.current.spawnTimer++;
-      if (gameRef.current.spawnTimer > spawnRate) {
+      if (gameRef.current.spawnTimer > config.spawnInterval) {
         spawnTarget(gameState.level);
         gameRef.current.spawnTimer = 0;
       }
@@ -386,20 +528,6 @@ export function BunnyBladeApp() {
         target.y += target.vy;
         target.vy += 0.55;
         target.rotation += target.rotSpeed;
-
-        if (target.hitByThor) {
-          createSliceParticles(target.x, target.y, target.color, 20);
-          target.sliced = true;
-          
-          if (target.type !== 'bomb') {
-            setGameState(prev => ({
-              ...prev,
-              score: prev.score + (target.type === 'coin' ? 50 : 10),
-              kicks: prev.kicks + (target.type === 'coin' ? 25 : 5)
-            }));
-          }
-          target.hitByThor = false;
-        }
 
         if (!target.sliced) {
           ctx.save();
@@ -535,8 +663,7 @@ export function BunnyBladeApp() {
                 ...prev,
                 score: prev.score + reward,
                 kicks: prev.kicks + Math.floor(reward / 2),
-                streak: newStreak,
-                level: Math.min(10, Math.floor((prev.score + reward) / 800) + 1)
+                streak: newStreak
               };
             });
           }
@@ -567,7 +694,7 @@ export function BunnyBladeApp() {
           ctx.lineWidth = 4;
           ctx.shadowBlur = 25;
           ctx.shadowColor = '#00BFFF';
-          ctx.globalAlpha = bolt.life / 30;
+          ctx.globalAlpha = bolt.life / 40;
           
           ctx.beginPath();
           bolt.segments.forEach((seg, i) => {
@@ -677,7 +804,7 @@ export function BunnyBladeApp() {
       canvas.removeEventListener('touchend', handleTouchEnd);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [gameState.phase, gameState.showShop, gameState.level, gameState.activeBlade, getDifficulty, spawnTarget, createSliceParticles, createSlashEffect, activateThor]);
+  }, [gameState.phase, gameState.showShop, gameState.level, gameState.activeBlade, spawnTarget, createSliceParticles, createSlashEffect, activateThor]);
 
   const buyBlade = (bladeName: string) => {
     const blade = BLADES[bladeName];
@@ -691,7 +818,7 @@ export function BunnyBladeApp() {
     }
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     gameRef.current = {
       targets: [],
       particles: [],
@@ -704,15 +831,55 @@ export function BunnyBladeApp() {
       lightningBolts: [],
       thorActive: false,
       thorTimer: 0,
-      lastSliceTime: 0
+      lastSliceTime: 0,
+      frameCount: 0
     };
+    lastTimeRef.current = Date.now();
+
+    let runId = null;
+    if (walletAddress) {
+      try {
+        const res = await fetch('/api/rabbit-rush/run/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, wager: 0 })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          runId = data.runId;
+        }
+      } catch (e) {
+        console.log('Failed to start run tracking');
+      }
+    }
+
     setGameState(prev => ({
       ...prev,
       score: 0,
+      kicks: 0,
       level: 1,
       streak: 0,
       lives: 3,
       gameOver: false,
+      phase: 'playing',
+      timeRemaining: LEVEL_TIME,
+      runId
+    }));
+  };
+
+  const nextLevel = () => {
+    gameRef.current.targets = [];
+    gameRef.current.particles = [];
+    gameRef.current.lightningBolts = [];
+    gameRef.current.thorActive = false;
+    gameRef.current.spawnTimer = 0;
+    gameRef.current.frameCount = 0;
+    lastTimeRef.current = Date.now();
+
+    setGameState(prev => ({
+      ...prev,
+      level: prev.level + 1,
+      timeRemaining: LEVEL_TIME,
       phase: 'playing'
     }));
   };
@@ -721,9 +888,15 @@ export function BunnyBladeApp() {
     startGame();
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black overflow-hidden touch-none select-none flex flex-col">
-      <div className="flex-shrink-0 bg-black/80 border-b border-purple-500/30 px-4 py-2">
+      <div className="flex-shrink-0 bg-black/80 border-b border-red-500/30 px-4 py-2">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -743,12 +916,18 @@ export function BunnyBladeApp() {
           {gameState.phase === 'playing' && (
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="flex items-center gap-2 text-white">
-                <Zap className="w-4 h-4 text-green-400" />
-                <span className="font-bold text-sm sm:text-base">{gameState.score}</span>
+                <Clock className="w-4 h-4 text-yellow-400" />
+                <span className={`font-bold text-sm sm:text-base ${gameState.timeRemaining <= 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                  {formatTime(gameState.timeRemaining)}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-white">
                 <span className="text-xs sm:text-sm text-gray-400">Lv</span>
-                <span className="font-bold text-purple-400">{gameState.level}</span>
+                <span className="font-bold text-red-400">{gameState.level}/{MAX_LEVEL}</span>
+              </div>
+              <div className="flex items-center gap-2 text-white">
+                <Zap className="w-4 h-4 text-green-400" />
+                <span className="font-bold text-sm sm:text-base">{gameState.score}</span>
               </div>
               <div className="flex items-center gap-1">
                 {[...Array(3)].map((_, i) => (
@@ -771,7 +950,7 @@ export function BunnyBladeApp() {
             {gameState.phase === 'playing' && (
               <button
                 onClick={() => setGameState(prev => ({ ...prev, showShop: !prev.showShop }))}
-                className="p-2 bg-purple-600/80 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                className="p-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 <ShoppingCart className="w-5 h-5" />
               </button>
@@ -789,7 +968,7 @@ export function BunnyBladeApp() {
             ref={canvasRef}
             width={800}
             height={600}
-            className="w-full h-full border-4 border-purple-500/50 rounded-xl shadow-2xl cursor-none touch-none"
+            className="w-full h-full border-4 border-red-500/50 rounded-xl shadow-2xl cursor-none touch-none"
             style={{ imageRendering: 'crisp-edges' }}
           />
 
@@ -802,7 +981,7 @@ export function BunnyBladeApp() {
                   className="w-32 h-32 mx-auto mb-2 object-contain"
                 />
                 <h1 className="text-3xl sm:text-4xl font-bold text-red-500 mb-2">RABBITS BLADE</h1>
-                <p className="text-gray-300 mb-4 text-sm sm:text-base">Slice to survive!</p>
+                <p className="text-gray-300 mb-4 text-sm sm:text-base">Survive 10 levels, 60 seconds each!</p>
                 <div className="text-xs sm:text-sm text-gray-400 mb-6 space-y-1">
                   <p>🥕 Carrots = 15pts</p>
                   <p>🍃 Leaves = 10pts</p>
@@ -820,9 +999,54 @@ export function BunnyBladeApp() {
             </div>
           )}
 
+          {gameState.phase === 'levelComplete' && (
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+              <div className="bg-gradient-to-br from-green-900/95 to-emerald-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-green-400 mx-4">
+                <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">Level {gameState.level} Complete!</h2>
+                <p className="text-xl text-yellow-300 mb-2">Score: {gameState.score}</p>
+                <p className="text-lg text-green-400 mb-6">KICKS Earned: {gameState.kicks}</p>
+                <button
+                  onClick={nextLevel}
+                  className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-lg sm:text-xl rounded-xl transition-all active:scale-95"
+                >
+                  Next Level ({gameState.level + 1}/{MAX_LEVEL})
+                </button>
+              </div>
+            </div>
+          )}
+
+          {gameState.phase === 'victory' && (
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+              <div className="bg-gradient-to-br from-yellow-900/95 to-orange-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-yellow-400 mx-4">
+                <div className="text-6xl mb-4">🏆</div>
+                <h2 className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-2">VICTORY!</h2>
+                <p className="text-xl text-white mb-2">All 10 Levels Complete!</p>
+                <p className="text-2xl text-yellow-300 mb-2">Final Score: {gameState.score}</p>
+                <p className="text-lg text-green-400 mb-6">Total KICKS: {gameState.kicks}</p>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  {gameState.kicks > 0 && walletAddress && (
+                    <button
+                      onClick={claimKicks}
+                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
+                    >
+                      Claim {gameState.kicks} KICKS
+                    </button>
+                  )}
+                  <button
+                    onClick={resetGame}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
+                  >
+                    Play Again
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {gameState.showShop && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
-              <div className="bg-gradient-to-br from-purple-800 to-indigo-900 p-4 sm:p-6 rounded-xl max-w-md w-full mx-4 border-4 border-yellow-400">
+              <div className="bg-gradient-to-br from-purple-800 to-indigo-900 p-4 sm:p-6 rounded-xl max-w-md w-full mx-4 border-4 border-red-500">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl sm:text-2xl font-bold text-white">⚔️ Blade Shop</h2>
                   <button
@@ -877,13 +1101,35 @@ export function BunnyBladeApp() {
             </div>
           )}
 
+          {gameState.phase === 'claiming' && (
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+              <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-yellow-400 mx-4">
+                <Loader2 className="w-12 h-12 text-yellow-400 mx-auto mb-4 animate-spin" />
+                <h2 className="text-2xl font-bold text-white mb-2">Claiming KICKS...</h2>
+                <p className="text-gray-300">Please sign the message in your wallet</p>
+              </div>
+            </div>
+          )}
+
           {gameState.phase === 'ended' && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
-              <div className="bg-gradient-to-br from-red-900/95 to-purple-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-yellow-400 mx-4">
+              <div className="bg-gradient-to-br from-red-900/95 to-purple-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-red-500 mx-4">
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">💀 Game Over!</h2>
+                <p className="text-lg text-gray-300 mb-2">Reached Level {gameState.level}/{MAX_LEVEL}</p>
                 <p className="text-xl sm:text-2xl text-yellow-300 mb-2">Score: {gameState.score}</p>
-                <p className="text-lg text-green-400 mb-6">Earned: {gameState.kicks} KICKS</p>
+                <p className="text-lg text-green-400 mb-2">KICKS Earned: {gameState.kicks}</p>
+                {claimError && (
+                  <p className="text-red-400 text-sm mb-4">{claimError}</p>
+                )}
                 <div className="flex gap-3 justify-center flex-wrap">
+                  {gameState.kicks > 0 && walletAddress && (
+                    <button
+                      onClick={claimKicks}
+                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
+                    >
+                      Claim {gameState.kicks} KICKS
+                    </button>
+                  )}
                   <button
                     onClick={resetGame}
                     className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
