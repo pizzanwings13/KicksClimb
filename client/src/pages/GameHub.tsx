@@ -82,11 +82,11 @@ const GAMES: GameCardProps[] = [
     available: true,
   },
   {
-    title: "Bunny Blade",
+    title: "Rabbits Blade",
     description: "Slice vegetables and coins! Avoid bombs, catch Thor's Hammer for ultimate destruction!",
     icon: <Rabbit className="w-6 h-6 text-white" />,
     route: "/bunny-blade",
-    gradient: "bg-gradient-to-br from-purple-600 to-pink-600",
+    gradient: "bg-gradient-to-br from-red-600 to-red-800",
     available: true,
   },
 ];

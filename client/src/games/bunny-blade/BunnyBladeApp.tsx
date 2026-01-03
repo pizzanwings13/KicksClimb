@@ -795,8 +795,13 @@ export function BunnyBladeApp() {
 
           {gameState.phase === 'menu' && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
-              <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-2xl border-4 border-yellow-400 text-center max-w-md mx-4">
-                <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">🐰 BUNNY BLADE</h1>
+              <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-2xl border-4 border-red-500 text-center max-w-md mx-4">
+                <img 
+                  src="/textures/rabbits-blade-logo.png" 
+                  alt="Rabbits Blade" 
+                  className="w-32 h-32 mx-auto mb-2 object-contain"
+                />
+                <h1 className="text-3xl sm:text-4xl font-bold text-red-500 mb-2">RABBITS BLADE</h1>
                 <p className="text-gray-300 mb-4 text-sm sm:text-base">Slice to survive!</p>
                 <div className="text-xs sm:text-sm text-gray-400 mb-6 space-y-1">
                   <p>🥕 Carrots = 15pts</p>
@@ -807,7 +812,7 @@ export function BunnyBladeApp() {
                 </div>
                 <button
                   onClick={startGame}
-                  className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-lg sm:text-xl rounded-xl transition-all active:scale-95"
+                  className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-lg sm:text-xl rounded-xl transition-all active:scale-95"
                 >
                   START GAME
                 </button>
