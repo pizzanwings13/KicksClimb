@@ -1059,16 +1059,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const { walletAddress, wager, depositTxHash } = req.body;
         console.log(`[Rabbit Rush] Run start request: wallet=${walletAddress}, wager=${wager}, tx=${depositTxHash?.slice(0,10)}`);
-        if (!depositTxHash) return res.status(400).json({ error: "Deposit transaction hash required" });
         if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
+        const wagerNum = parseFloat(wager) || 0;
+        if (wagerNum > 0 && !depositTxHash) return res.status(400).json({ error: "Deposit transaction hash required for wagered runs" });
         const user = await getUserByWallet(walletAddress);
         if (!user) {
           console.log(`[Rabbit Rush] User not found for wallet: ${walletAddress}`);
           return res.status(404).json({ error: "User not found. Please connect your wallet first." });
         }
-        const run = await createRabbitRushRun(user.id, String(wager));
-        await updateRabbitRushRun(run.id, { depositTxHash: String(depositTxHash) });
-        console.log(`[Rabbit Rush] Run created: runId=${run.id}, wager=${wager}, tx=${depositTxHash}`);
+        const run = await createRabbitRushRun(user.id, String(wager || 0));
+        if (depositTxHash) {
+          await updateRabbitRushRun(run.id, { depositTxHash: String(depositTxHash) });
+        }
+        console.log(`[Rabbit Rush] Run created: runId=${run.id}, wager=${wager}, tx=${depositTxHash || 'free-to-play'}`);
         return res.json({ success: true, runId: run.id });
       } catch (runStartError: any) {
         console.error(`[Rabbit Rush] Run start error:`, runStartError);
