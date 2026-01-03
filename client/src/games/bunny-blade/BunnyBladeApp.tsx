@@ -1085,7 +1085,10 @@ export function BunnyBladeApp() {
                 <h2 className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-2">VICTORY!</h2>
                 <p className="text-xl text-white mb-2">All 10 Levels Complete!</p>
                 <p className="text-2xl text-yellow-300 mb-2">Final Score: {gameState.score}</p>
-                <p className="text-lg text-green-400 mb-6">Total KICKS: {gameState.kicks}</p>
+                <p className="text-lg text-green-400 mb-4">Total KICKS: {gameState.kicks}</p>
+                {claimError && (
+                  <p className="text-red-400 text-sm mb-4">{claimError}</p>
+                )}
                 <div className="flex gap-3 justify-center flex-wrap">
                   {gameState.kicks > 0 && walletAddress && (
                     <button
@@ -1100,6 +1103,12 @@ export function BunnyBladeApp() {
                     className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
                   >
                     Play Again
+                  </button>
+                  <button
+                    onClick={() => setLocation('/')}
+                    className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold text-base sm:text-lg active:scale-95 transition-transform"
+                  >
+                    Games
                   </button>
                 </div>
               </div>
@@ -1212,7 +1221,7 @@ export function BunnyBladeApp() {
       </div>
 
       {gameState.phase === 'playing' && (
-        <div className="fixed bottom-4 left-4 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50 z-50">
+        <div className="fixed bottom-4 right-4 bg-black/80 px-4 py-2 rounded-lg border border-yellow-500/50 z-50">
           <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
         </div>
       )}
