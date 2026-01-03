@@ -95,6 +95,14 @@ export function BunnyBladeApp() {
     setDisplayKicks(parseFloat(kicksBalance) || 0);
   }, [kicksBalance]);
 
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/textures/thor-bunny.png';
+    img.onload = () => {
+      thorImageRef.current = img;
+    };
+  }, []);
+
   const gameRef = useRef({
     targets: [] as Target[],
     particles: [] as Particle[],
@@ -591,44 +599,31 @@ export function BunnyBladeApp() {
         ctx.fillStyle = `rgba(135, 206, 250, ${flashAlpha})`;
         ctx.fillRect(0, 0, 800, 600);
         
-        const thorY = 100 + Math.sin(gameRef.current.thorTimer * 0.15) * 10;
+        const thorY = 150 + Math.sin(gameRef.current.thorTimer * 0.15) * 15;
         ctx.save();
-        ctx.translate(400, thorY);
         
-        ctx.shadowBlur = 40;
+        ctx.shadowBlur = 60;
         ctx.shadowColor = '#00BFFF';
         
-        ctx.fillStyle = '#4169E1';
-        ctx.fillRect(-20, 0, 40, 50);
+        if (thorImageRef.current) {
+          const imgSize = 200;
+          const scale = 1 + Math.sin(gameRef.current.thorTimer * 0.1) * 0.05;
+          const drawSize = imgSize * scale;
+          ctx.drawImage(
+            thorImageRef.current,
+            400 - drawSize / 2,
+            thorY - drawSize / 2,
+            drawSize,
+            drawSize
+          );
+        }
         
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(0, -15, 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#DC143C';
-        ctx.beginPath();
-        ctx.moveTo(-20, 10);
-        ctx.lineTo(-35, 50);
-        ctx.lineTo(-20, 50);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(20, 10);
-        ctx.lineTo(35, 50);
-        ctx.lineTo(20, 50);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.fillStyle = '#696969';
-        ctx.fillRect(30, 20, 40, 10);
-        ctx.fillStyle = '#4169E1';
-        ctx.fillRect(65, 12, 20, 26);
-        
-        ctx.font = 'bold 14px Arial';
-        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = '#00BFFF';
         ctx.textAlign = 'center';
-        ctx.fillText('⚡ THOR ⚡', 0, -45);
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00BFFF';
+        ctx.fillText('⚡ THOR BUNNY ⚡', 400, thorY + 130);
         
         ctx.restore();
         
