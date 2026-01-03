@@ -138,14 +138,19 @@ export function BunnyBladeApp() {
   });
 
   useEffect(() => {
-    setDisplayKicks(parseFloat(kicksBalance) || 0);
+    const balance = parseFloat(kicksBalance) || 0;
+    console.log('kicksBalance changed:', kicksBalance, '-> displayKicks:', balance);
+    setDisplayKicks(balance);
   }, [kicksBalance]);
 
   useEffect(() => {
     if (walletAddress) {
-      refreshBalance();
+      console.log('Wallet connected, refreshing balance...');
+      refreshBalance().then(() => {
+        console.log('Balance refreshed, kicksBalance:', kicksBalance);
+      });
     }
-  }, [walletAddress, refreshBalance]);
+  }, [walletAddress]);
 
   useEffect(() => {
     const img = new Image();
@@ -1009,9 +1014,6 @@ export function BunnyBladeApp() {
             >
               {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
-            <div className="bg-yellow-500/20 px-3 py-1 rounded-lg">
-              <span className="text-yellow-400 font-bold text-sm">{displayKicks.toFixed(0)} KICKS</span>
-            </div>
           </div>
           
           {gameState.phase === 'playing' && (
