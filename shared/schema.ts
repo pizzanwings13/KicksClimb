@@ -206,6 +206,25 @@ export const rabbitRushWeeklyLeaderboardRelations = relations(rabbitRushWeeklyLe
   }),
 }));
 
+export const bunnyBladeWeeklyLeaderboard = pgTable("bunny_blade_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+export const bunnyBladeWeeklyLeaderboardRelations = relations(bunnyBladeWeeklyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [bunnyBladeWeeklyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -235,3 +254,4 @@ export type RabbitRushInventory = typeof rabbitRushInventories.$inferSelect;
 export type RabbitRushRun = typeof rabbitRushRuns.$inferSelect;
 export type RabbitRushDailyLeaderboardEntry = typeof rabbitRushDailyLeaderboard.$inferSelect;
 export type RabbitRushWeeklyLeaderboardEntry = typeof rabbitRushWeeklyLeaderboard.$inferSelect;
+export type BunnyBladeWeeklyLeaderboardEntry = typeof bunnyBladeWeeklyLeaderboard.$inferSelect;

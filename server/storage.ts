@@ -1,9 +1,11 @@
 import { 
   users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
   rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard,
+  bunnyBladeWeeklyLeaderboard,
   type User, type InsertUser, type Game, type InsertGame, 
   type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
-  type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry
+  type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry,
+  type BunnyBladeWeeklyLeaderboardEntry
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -485,6 +487,79 @@ export class DatabaseStorage implements IStorage {
         totalWinnings: winnings,
         runsPlayed: 1,
         bestMultiplier: multiplier,
+        weekStart,
+        weekEnd,
+      });
+    }
+  }
+
+  getSaturdayWeekBoundaries(): { weekStart: Date; weekEnd: Date } {
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay();
+    const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+    const daysSinceLastSaturday = daysUntilSaturday === 0 ? 0 : 7 - daysUntilSaturday;
+    
+    const weekStart = new Date(now);
+    weekStart.setUTCDate(now.getUTCDate() - daysSinceLastSaturday);
+    weekStart.setUTCHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekStart.getUTCDate() + 7);
+    
+    return { weekStart, weekEnd };
+  }
+
+  async getBunnyBladeWeeklyLeaderboard(limit: number = 50): Promise<(BunnyBladeWeeklyLeaderboardEntry & { user: User })[]> {
+    const { weekStart, weekEnd } = this.getSaturdayWeekBoundaries();
+    
+    const results = await db.select()
+      .from(bunnyBladeWeeklyLeaderboard)
+      .innerJoin(users, eq(bunnyBladeWeeklyLeaderboard.userId, users.id))
+      .where(and(
+        gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart),
+        lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)
+      ))
+      .orderBy(desc(bunnyBladeWeeklyLeaderboard.highScore))
+      .limit(limit);
+
+    return results.map(r => ({ ...r.bunny_blade_weekly_leaderboard, user: r.users }));
+  }
+
+  async updateBunnyBladeWeeklyLeaderboard(
+    userId: number, 
+    username: string, 
+    score: number, 
+    kicks: number, 
+    level: number
+  ): Promise<void> {
+    const { weekStart, weekEnd } = this.getSaturdayWeekBoundaries();
+
+    const [existing] = await db.select()
+      .from(bunnyBladeWeeklyLeaderboard)
+      .where(and(
+        eq(bunnyBladeWeeklyLeaderboard.userId, userId),
+        gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart),
+        lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)
+      ));
+
+    if (existing) {
+      await db.update(bunnyBladeWeeklyLeaderboard)
+        .set({
+          username,
+          highScore: Math.max(existing.highScore, score),
+          totalKicks: existing.totalKicks + kicks,
+          gamesPlayed: existing.gamesPlayed + 1,
+          highestLevel: Math.max(existing.highestLevel, level),
+        })
+        .where(eq(bunnyBladeWeeklyLeaderboard.id, existing.id));
+    } else {
+      await db.insert(bunnyBladeWeeklyLeaderboard).values({
+        userId,
+        username,
+        highScore: score,
+        totalKicks: kicks,
+        gamesPlayed: 1,
+        highestLevel: level,
         weekStart,
         weekEnd,
       });
