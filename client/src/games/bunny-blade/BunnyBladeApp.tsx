@@ -72,19 +72,21 @@ interface LevelConfig {
   thorChance: number;
   speedMult: number;
   coinChance: number;
+  pineappleChance: number;
+  heartChance: number;
 }
 
 const LEVEL_CONFIGS: Record<number, LevelConfig> = {
-  1: { spawnInterval: 45, maxTargets: 6, bombChance: 0.05, thorChance: 0.01, speedMult: 1.0, coinChance: 0.1 },
-  2: { spawnInterval: 40, maxTargets: 7, bombChance: 0.08, thorChance: 0.012, speedMult: 1.1, coinChance: 0.12 },
-  3: { spawnInterval: 35, maxTargets: 8, bombChance: 0.10, thorChance: 0.014, speedMult: 1.2, coinChance: 0.14 },
-  4: { spawnInterval: 32, maxTargets: 9, bombChance: 0.12, thorChance: 0.016, speedMult: 1.3, coinChance: 0.16 },
-  5: { spawnInterval: 28, maxTargets: 10, bombChance: 0.14, thorChance: 0.018, speedMult: 1.4, coinChance: 0.18 },
-  6: { spawnInterval: 25, maxTargets: 11, bombChance: 0.16, thorChance: 0.02, speedMult: 1.5, coinChance: 0.2 },
-  7: { spawnInterval: 22, maxTargets: 12, bombChance: 0.18, thorChance: 0.022, speedMult: 1.6, coinChance: 0.22 },
-  8: { spawnInterval: 20, maxTargets: 13, bombChance: 0.20, thorChance: 0.024, speedMult: 1.7, coinChance: 0.24 },
-  9: { spawnInterval: 18, maxTargets: 14, bombChance: 0.22, thorChance: 0.026, speedMult: 1.8, coinChance: 0.26 },
-  10: { spawnInterval: 15, maxTargets: 15, bombChance: 0.25, thorChance: 0.03, speedMult: 2.0, coinChance: 0.3 },
+  1: { spawnInterval: 30, maxTargets: 8, bombChance: 0.05, thorChance: 0.01, speedMult: 1.0, coinChance: 0.1, pineappleChance: 0.08, heartChance: 0.05 },
+  2: { spawnInterval: 28, maxTargets: 9, bombChance: 0.08, thorChance: 0.012, speedMult: 1.1, coinChance: 0.12, pineappleChance: 0.08, heartChance: 0.04 },
+  3: { spawnInterval: 25, maxTargets: 10, bombChance: 0.10, thorChance: 0.014, speedMult: 1.2, coinChance: 0.14, pineappleChance: 0.07, heartChance: 0.04 },
+  4: { spawnInterval: 22, maxTargets: 11, bombChance: 0.12, thorChance: 0.016, speedMult: 1.3, coinChance: 0.16, pineappleChance: 0.07, heartChance: 0.03 },
+  5: { spawnInterval: 20, maxTargets: 12, bombChance: 0.14, thorChance: 0.018, speedMult: 1.4, coinChance: 0.18, pineappleChance: 0.06, heartChance: 0.03 },
+  6: { spawnInterval: 18, maxTargets: 13, bombChance: 0.16, thorChance: 0.02, speedMult: 1.5, coinChance: 0.2, pineappleChance: 0.06, heartChance: 0.025 },
+  7: { spawnInterval: 16, maxTargets: 14, bombChance: 0.18, thorChance: 0.022, speedMult: 1.6, coinChance: 0.22, pineappleChance: 0.05, heartChance: 0.025 },
+  8: { spawnInterval: 14, maxTargets: 15, bombChance: 0.20, thorChance: 0.024, speedMult: 1.7, coinChance: 0.24, pineappleChance: 0.05, heartChance: 0.02 },
+  9: { spawnInterval: 12, maxTargets: 16, bombChance: 0.22, thorChance: 0.026, speedMult: 1.8, coinChance: 0.26, pineappleChance: 0.04, heartChance: 0.02 },
+  10: { spawnInterval: 10, maxTargets: 18, bombChance: 0.25, thorChance: 0.03, speedMult: 2.0, coinChance: 0.3, pineappleChance: 0.04, heartChance: 0.015 },
 };
 
 const LEVEL_TIME = 60;
@@ -218,8 +220,8 @@ export function BunnyBladeApp() {
         target.sliced = true;
         target.hitByThor = true;
 
-        if (target.type !== 'bomb') {
-          const points = target.type === 'coin' ? 50 : target.type === 'carrot' ? 15 : 10;
+        if (target.type !== 'bomb' && target.type !== 'heart') {
+          const points = target.type === 'coin' ? 50 : target.type === 'pineapple' ? 25 : target.type === 'carrot' ? 15 : 10;
           pointsEarned += points;
           kicksEarned += Math.floor(points / 2);
         }
@@ -257,12 +259,18 @@ export function BunnyBladeApp() {
 
     let type: string;
     const rand = Math.random();
+    let cumulative = 0;
     
-    if (rand < config.bombChance) {
+    cumulative += config.bombChance;
+    if (rand < cumulative) {
       type = 'bomb';
-    } else if (rand < config.bombChance + config.coinChance) {
+    } else if (rand < (cumulative += config.coinChance)) {
       type = 'coin';
-    } else if (rand < config.bombChance + config.coinChance + 0.3) {
+    } else if (rand < (cumulative += config.pineappleChance)) {
+      type = 'pineapple';
+    } else if (rand < (cumulative += config.heartChance)) {
+      type = 'heart';
+    } else if (rand < cumulative + 0.3) {
       type = 'carrot';
     } else {
       type = 'leaf';
@@ -272,7 +280,9 @@ export function BunnyBladeApp() {
       carrot: '#FF6B00',
       leaf: '#32CD32',
       coin: '#FFD700',
-      bomb: '#FF0000'
+      bomb: '#FF0000',
+      pineapple: '#FFD700',
+      heart: '#FF69B4'
     };
 
     const side = Math.random();
@@ -351,13 +361,14 @@ export function BunnyBladeApp() {
       }
 
       const { nonce, expectedPayout } = await nonceRes.json();
+      const runIdNum = parseInt(gameState.runId, 10);
       
-      const signature = await signClaimMessage(expectedPayout, gameState.runId, nonce, 'rabbit-rush');
+      const signature = await signClaimMessage(expectedPayout, runIdNum, nonce, 'rabbit-rush');
       if (!signature) {
         throw new Error('Claim signature cancelled');
       }
 
-      const claimed = await requestKicksFromHouse(expectedPayout, gameState.runId, signature, nonce, 'rabbit-rush');
+      const claimed = await requestKicksFromHouse(expectedPayout, runIdNum, signature, nonce, 'rabbit-rush');
 
       if (claimed) {
         await refreshBalance();
@@ -597,6 +608,39 @@ export function BunnyBladeApp() {
             ctx.moveTo(0, -22);
             ctx.lineTo(0, 22);
             ctx.stroke();
+          } else if (target.type === 'pineapple') {
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 16, 22, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+              ctx.beginPath();
+              ctx.moveTo(-10 + i * 5, -15 + (i % 2) * 5);
+              ctx.lineTo(-10 + i * 5, 25 - (i % 2) * 5);
+              ctx.stroke();
+            }
+            ctx.fillStyle = '#228B22';
+            for (let i = 0; i < 5; i++) {
+              ctx.beginPath();
+              ctx.ellipse(-8 + i * 4, -25, 4, 10, (i - 2) * 0.3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          } else if (target.type === 'heart') {
+            ctx.fillStyle = '#FF69B4';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#FF69B4';
+            ctx.beginPath();
+            ctx.moveTo(0, 8);
+            ctx.bezierCurveTo(-20, -10, -20, -25, 0, -15);
+            ctx.bezierCurveTo(20, -25, 20, -10, 0, 8);
+            ctx.fill();
+            ctx.fillStyle = '#FFB6C1';
+            ctx.beginPath();
+            ctx.arc(-8, -12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
           }
           ctx.restore();
         }
@@ -654,8 +698,16 @@ export function BunnyBladeApp() {
                 };
               }
 
+              if (target.type === 'heart') {
+                return {
+                  ...prev,
+                  lives: Math.min(prev.lives + 1, 5),
+                  streak: prev.streak + 1
+                };
+              }
+
               const newStreak = prev.streak + 1;
-              const points = target.type === 'coin' ? 50 : target.type === 'carrot' ? 15 : 10;
+              const points = target.type === 'coin' ? 50 : target.type === 'pineapple' ? 25 : target.type === 'carrot' ? 15 : 10;
               const multiplier = 1 + Math.floor(newStreak / 5) * 0.5;
               const reward = Math.floor(points * multiplier);
 
@@ -669,7 +721,7 @@ export function BunnyBladeApp() {
           }
         }
 
-        if (target.y > 650 && !target.sliced && target.type !== 'bomb' && target.type !== 'thor') {
+        if (target.y > 650 && !target.sliced && target.type !== 'bomb' && target.type !== 'thor' && target.type !== 'heart') {
           setGameState(prev => {
             const newLives = prev.lives - 1;
             return {
@@ -930,7 +982,7 @@ export function BunnyBladeApp() {
                 <span className="font-bold text-sm sm:text-base">{gameState.score}</span>
               </div>
               <div className="flex items-center gap-1">
-                {[...Array(3)].map((_, i) => (
+                {[...Array(5)].map((_, i) => (
                   <Heart 
                     key={i} 
                     className={`w-4 h-4 sm:w-5 sm:h-5 ${i < gameState.lives ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} 
@@ -955,9 +1007,6 @@ export function BunnyBladeApp() {
                 <ShoppingCart className="w-5 h-5" />
               </button>
             )}
-            <div className="bg-yellow-500/20 px-3 py-1 rounded-lg">
-              <span className="text-yellow-400 font-bold text-sm sm:text-base">{gameState.kicks} KICKS</span>
-            </div>
           </div>
         </div>
       </div>
@@ -972,6 +1021,12 @@ export function BunnyBladeApp() {
             style={{ imageRendering: 'crisp-edges' }}
           />
 
+          {gameState.phase === 'playing' && (
+            <div className="absolute bottom-4 left-4 bg-black/70 px-4 py-2 rounded-lg border border-yellow-500/50">
+              <span className="text-yellow-400 font-bold text-lg">{gameState.kicks} KICKS</span>
+            </div>
+          )}
+
           {gameState.phase === 'menu' && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
               <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-2xl border-4 border-red-500 text-center max-w-md mx-4">
@@ -983,11 +1038,10 @@ export function BunnyBladeApp() {
                 <h1 className="text-3xl sm:text-4xl font-bold text-red-500 mb-2">RABBITS BLADE</h1>
                 <p className="text-gray-300 mb-4 text-sm sm:text-base">Survive 10 levels, 60 seconds each!</p>
                 <div className="text-xs sm:text-sm text-gray-400 mb-6 space-y-1">
-                  <p>🥕 Carrots = 15pts</p>
-                  <p>🍃 Leaves = 10pts</p>
-                  <p>🪙 Gold coins = 50pts</p>
-                  <p>💣 Don't slice bombs!</p>
-                  <p>⚡ Thor's Hammer = Destroy ALL!</p>
+                  <p>🥕 Carrots = 15pts | 🍃 Leaves = 10pts</p>
+                  <p>🍍 Pineapple = 25pts | 🪙 Coins = 50pts</p>
+                  <p>💗 Hearts = +1 Life (max 5)</p>
+                  <p>💣 Don't slice bombs! ⚡ Thor = Destroy ALL!</p>
                 </div>
                 <button
                   onClick={startGame}
