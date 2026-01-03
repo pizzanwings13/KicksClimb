@@ -148,7 +148,20 @@ const rabbitRushWeeklyLeaderboard = pgTable("rabbit_rush_weekly_leaderboard", {
   weekEnd: timestamp("week_end").notNull(),
 });
 
-const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard };
+const bunnyBladeWeeklyLeaderboard = pgTable("bunny_blade_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  walletAddress: varchar("wallet_address", { length: 42 }).notNull(),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(0).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard };
 const db = drizzle(pool, { schema });
 
 type User = typeof users.$inferSelect;
@@ -661,6 +674,58 @@ async function updateRabbitRushWeeklyLeaderboard(userId: number, winnings: strin
   }
 }
 
+function getSaturdayWeekBoundaries(): { weekStart: Date; weekEnd: Date } {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay();
+  const daysSinceSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+  const weekStart = new Date(now);
+  weekStart.setUTCDate(now.getUTCDate() - daysSinceSaturday);
+  weekStart.setUTCHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 7);
+  return { weekStart, weekEnd };
+}
+
+async function getBunnyBladeWeeklyLeaderboard(limit: number = 50) {
+  const { weekStart, weekEnd } = getSaturdayWeekBoundaries();
+  return db.select().from(bunnyBladeWeeklyLeaderboard)
+    .where(and(gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart), lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)))
+    .orderBy(desc(bunnyBladeWeeklyLeaderboard.highScore))
+    .limit(limit);
+}
+
+async function upsertBunnyBladeWeeklyScore(walletAddress: string, username: string, score: number, kicks: number, level: number) {
+  const { weekStart, weekEnd } = getSaturdayWeekBoundaries();
+  const normalizedWallet = walletAddress.toLowerCase();
+  const [existing] = await db.select().from(bunnyBladeWeeklyLeaderboard)
+    .where(and(
+      eq(bunnyBladeWeeklyLeaderboard.walletAddress, normalizedWallet),
+      gte(bunnyBladeWeeklyLeaderboard.weekStart, weekStart),
+      lte(bunnyBladeWeeklyLeaderboard.weekEnd, weekEnd)
+    ));
+  if (existing) {
+    await db.update(bunnyBladeWeeklyLeaderboard).set({
+      username,
+      highScore: Math.max(existing.highScore, score),
+      totalKicks: existing.totalKicks + kicks,
+      gamesPlayed: existing.gamesPlayed + 1,
+      highestLevel: Math.max(existing.highestLevel, level),
+      updatedAt: new Date(),
+    }).where(eq(bunnyBladeWeeklyLeaderboard.id, existing.id));
+  } else {
+    await db.insert(bunnyBladeWeeklyLeaderboard).values({
+      walletAddress: normalizedWallet,
+      username,
+      highScore: score,
+      totalKicks: kicks,
+      gamesPlayed: 1,
+      highestLevel: level,
+      weekStart,
+      weekEnd,
+    });
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -1152,6 +1217,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!user) return res.status(404).json({ error: "User not found" });
       const runs = await getUserRabbitRushRuns(user.id, 10);
       return res.json({ runs });
+    }
+
+    if ((url === '/api/bunny-blade/leaderboard/weekly' || url.endsWith('/api/bunny-blade/leaderboard/weekly')) && method === 'GET') {
+      const { weekStart, weekEnd } = getSaturdayWeekBoundaries();
+      const leaderboard = await getBunnyBladeWeeklyLeaderboard(50);
+      return res.json({
+        leaderboard,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+      });
+    }
+
+    if ((url === '/api/bunny-blade/score' || url.endsWith('/api/bunny-blade/score')) && method === 'POST') {
+      const { walletAddress, username, score, kicks, level } = req.body;
+      if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
+      const playerUsername = username || `Player_${walletAddress.slice(0, 6)}`;
+      await upsertBunnyBladeWeeklyScore(walletAddress, playerUsername, score || 0, kicks || 0, level || 0);
+      const leaderboard = await getBunnyBladeWeeklyLeaderboard(50);
+      return res.json({ success: true, leaderboard });
     }
 
     return res.status(404).json({ error: "Not found" });
