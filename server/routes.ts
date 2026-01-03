@@ -1418,4 +1418,50 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bunny-blade/leaderboard/weekly", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const leaderboard = await storage.getBunnyBladeWeeklyLeaderboard(limit);
+      
+      const { weekStart, weekEnd } = storage.getSaturdayWeekBoundaries();
+      
+      res.json({ 
+        leaderboard,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString()
+      });
+    } catch (error) {
+      console.error("Get bunny blade leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get leaderboard" });
+    }
+  });
+
+  app.post("/api/bunny-blade/score", async (req, res) => {
+    try {
+      const { walletAddress, username, score, kicks, level } = req.body;
+      
+      if (!walletAddress || !username || score === undefined) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.updateBunnyBladeWeeklyLeaderboard(
+        user.id,
+        username,
+        score,
+        kicks || 0,
+        level || 1
+      );
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Submit bunny blade score error:", error);
+      res.status(500).json({ error: "Failed to submit score" });
+    }
+  });
+
 }
