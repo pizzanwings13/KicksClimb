@@ -175,6 +175,7 @@ export function BunnyBladeApp() {
     lightningBolts: [] as LightningBolt[],
     thorActive: false,
     thorTimer: 0,
+    thorFlashTimer: 0,
     lastSliceTime: 0,
     frameCount: 0
   });
@@ -229,6 +230,7 @@ export function BunnyBladeApp() {
   const activateThor = useCallback(() => {
     gameRef.current.thorActive = true;
     gameRef.current.thorTimer = 180;
+    gameRef.current.thorFlashTimer = 30;
 
     let pointsEarned = 0;
     let kicksEarned = 0;
@@ -240,11 +242,26 @@ export function BunnyBladeApp() {
           startY: 150,
           endX: target.x,
           endY: target.y,
-          life: 40,
+          life: 60,
           segments: generateLightningSegments(400, 150, target.x, target.y)
         });
         
-        createSliceParticles(target.x, target.y, '#00BFFF', 20);
+        for (let i = 0; i < 3; i++) {
+          const branchX = target.x + (Math.random() - 0.5) * 100;
+          const branchY = target.y + (Math.random() - 0.5) * 100;
+          gameRef.current.lightningBolts.push({
+            startX: target.x,
+            startY: target.y,
+            endX: branchX,
+            endY: branchY,
+            life: 40,
+            segments: generateLightningSegments(target.x, target.y, branchX, branchY)
+          });
+        }
+        
+        createSliceParticles(target.x, target.y, '#00BFFF', 30);
+        createSliceParticles(target.x, target.y, '#FFFFFF', 15);
+        createSliceParticles(target.x, target.y, '#FFD700', 10);
         target.sliced = true;
         target.hitByThor = true;
 
@@ -255,6 +272,19 @@ export function BunnyBladeApp() {
         }
       }
     });
+
+    for (let i = 0; i < 8; i++) {
+      const randX = Math.random() * 800;
+      const randY = Math.random() * 600;
+      gameRef.current.lightningBolts.push({
+        startX: 400,
+        startY: 0,
+        endX: randX,
+        endY: randY,
+        life: 25 + Math.random() * 15,
+        segments: generateLightningSegments(400, 0, randX, randY)
+      });
+    }
 
     setGameState(prev => ({
       ...prev,
@@ -811,12 +841,29 @@ export function BunnyBladeApp() {
         bolt.life--;
         
         if (bolt.life > 0) {
-          ctx.strokeStyle = '#00BFFF';
-          ctx.lineWidth = 4;
-          ctx.shadowBlur = 25;
-          ctx.shadowColor = '#00BFFF';
-          ctx.globalAlpha = bolt.life / 40;
+          const maxLife = 60;
+          const alpha = Math.min(1, bolt.life / 30);
           
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          
+          ctx.strokeStyle = '#87CEEB';
+          ctx.lineWidth = 12;
+          ctx.shadowBlur = 40;
+          ctx.shadowColor = '#00BFFF';
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.beginPath();
+          bolt.segments.forEach((seg, i) => {
+            if (i === 0) ctx.moveTo(seg.x, seg.y);
+            else ctx.lineTo(seg.x, seg.y);
+          });
+          ctx.stroke();
+          
+          ctx.strokeStyle = '#00BFFF';
+          ctx.lineWidth = 6;
+          ctx.shadowBlur = 30;
+          ctx.globalAlpha = alpha * 0.8;
           ctx.beginPath();
           bolt.segments.forEach((seg, i) => {
             if (i === 0) ctx.moveTo(seg.x, seg.y);
@@ -826,6 +873,9 @@ export function BunnyBladeApp() {
           
           ctx.strokeStyle = '#FFFFFF';
           ctx.lineWidth = 2;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = '#FFFFFF';
+          ctx.globalAlpha = alpha;
           ctx.beginPath();
           bolt.segments.forEach((seg, i) => {
             if (i === 0) ctx.moveTo(seg.x, seg.y);
@@ -833,18 +883,24 @@ export function BunnyBladeApp() {
           });
           ctx.stroke();
           
-          ctx.globalAlpha = 1;
-          ctx.shadowBlur = 0;
+          ctx.restore();
           return true;
         }
         return false;
       });
 
+      if (gameRef.current.thorFlashTimer > 0) {
+        gameRef.current.thorFlashTimer--;
+        const flashIntensity = gameRef.current.thorFlashTimer / 30;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashIntensity * 0.8})`;
+        ctx.fillRect(0, 0, 800, 600);
+      }
+
       if (gameRef.current.thorActive) {
         gameRef.current.thorTimer--;
         
-        const flashAlpha = 0.3 * (gameRef.current.thorTimer / 180);
-        ctx.fillStyle = `rgba(135, 206, 250, ${flashAlpha})`;
+        const flashAlpha = 0.15 * (gameRef.current.thorTimer / 180);
+        ctx.fillStyle = `rgba(0, 191, 255, ${flashAlpha})`;
         ctx.fillRect(0, 0, 800, 600);
         
         const thorY = 150 + Math.sin(gameRef.current.thorTimer * 0.15) * 15;
