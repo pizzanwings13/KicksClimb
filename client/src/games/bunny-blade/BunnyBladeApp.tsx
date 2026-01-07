@@ -659,8 +659,11 @@ export function BunnyBladeApp() {
       gameRef.current.frameCount++;
 
       const now = Date.now();
-      const deltaTime = (now - lastTimeRef.current) / 1000;
+      const deltaTime = now - lastTimeRef.current;
       lastTimeRef.current = now;
+      
+      const targetFrameTime = 16.67;
+      const timeScale = Math.min(deltaTime / targetFrameTime, 3);
 
       if (gameRef.current.frameCount % 60 === 0) {
         setGameState(prev => {
@@ -685,18 +688,18 @@ export function BunnyBladeApp() {
       ctx.fillRect(0, 0, 800, 600);
 
       const config = LEVEL_CONFIGS[gameState.level] || LEVEL_CONFIGS[10];
-      gameRef.current.spawnTimer++;
+      gameRef.current.spawnTimer += timeScale;
       if (gameRef.current.spawnTimer > config.spawnInterval) {
         spawnTarget(gameState.level);
         gameRef.current.spawnTimer = 0;
       }
 
       gameRef.current.particles = gameRef.current.particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.2;
-        p.vx *= 0.98;
-        p.life--;
+        p.x += p.vx * timeScale;
+        p.y += p.vy * timeScale;
+        p.vy += 0.2 * timeScale;
+        p.vx *= Math.pow(0.98, timeScale);
+        p.life -= timeScale;
         
         if (p.life > 0) {
           ctx.fillStyle = p.color;
@@ -712,7 +715,7 @@ export function BunnyBladeApp() {
       });
 
       gameRef.current.slashEffects = gameRef.current.slashEffects.filter(slash => {
-        slash.life--;
+        slash.life -= timeScale;
         if (slash.life > 0) {
           ctx.save();
           ctx.translate(slash.x, slash.y);
@@ -737,10 +740,10 @@ export function BunnyBladeApp() {
       });
 
       gameRef.current.targets.forEach((target, idx) => {
-        target.x += target.vx;
-        target.y += target.vy;
-        target.vy += 0.55;
-        target.rotation += target.rotSpeed;
+        target.x += target.vx * timeScale;
+        target.y += target.vy * timeScale;
+        target.vy += 0.55 * timeScale;
+        target.rotation += target.rotSpeed * timeScale;
 
         if (!target.sliced) {
           ctx.save();

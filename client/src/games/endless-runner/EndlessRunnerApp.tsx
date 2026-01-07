@@ -759,6 +759,7 @@ export function EndlessRunnerApp() {
   const animationRef = useRef<number>();
   const idCounter = useRef(0);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const lastFrameTimeRef = useRef<number>(Date.now());
   
   useEffect(() => {
     const audio = new Audio('/sounds/background.mp3');
@@ -902,8 +903,15 @@ export function EndlessRunnerApp() {
     const gs = gameStateRef.current;
     if (!gs.gameActive) return;
     
-    gs.distance += gs.speed;
-    gs.speed = Math.min(gs.speed + gs.difficulty.speedIncrease * 0.1, gs.difficulty.maxSpeed);
+    const now = Date.now();
+    const deltaTime = now - lastFrameTimeRef.current;
+    lastFrameTimeRef.current = now;
+    
+    const targetFrameTime = 16.67;
+    const timeScale = Math.min(deltaTime / targetFrameTime, 3);
+    
+    gs.distance += gs.speed * timeScale;
+    gs.speed = Math.min(gs.speed + gs.difficulty.speedIncrease * 0.1 * timeScale, gs.difficulty.maxSpeed);
     
     if (gs.distance >= gs.finishDistance && !gs.finished) {
       handleFinish();
@@ -1023,8 +1031,10 @@ export function EndlessRunnerApp() {
     setIsWagering(false);
     setPhase('playing');
     
+    lastFrameTimeRef.current = Date.now();
     setTimeout(() => {
       if (gameStateRef.current.gameActive) {
+        lastFrameTimeRef.current = Date.now();
         gameLoop();
       }
     }, 100);
