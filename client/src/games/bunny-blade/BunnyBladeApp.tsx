@@ -523,12 +523,19 @@ export function BunnyBladeApp() {
   const submitScore = useCallback(async (playerUsername: string, score: number, kicks: number, level: number) => {
     if (!walletAddress) return;
     try {
-      await fetch('/api/bunny-blade/score', {
+      const res = await fetch('/api/bunny-blade/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress, username: playerUsername, score, kicks, level })
       });
-      await fetchLeaderboard();
+      if (res.ok) {
+        const data = await res.json();
+        if (data.leaderboard) {
+          setLeaderboardData(data.leaderboard);
+        } else {
+          await fetchLeaderboard();
+        }
+      }
     } catch (error) {
       console.error('Failed to submit score:', error);
     }
@@ -571,15 +578,23 @@ export function BunnyBladeApp() {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
+  const hasSubmittedScoreRef = useRef(false);
+  
   useEffect(() => {
-    if (gameState.phase === 'victory' || gameState.gameOver) {
-      if (gameState.score > 0) {
-        if (!username) {
-          setPendingScore({ score: gameState.score, kicks: gameState.kicks, level: gameState.level });
-          setShowUsernamePrompt(true);
-        } else {
-          submitScore(username, gameState.score, gameState.kicks, gameState.level);
-        }
+    if (gameState.phase === 'playing') {
+      hasSubmittedScoreRef.current = false;
+    }
+  }, [gameState.phase]);
+  
+  useEffect(() => {
+    const isGameEnded = gameState.phase === 'victory' || gameState.phase === 'ended' || gameState.gameOver;
+    if (isGameEnded && gameState.score > 0 && !hasSubmittedScoreRef.current) {
+      hasSubmittedScoreRef.current = true;
+      if (!username) {
+        setPendingScore({ score: gameState.score, kicks: gameState.kicks, level: gameState.level });
+        setShowUsernamePrompt(true);
+      } else {
+        submitScore(username, gameState.score, gameState.kicks, gameState.level);
       }
     }
   }, [gameState.phase, gameState.gameOver, gameState.score, gameState.kicks, gameState.level, username, submitScore]);

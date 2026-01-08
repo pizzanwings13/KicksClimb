@@ -1457,7 +1457,8 @@ export async function registerRoutes(
         level || 1
       );
       
-      res.json({ success: true });
+      const leaderboard = await storage.getBunnyBladeWeeklyLeaderboard(50);
+      res.json({ success: true, leaderboard });
     } catch (error) {
       console.error("Submit bunny blade score error:", error);
       res.status(500).json({ error: "Failed to submit score" });
