@@ -95,11 +95,11 @@ const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
 
 const BLADES: Record<string, Blade & { element?: string }> = {
-  Wooden: { radius: 25, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
-  Steel: { radius: 35, color: '#C0C0C0', cost: 2500, name: 'Steel Blade' },
-  Ice: { radius: 40, color: '#00BFFF', cost: 10000, name: 'Ice Blade', element: 'ice' },
-  Fire: { radius: 40, color: '#FF4500', cost: 10000, name: 'Fire Blade', element: 'fire' },
-  Plasma: { radius: 50, color: '#00FFFF', cost: 5000, name: 'Plasma Blade' }
+  Wooden: { radius: 30, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
+  Steel: { radius: 40, color: '#C0C0C0', cost: 2500, name: 'Steel Blade' },
+  Plasma: { radius: 55, color: '#00FFFF', cost: 5000, name: 'Plasma Blade' },
+  Ice: { radius: 45, color: '#00BFFF', cost: 10000, name: 'Ice Blade', element: 'ice' },
+  Fire: { radius: 45, color: '#FF4500', cost: 10000, name: 'Fire Blade', element: 'fire' }
 };
 
 export function BunnyBladeApp() {
@@ -1071,6 +1071,8 @@ export function BunnyBladeApp() {
           ctx.translate(target.x, target.y);
           ctx.rotate(target.rotation);
           
+          ctx.scale(1.35, 1.35);
+          
           if (target.type === 'thor') {
             ctx.shadowBlur = 25;
             ctx.shadowColor = '#00BFFF';
@@ -1795,7 +1797,7 @@ export function BunnyBladeApp() {
                 {isPurchasing && (
                   <div className="text-center text-yellow-400 mb-4 animate-pulse">Processing purchase...</div>
                 )}
-                {Object.entries(BLADES).map(([name, blade]) => (
+                {Object.entries(BLADES).sort((a, b) => a[1].cost - b[1].cost).map(([name, blade]) => (
                   <div
                     key={name}
                     className="bg-black/40 p-3 sm:p-4 rounded-lg mb-3 flex justify-between items-center"
