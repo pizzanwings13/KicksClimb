@@ -1,13 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints, User, Edit2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 
 const GLOBAL_USERNAME_KEY = 'tokenrush_global_username';
+const GLOBAL_AVATAR_KEY = 'tokenrush_global_avatar';
+
+const AVATAR_OPTIONS = [
+  { id: 'rabbit1', emoji: '🐰', label: 'Bunny' },
+  { id: 'rocket', emoji: '🚀', label: 'Rocket' },
+  { id: 'fire', emoji: '🔥', label: 'Fire' },
+  { id: 'star', emoji: '⭐', label: 'Star' },
+  { id: 'diamond', emoji: '💎', label: 'Diamond' },
+  { id: 'crown', emoji: '👑', label: 'Crown' },
+  { id: 'ninja', emoji: '🥷', label: 'Ninja' },
+  { id: 'alien', emoji: '👽', label: 'Alien' },
+  { id: 'robot', emoji: '🤖', label: 'Robot' },
+  { id: 'skull', emoji: '💀', label: 'Skull' },
+  { id: 'ghost', emoji: '👻', label: 'Ghost' },
+  { id: 'wolf', emoji: '🐺', label: 'Wolf' },
+];
 
 interface GameCardProps {
   title: string;
@@ -98,23 +114,27 @@ const GAMES: GameCardProps[] = [
 export function GameHub() {
   const { walletAddress, kicksBalance, disconnect, isConnected } = useWallet();
   const [username, setUsername] = useState<string>('');
+  const [avatar, setAvatar] = useState<string>('');
   const [editingUsername, setEditingUsername] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadUsername = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     if (!walletAddress) return;
     
     setIsLoading(true);
     
     const savedGlobalUsername = localStorage.getItem(GLOBAL_USERNAME_KEY);
+    const savedGlobalAvatar = localStorage.getItem(GLOBAL_AVATAR_KEY);
     
     try {
       const res = await fetch(`/api/user/${walletAddress}`);
       if (res.ok) {
         const data = await res.json();
         const dbUsername = data.user?.username;
+        const dbAvatar = data.user?.avatarUrl;
         
         if (dbUsername && !dbUsername.startsWith('Player_')) {
           setUsername(dbUsername);
@@ -129,6 +149,18 @@ export function GameHub() {
         } else {
           setUsername('');
         }
+        
+        if (dbAvatar) {
+          setAvatar(dbAvatar);
+          localStorage.setItem(GLOBAL_AVATAR_KEY, dbAvatar);
+        } else if (savedGlobalAvatar) {
+          setAvatar(savedGlobalAvatar);
+          await fetch(`/api/user/${walletAddress}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatarUrl: savedGlobalAvatar })
+          });
+        }
       } else {
         await fetch('/api/auth/connect', {
           method: 'POST',
@@ -142,11 +174,17 @@ export function GameHub() {
         if (savedGlobalUsername) {
           setUsername(savedGlobalUsername);
         }
+        if (savedGlobalAvatar) {
+          setAvatar(savedGlobalAvatar);
+        }
       }
     } catch (error) {
-      console.error('Failed to load username:', error);
+      console.error('Failed to load profile:', error);
       if (savedGlobalUsername) {
         setUsername(savedGlobalUsername);
+      }
+      if (savedGlobalAvatar) {
+        setAvatar(savedGlobalAvatar);
       }
     }
     
@@ -155,9 +193,9 @@ export function GameHub() {
 
   useEffect(() => {
     if (walletAddress) {
-      loadUsername();
+      loadProfile();
     }
-  }, [walletAddress, loadUsername]);
+  }, [walletAddress, loadProfile]);
 
   const handleSaveUsername = async () => {
     if (!usernameInput.trim() || !walletAddress) return;
@@ -181,6 +219,26 @@ export function GameHub() {
     setIsSaving(false);
   };
 
+  const handleSelectAvatar = async (avatarId: string) => {
+    if (!walletAddress) return;
+    
+    try {
+      const res = await fetch(`/api/user/${walletAddress}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarUrl: avatarId })
+      });
+      
+      if (res.ok) {
+        setAvatar(avatarId);
+        localStorage.setItem(GLOBAL_AVATAR_KEY, avatarId);
+        setShowAvatarPicker(false);
+      }
+    } catch (error) {
+      console.error('Failed to save avatar:', error);
+    }
+  };
+
   const startEditing = () => {
     setUsernameInput(username);
     setEditingUsername(true);
@@ -189,6 +247,11 @@ export function GameHub() {
   const cancelEditing = () => {
     setUsernameInput('');
     setEditingUsername(false);
+  };
+  
+  const getAvatarEmoji = (avatarId: string) => {
+    const found = AVATAR_OPTIONS.find(a => a.id === avatarId);
+    return found?.emoji || '👤';
   };
 
   if (!isConnected) {
@@ -261,11 +324,19 @@ export function GameHub() {
               ) : hasUsername && !editingUsername ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <User className="w-5 h-5 text-green-400" />
-                    </div>
+                    <button
+                      onClick={() => setShowAvatarPicker(true)}
+                      className="relative group"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-2xl border-2 border-purple-400/50 group-hover:border-purple-400 transition-colors">
+                        {avatar ? getAvatarEmoji(avatar) : '👤'}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center border border-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Edit2 className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    </button>
                     <div>
-                      <p className="text-gray-400 text-xs">Username</p>
+                      <p className="text-gray-400 text-xs">Profile</p>
                       <p className="text-white font-bold text-lg">{username}</p>
                     </div>
                   </div>
@@ -274,6 +345,7 @@ export function GameHub() {
                     size="sm"
                     onClick={startEditing}
                     className="text-gray-400 hover:text-white hover:bg-purple-500/20"
+                    title="Edit username"
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
@@ -370,6 +442,54 @@ export function GameHub() {
         </motion.div>
         </div>
       </div>
+      
+      <AnimatePresence>
+        {showAvatarPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAvatarPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-900 rounded-2xl p-6 max-w-sm w-full border border-purple-500/30"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-white mb-2 text-center">Choose Your Avatar</h3>
+              <p className="text-gray-400 text-sm text-center mb-6">Pick an avatar to represent you on the leaderboards</p>
+              
+              <div className="grid grid-cols-4 gap-3 mb-6">
+                {AVATAR_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSelectAvatar(opt.id)}
+                    className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl transition-all ${
+                      avatar === opt.id
+                        ? 'bg-purple-600 border-2 border-purple-400 scale-110'
+                        : 'bg-gray-800 border border-gray-700 hover:border-purple-500 hover:bg-gray-700'
+                    }`}
+                    title={opt.label}
+                  >
+                    {opt.emoji}
+                  </button>
+                ))}
+              </div>
+              
+              <Button
+                variant="ghost"
+                onClick={() => setShowAvatarPicker(false)}
+                className="w-full text-gray-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AnimatedBackground>
   );
 }
