@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 import { GameBoard } from "@/components/game/GameBoard";
@@ -11,11 +11,7 @@ import { MenuScreen } from "@/components/game/MenuScreen";
 import { BettingScreen } from "@/components/game/BettingScreen";
 import { GameHUD } from "@/components/game/GameHUD";
 import { LeaderboardButton } from "@/components/game/Leaderboard";
-import { TokenConfigButton } from "@/components/game/TokenConfig";
 import { SoundControls } from "@/components/game/SoundControls";
-import { StatsButton } from "@/components/game/StatsModal";
-import { AchievementsButton } from "@/components/game/AchievementsModal";
-import { AchievementNotification } from "@/components/game/AchievementNotification";
 import { MobileNavigation } from "@/components/game/MobileNavigation";
 import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
@@ -37,68 +33,6 @@ function GameScene() {
         </Suspense>
       )}
     </>
-  );
-}
-
-function AchievementsManager() {
-  const { phase, checkAchievements, currentGame } = useGameState();
-  const { walletAddress } = useWallet();
-  const [newAchievements, setNewAchievements] = useState<string[]>([]);
-  const lastCheckedGameRef = useRef<number | null>(null);
-  const checkInProgressRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    const endPhases = ["won", "lost", "cashed_out"];
-    const isEndPhase = endPhases.includes(phase);
-    const gameId = currentGame?.id;
-    
-    if (isEndPhase && walletAddress && gameId && lastCheckedGameRef.current !== gameId && !checkInProgressRef.current) {
-      lastCheckedGameRef.current = gameId;
-      checkInProgressRef.current = true;
-      
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-      
-      const doCheck = async () => {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          if (signal.aborted) return;
-          
-          const achievements = await checkAchievements(walletAddress);
-          if (!signal.aborted && achievements.length > 0) {
-            setNewAchievements(achievements);
-          }
-        } catch (error) {
-          if (!signal.aborted) {
-            console.error("Failed to check achievements:", error);
-          }
-        } finally {
-          checkInProgressRef.current = false;
-        }
-      };
-      
-      doCheck();
-    }
-    
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [phase, walletAddress, checkAchievements, currentGame?.id]);
-
-  const handleAchievementsComplete = useCallback(() => {
-    setNewAchievements([]);
-  }, []);
-
-  if (newAchievements.length === 0) return null;
-
-  return (
-    <AchievementNotification 
-      achievements={newAchievements} 
-      onComplete={handleAchievementsComplete} 
-    />
   );
 }
 
@@ -162,7 +96,6 @@ export function KicksClimbApp() {
       overflow: 'hidden',
       paddingBottom: 'env(safe-area-inset-bottom, 0px)'
     }}>
-      <AchievementsManager />
       <BackToHubButton />
       
       {showCanvas && (
@@ -191,10 +124,7 @@ export function KicksClimbApp() {
       <MenuScreen />
       <BettingScreen />
       <GameHUD />
-      <StatsButton />
       <LeaderboardButton />
-      <AchievementsButton />
-      <TokenConfigButton />
       <SoundControls />
       <MobileNavigation />
     </div>

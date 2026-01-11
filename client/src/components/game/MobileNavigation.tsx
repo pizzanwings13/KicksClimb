@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
-import { User, BarChart2, Award, Trophy } from "lucide-react";
-import { ProfileModal } from "./ProfileModal";
-import { StatsModal } from "./StatsModal";
-import { AchievementsModal } from "./AchievementsModal";
+import { Trophy } from "lucide-react";
 import { Leaderboard } from "./Leaderboard";
 
 export function MobileNavigation() {
   const { isConnected } = useWallet();
   const { phase } = useGameState();
-  const [activeModal, setActiveModal] = useState<"profile" | "stats" | "achievements" | "leaderboard" | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const showNav = isConnected && (phase === "menu" || phase === "betting");
 
@@ -19,45 +16,18 @@ export function MobileNavigation() {
   return (
     <>
       <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-sm border-t border-purple-500/30 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="flex justify-around items-center py-2">
+        <div className="flex justify-center items-center py-3">
           <button
-            onClick={() => setActiveModal("profile")}
-            className="flex flex-col items-center gap-1 p-2 min-w-[60px]"
-          >
-            <User className="w-5 h-5 text-purple-400" />
-            <span className="text-[10px] text-gray-400">Profile</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveModal("stats")}
-            className="flex flex-col items-center gap-1 p-2 min-w-[60px]"
-          >
-            <BarChart2 className="w-5 h-5 text-purple-400" />
-            <span className="text-[10px] text-gray-400">Stats</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveModal("achievements")}
-            className="flex flex-col items-center gap-1 p-2 min-w-[60px]"
-          >
-            <Award className="w-5 h-5 text-purple-400" />
-            <span className="text-[10px] text-gray-400">Badges</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveModal("leaderboard")}
-            className="flex flex-col items-center gap-1 p-2 min-w-[60px]"
+            onClick={() => setShowLeaderboard(true)}
+            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-full border border-yellow-500/30"
           >
             <Trophy className="w-5 h-5 text-yellow-400" />
-            <span className="text-[10px] text-gray-400">Ranks</span>
+            <span className="text-sm text-yellow-400 font-medium">Leaderboards</span>
           </button>
         </div>
       </div>
 
-      <ProfileModal isOpen={activeModal === "profile"} onClose={() => setActiveModal(null)} />
-      <StatsModal isOpen={activeModal === "stats"} onClose={() => setActiveModal(null)} />
-      <AchievementsModal isOpen={activeModal === "achievements"} onClose={() => setActiveModal(null)} />
-      <Leaderboard isOpen={activeModal === "leaderboard"} onClose={() => setActiveModal(null)} />
+      <Leaderboard isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
     </>
   );
 }
