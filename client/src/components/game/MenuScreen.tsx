@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,16 @@ import { Wallet, Trophy, User, Gamepad2 } from "lucide-react";
 export function MenuScreen() {
   const { isConnected, isConnecting, walletAddress, kicksBalance, setShowWalletModal, error, connectedWalletType } = useWallet();
   const { phase, setPhase, connectUser, user, fetchLeaderboards } = useGameState();
+  const [displayUsername, setDisplayUsername] = useState<string>('');
+  
+  useEffect(() => {
+    const globalUsername = localStorage.getItem('tokenrush_global_username');
+    if (globalUsername) {
+      setDisplayUsername(globalUsername);
+    } else if (user?.username && !user.username.startsWith('Player_')) {
+      setDisplayUsername(user.username);
+    }
+  }, [user]);
 
   if (phase !== "menu") return null;
 
@@ -77,7 +88,7 @@ export function MenuScreen() {
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-green-400" />
                   <span className="text-gray-300 text-sm">
-                    {user?.username || `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}`}
+                    {displayUsername || `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}`}
                   </span>
                 </div>
                 <div className="text-right">

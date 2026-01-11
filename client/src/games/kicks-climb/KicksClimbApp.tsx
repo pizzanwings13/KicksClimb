@@ -11,7 +11,6 @@ import { MenuScreen } from "@/components/game/MenuScreen";
 import { BettingScreen } from "@/components/game/BettingScreen";
 import { GameHUD } from "@/components/game/GameHUD";
 import { LeaderboardButton } from "@/components/game/Leaderboard";
-import { ProfileButton } from "@/components/game/ProfileModal";
 import { TokenConfigButton } from "@/components/game/TokenConfig";
 import { SoundControls } from "@/components/game/SoundControls";
 import { StatsButton } from "@/components/game/StatsModal";
@@ -192,7 +191,6 @@ export function KicksClimbApp() {
       <MenuScreen />
       <BettingScreen />
       <GameHUD />
-      <ProfileButton />
       <StatsButton />
       <LeaderboardButton />
       <AchievementsButton />

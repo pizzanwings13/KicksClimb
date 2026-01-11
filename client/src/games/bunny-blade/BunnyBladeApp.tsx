@@ -154,12 +154,20 @@ export function BunnyBladeApp() {
   useEffect(() => {
     const fetchSavedUsername = async () => {
       if (!walletAddress) return;
+      
+      const globalUsername = localStorage.getItem('tokenrush_global_username');
+      if (globalUsername) {
+        setUsername(globalUsername);
+        return;
+      }
+      
       try {
         const res = await fetch(`/api/user/${walletAddress}`);
         if (res.ok) {
           const data = await res.json();
           if (data.user?.username && !data.user.username.startsWith('Player_')) {
             setUsername(data.user.username);
+            localStorage.setItem('tokenrush_global_username', data.user.username);
           }
         }
       } catch (error) {
@@ -1157,6 +1165,7 @@ export function BunnyBladeApp() {
       lightningBolts: [],
       thorActive: false,
       thorTimer: 0,
+      thorFlashTimer: 0,
       lastSliceTime: 0,
       frameCount: 0
     };
