@@ -1,11 +1,11 @@
 import { 
   users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
   rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard,
-  bunnyBladeWeeklyLeaderboard,
+  bunnyBladeWeeklyLeaderboard, bunnyBladeInventories,
   type User, type InsertUser, type Game, type InsertGame, 
   type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
   type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry,
-  type BunnyBladeWeeklyLeaderboardEntry
+  type BunnyBladeWeeklyLeaderboardEntry, type BunnyBladeInventory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -562,6 +562,35 @@ export class DatabaseStorage implements IStorage {
         highestLevel: level,
         weekStart,
         weekEnd,
+      });
+    }
+  }
+
+  async getBunnyBladeInventory(userId: number): Promise<BunnyBladeInventory | null> {
+    const [inventory] = await db.select()
+      .from(bunnyBladeInventories)
+      .where(eq(bunnyBladeInventories.userId, userId));
+    return inventory || null;
+  }
+
+  async updateBunnyBladeInventory(userId: number, unlockedBlades: string[], activeBlade: string): Promise<void> {
+    const [existing] = await db.select()
+      .from(bunnyBladeInventories)
+      .where(eq(bunnyBladeInventories.userId, userId));
+
+    if (existing) {
+      await db.update(bunnyBladeInventories)
+        .set({
+          unlockedBlades: JSON.stringify(unlockedBlades),
+          activeBlade,
+          updatedAt: new Date(),
+        })
+        .where(eq(bunnyBladeInventories.userId, userId));
+    } else {
+      await db.insert(bunnyBladeInventories).values({
+        userId,
+        unlockedBlades: JSON.stringify(unlockedBlades),
+        activeBlade,
       });
     }
   }

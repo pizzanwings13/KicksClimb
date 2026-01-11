@@ -127,13 +127,39 @@ export function BunnyBladeApp() {
     }
   }, [muted]);
   
+  const getStoredBlades = (): { unlockedBlades: string[], activeBlade: string } => {
+    try {
+      const stored = localStorage.getItem('bunny_blade_inventory');
+      if (stored) {
+        const data = JSON.parse(stored);
+        return {
+          unlockedBlades: data.unlockedBlades || ['Wooden'],
+          activeBlade: data.activeBlade || 'Wooden'
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load blade inventory:', e);
+    }
+    return { unlockedBlades: ['Wooden'], activeBlade: 'Wooden' };
+  };
+
+  const saveBladeInventory = (unlockedBlades: string[], activeBlade: string) => {
+    try {
+      localStorage.setItem('bunny_blade_inventory', JSON.stringify({ unlockedBlades, activeBlade }));
+    } catch (e) {
+      console.error('Failed to save blade inventory:', e);
+    }
+  };
+
+  const storedBlades = getStoredBlades();
+  
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     kicks: 0,
     level: 1,
     streak: 0,
-    activeBlade: 'Wooden',
-    unlockedBlades: ['Wooden'],
+    activeBlade: storedBlades.activeBlade,
+    unlockedBlades: storedBlades.unlockedBlades,
     gameOver: false,
     showShop: false,
     lives: 3,
@@ -1180,11 +1206,13 @@ export function BunnyBladeApp() {
         const txHash = await sendKicksToHouse(blade.cost.toString());
         console.log('sendKicksToHouse result:', txHash);
         if (txHash) {
+          const newUnlockedBlades = [...gameState.unlockedBlades, bladeName];
           setGameState(prev => ({
             ...prev,
-            unlockedBlades: [...prev.unlockedBlades, bladeName],
+            unlockedBlades: newUnlockedBlades,
             activeBlade: bladeName
           }));
+          saveBladeInventory(newUnlockedBlades, bladeName);
           await refreshBalance();
           setDisplayKicks(parseFloat(kicksBalance) || 0);
           if (walletAddress) {

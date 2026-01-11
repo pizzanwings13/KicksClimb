@@ -1465,4 +1465,48 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bunny-blade/inventory/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const inventory = await storage.getBunnyBladeInventory(user.id);
+      res.json({ 
+        inventory: inventory || { 
+          unlockedBlades: ['Wooden'], 
+          activeBlade: 'Wooden' 
+        } 
+      });
+    } catch (error) {
+      console.error("Get bunny blade inventory error:", error);
+      res.status(500).json({ error: "Failed to get inventory" });
+    }
+  });
+
+  app.post("/api/bunny-blade/inventory/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const { unlockedBlades, activeBlade } = req.body;
+      
+      if (!unlockedBlades || !activeBlade) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.updateBunnyBladeInventory(user.id, unlockedBlades, activeBlade);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Update bunny blade inventory error:", error);
+      res.status(500).json({ error: "Failed to update inventory" });
+    }
+  });
+
 }

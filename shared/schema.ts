@@ -225,6 +225,22 @@ export const bunnyBladeWeeklyLeaderboardRelations = relations(bunnyBladeWeeklyLe
   }),
 }));
 
+export const bunnyBladeInventories = pgTable("bunny_blade_inventories", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  unlockedBlades: text("unlocked_blades").default('["Wooden"]').notNull(),
+  activeBlade: text("active_blade").default('Wooden').notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const bunnyBladeInventoriesRelations = relations(bunnyBladeInventories, ({ one }) => ({
+  user: one(users, {
+    fields: [bunnyBladeInventories.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -255,3 +271,4 @@ export type RabbitRushRun = typeof rabbitRushRuns.$inferSelect;
 export type RabbitRushDailyLeaderboardEntry = typeof rabbitRushDailyLeaderboard.$inferSelect;
 export type RabbitRushWeeklyLeaderboardEntry = typeof rabbitRushWeeklyLeaderboard.$inferSelect;
 export type BunnyBladeWeeklyLeaderboardEntry = typeof bunnyBladeWeeklyLeaderboard.$inferSelect;
+export type BunnyBladeInventory = typeof bunnyBladeInventories.$inferSelect;
