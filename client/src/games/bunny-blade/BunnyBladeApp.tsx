@@ -143,13 +143,20 @@ export function BunnyBladeApp() {
     return { unlockedBlades: ['Wooden'], activeBlade: 'Wooden' };
   };
 
-  const saveBladeInventory = (unlockedBlades: string[], activeBlade: string) => {
+  const saveBladeInventory = useCallback(async (unlockedBlades: string[], activeBlade: string) => {
     try {
       localStorage.setItem('bunny_blade_inventory', JSON.stringify({ unlockedBlades, activeBlade }));
+      if (walletAddress) {
+        await fetch(`/api/bunny-blade/inventory/${walletAddress}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unlockedBlades, activeBlade })
+        });
+      }
     } catch (e) {
       console.error('Failed to save blade inventory:', e);
     }
-  };
+  }, [walletAddress]);
 
   const storedBlades = getStoredBlades();
   
@@ -217,6 +224,56 @@ export function BunnyBladeApp() {
       refreshBalance();
     }
   }, [walletAddress, refreshBalance]);
+
+  useEffect(() => {
+    const loadInventoryFromDatabase = async () => {
+      if (!walletAddress) return;
+      
+      const defaultBlades = { unlockedBlades: ['Wooden'], activeBlade: 'Wooden' };
+      
+      try {
+        const res = await fetch(`/api/bunny-blade/inventory/${walletAddress}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.inventory && data.inventory.unlockedBlades) {
+            const unlockedBlades = typeof data.inventory.unlockedBlades === 'string' 
+              ? JSON.parse(data.inventory.unlockedBlades) 
+              : data.inventory.unlockedBlades;
+            const activeBlade = data.inventory.activeBlade || 'Wooden';
+            localStorage.setItem('bunny_blade_inventory', JSON.stringify({ unlockedBlades, activeBlade }));
+            setGameState(prev => ({
+              ...prev,
+              unlockedBlades,
+              activeBlade
+            }));
+          } else {
+            localStorage.setItem('bunny_blade_inventory', JSON.stringify(defaultBlades));
+            setGameState(prev => ({
+              ...prev,
+              unlockedBlades: defaultBlades.unlockedBlades,
+              activeBlade: defaultBlades.activeBlade
+            }));
+          }
+        } else {
+          localStorage.setItem('bunny_blade_inventory', JSON.stringify(defaultBlades));
+          setGameState(prev => ({
+            ...prev,
+            unlockedBlades: defaultBlades.unlockedBlades,
+            activeBlade: defaultBlades.activeBlade
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load blade inventory from database:', error);
+        localStorage.setItem('bunny_blade_inventory', JSON.stringify(defaultBlades));
+        setGameState(prev => ({
+          ...prev,
+          unlockedBlades: defaultBlades.unlockedBlades,
+          activeBlade: defaultBlades.activeBlade
+        }));
+      }
+    };
+    loadInventoryFromDatabase();
+  }, [walletAddress]);
 
   useEffect(() => {
     const img = new Image();
@@ -1502,7 +1559,10 @@ export function BunnyBladeApp() {
                     </div>
                     {gameState.unlockedBlades.includes(name) ? (
                       <button
-                        onClick={() => setGameState(prev => ({ ...prev, activeBlade: name, showShop: false }))}
+                        onClick={() => {
+                          setGameState(prev => ({ ...prev, activeBlade: name, showShop: false }));
+                          saveBladeInventory(gameState.unlockedBlades, name);
+                        }}
                         className={`px-3 py-2 rounded text-white text-sm font-bold ${
                           gameState.activeBlade === name
                             ? 'bg-green-600'
