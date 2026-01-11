@@ -1,0 +1,43 @@
+I have a game called "Rabbit Blade" on my website tokenrush.io.  
+It is a Fruit Ninja-style slicing game (swipe to slice flying objects, score points, avoid bombs/misses, etc.).
+
+Current situation:  
+- The game is playable but uses a default/small canvas size  
+- Background is plain or simple  
+- Animations and slicing effects are basic or already similar to Fruit Ninja
+
+I want these exact updates:
+
+1. Make the game FULL SCREEN  
+   - Canvas should take up the entire browser viewport (100vw × 100vh)  
+   - No borders, no margins, no visible page scrollbars  
+   - Game should resize automatically if player rotates device or resizes window  
+   - Keep touch/mouse controls responsive across mobile and desktop
+
+2. Change the background to the Rabbit Blade logo  
+   - Use the official Rabbit Blade logo as a centered, semi-transparent background image  
+   - Make the logo large but subtle (opacity around 0.15–0.3 so it doesn't distract from gameplay)  
+   - Darken or blur the background slightly if needed so flying objects and slices remain clearly visible  
+   - Keep the gameplay area fully visible over the logo
+
+3. Keep ALL current gameplay mechanics, animations, and effects exactly the same  
+   - Same flying object patterns, physics, slicing detection, combo system, scoring  
+   - Same particle effects, juice/splash animations, slice trails, sound effects when slicing fruits  
+   - Same bomb/miss penalties, game over screen, start/restart flow
+
+4. Overall goals:  
+   - Make Rabbit Blade feel like a premium, polished version of Fruit Ninja  
+   - Full immersive experience (full screen + branded background)  
+   - No change to core fun gameplay loop  
+   - Still mobile-friendly (touch swipes work perfectly)  
+   - Clean, minimal UI elements (score, combo, lives/misses) stay visible and readable
+
+Implement these changes only. Do not add new game modes, power-ups, new objects, or other features unless explicitly listed.
+
+Focus first on:  
+- Making the canvas full-screen and responsive  
+- Adding the Rabbit Blade logo as semi-transparent centered background  
+- Ensuring slicing animations, particles, and effects remain perfectly intact
+
+Assume the game is built with HTML5 Canvas + JavaScript (possibly with libraries like Konva, PixiJS, or plain canvas).  
+Adapt the code to whatever my current setup is.

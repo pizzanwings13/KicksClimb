@@ -91,6 +91,8 @@ const LEVEL_CONFIGS: Record<number, LevelConfig> = {
 
 const LEVEL_TIME = 60;
 const MAX_LEVEL = 10;
+const BASE_WIDTH = 800;
+const BASE_HEIGHT = 600;
 
 const BLADES: Record<string, Blade> = {
   Wooden: { radius: 25, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
@@ -108,8 +110,10 @@ export function BunnyBladeApp() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimedKicks, setClaimedKicks] = useState<number | null>(null);
   const thorImageRef = useRef<HTMLImageElement | null>(null);
+  const logoImageRef = useRef<HTMLImageElement | null>(null);
   const lastTimeRef = useRef<number>(Date.now());
   const sliceSoundRef = useRef<HTMLAudioElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
     sliceSoundRef.current = new Audio('/sounds/hit.mp3');
@@ -194,6 +198,22 @@ export function BunnyBladeApp() {
     img.onload = () => {
       thorImageRef.current = img;
     };
+  }, []);
+
+  useEffect(() => {
+    const logoImg = new Image();
+    logoImg.src = '/textures/rabbits-blade-logo.png';
+    logoImg.onload = () => {
+      logoImageRef.current = logoImg;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setCanvasSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const gameRef = useRef({
@@ -626,13 +646,24 @@ export function BunnyBladeApp() {
       gameRef.current.trail = [];
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const screenToGame = (screenX: number, screenY: number) => {
       const rect = canvas.getBoundingClientRect();
-      gameRef.current.prevMousePos = { ...gameRef.current.mousePos };
-      gameRef.current.mousePos = {
-        x: (e.clientX - rect.left) * (canvas.width / rect.width),
-        y: (e.clientY - rect.top) * (canvas.height / rect.height)
+      const canvasX = (screenX - rect.left) * (canvas.width / rect.width);
+      const canvasY = (screenY - rect.top) * (canvas.height / rect.height);
+      const scaleX = canvas.width / BASE_WIDTH;
+      const scaleY = canvas.height / BASE_HEIGHT;
+      const scale = Math.min(scaleX, scaleY);
+      const offsetX = (canvas.width - BASE_WIDTH * scale) / 2;
+      const offsetY = (canvas.height - BASE_HEIGHT * scale) / 2;
+      return {
+        x: (canvasX - offsetX) / scale,
+        y: (canvasY - offsetY) / scale
       };
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      gameRef.current.prevMousePos = { ...gameRef.current.mousePos };
+      gameRef.current.mousePos = screenToGame(e.clientX, e.clientY);
     };
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -640,11 +671,7 @@ export function BunnyBladeApp() {
       gameRef.current.mouseDown = true;
       gameRef.current.lastSliceTime = Date.now();
       const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      gameRef.current.mousePos = {
-        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-        y: (touch.clientY - rect.top) * (canvas.height / rect.height)
-      };
+      gameRef.current.mousePos = screenToGame(touch.clientX, touch.clientY);
     };
 
     const handleTouchEnd = () => {
@@ -655,12 +682,8 @@ export function BunnyBladeApp() {
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
       gameRef.current.prevMousePos = { ...gameRef.current.mousePos };
-      gameRef.current.mousePos = {
-        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-        y: (touch.clientY - rect.top) * (canvas.height / rect.height)
-      };
+      gameRef.current.mousePos = screenToGame(touch.clientX, touch.clientY);
     };
 
     canvas.addEventListener('mousedown', handleMouseDown);
@@ -672,9 +695,28 @@ export function BunnyBladeApp() {
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     const gameLoop = () => {
+      const cw = canvas.width;
+      const ch = canvas.height;
+      const scaleX = cw / BASE_WIDTH;
+      const scaleY = ch / BASE_HEIGHT;
+      const scale = Math.min(scaleX, scaleY);
+      
       if (gameState.phase !== 'playing' || gameState.showShop) {
-        ctx.fillStyle = '#0a0a1a';
-        ctx.fillRect(0, 0, 800, 600);
+        const gradient = ctx.createLinearGradient(0, 0, 0, ch);
+        gradient.addColorStop(0, '#1a0a2e');
+        gradient.addColorStop(1, '#0a0a1a');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, cw, ch);
+        
+        if (logoImageRef.current) {
+          const logoSize = Math.min(cw, ch) * 0.5;
+          const logoX = (cw - logoSize) / 2;
+          const logoY = (ch - logoSize) / 2;
+          ctx.globalAlpha = 0.15;
+          ctx.drawImage(logoImageRef.current, logoX, logoY, logoSize, logoSize);
+          ctx.globalAlpha = 1;
+        }
+        
         animationId = requestAnimationFrame(gameLoop);
         return;
       }
@@ -704,11 +746,24 @@ export function BunnyBladeApp() {
         });
       }
 
-      const gradient = ctx.createLinearGradient(0, 0, 0, 600);
+      const gradient = ctx.createLinearGradient(0, 0, 0, ch);
       gradient.addColorStop(0, '#1a0a2e');
       gradient.addColorStop(1, '#0a0a1a');
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 800, 600);
+      ctx.fillRect(0, 0, cw, ch);
+      
+      if (logoImageRef.current) {
+        const logoSize = Math.min(cw, ch) * 0.5;
+        const logoX = (cw - logoSize) / 2;
+        const logoY = (ch - logoSize) / 2;
+        ctx.globalAlpha = 0.12;
+        ctx.drawImage(logoImageRef.current, logoX, logoY, logoSize, logoSize);
+        ctx.globalAlpha = 1;
+      }
+      
+      ctx.save();
+      ctx.translate((cw - BASE_WIDTH * scale) / 2, (ch - BASE_HEIGHT * scale) / 2);
+      ctx.scale(scale, scale);
 
       const config = LEVEL_CONFIGS[gameState.level] || LEVEL_CONFIGS[10];
       gameRef.current.spawnTimer += timeScale;
@@ -1096,6 +1151,7 @@ export function BunnyBladeApp() {
         ctx.shadowBlur = 0;
       }
 
+      ctx.restore();
       animationId = requestAnimationFrame(gameLoop);
     };
 
@@ -1234,8 +1290,8 @@ export function BunnyBladeApp() {
   }
 
   return (
-    <div className="relative w-full h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black overflow-hidden touch-none select-none flex flex-col">
-      <div className="flex-shrink-0 bg-black/80 border-b border-red-500/30 px-4 py-2">
+    <div className="fixed inset-0 bg-black overflow-hidden touch-none select-none flex flex-col">
+      <div className="absolute top-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-sm border-b border-red-500/30 px-4 py-2">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -1294,15 +1350,17 @@ export function BunnyBladeApp() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
-        <div className="relative w-full max-w-4xl" style={{ aspectRatio: '4/3' }}>
-          <canvas
-            ref={canvasRef}
-            width={800}
-            height={600}
-            className="w-full h-full border-4 border-red-500/50 rounded-xl shadow-2xl cursor-none touch-none"
-            style={{ imageRendering: 'crisp-edges' }}
-          />
+      <div className="absolute inset-0 z-0">
+        <canvas
+          ref={canvasRef}
+          width={canvasSize.width}
+          height={canvasSize.height}
+          className="w-full h-full cursor-none touch-none"
+          style={{ imageRendering: 'crisp-edges' }}
+        />
+      </div>
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="relative w-full h-full pointer-events-auto">
 
           {gameState.phase === 'menu' && (
             <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
