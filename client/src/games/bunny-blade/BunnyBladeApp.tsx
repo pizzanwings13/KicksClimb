@@ -97,8 +97,8 @@ const BASE_HEIGHT = 600;
 const BLADES: Record<string, Blade & { element?: string }> = {
   Wooden: { radius: 25, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
   Steel: { radius: 35, color: '#C0C0C0', cost: 2500, name: 'Steel Blade' },
-  Ice: { radius: 40, color: '#00BFFF', cost: 4000, name: 'Ice Blade', element: 'ice' },
-  Fire: { radius: 40, color: '#FF4500', cost: 4000, name: 'Fire Blade', element: 'fire' },
+  Ice: { radius: 40, color: '#00BFFF', cost: 10000, name: 'Ice Blade', element: 'ice' },
+  Fire: { radius: 40, color: '#FF4500', cost: 10000, name: 'Fire Blade', element: 'fire' },
   Plasma: { radius: 50, color: '#00FFFF', cost: 5000, name: 'Plasma Blade' }
 };
 
