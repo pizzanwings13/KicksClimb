@@ -119,7 +119,7 @@ export function MenuScreen() {
           </div>
         )}
 
-        <div className="mt-8 flex justify-center gap-8 text-sm text-gray-500">
+        <div className="mt-8 mb-20 sm:mb-8 flex justify-center gap-8 text-sm text-gray-500">
           <div className="text-center">
             <div className="w-4 h-4 rounded bg-green-500 mx-auto mb-1" />
             <span>Multiplier</span>

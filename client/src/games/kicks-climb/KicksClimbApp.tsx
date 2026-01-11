@@ -53,10 +53,11 @@ function BackToHubButton() {
   return (
     <button
       onClick={handleBack}
-      className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-lg border border-purple-500/30 text-white transition-colors"
+      className="fixed top-4 left-4 z-[100] flex items-center gap-2 px-4 py-2 bg-black/80 hover:bg-black backdrop-blur-sm rounded-lg border border-purple-500/50 text-white transition-colors touch-manipulation"
+      style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <ArrowLeft className="w-4 h-4" />
-      <span>Back to Games</span>
+      <span>Back</span>
     </button>
   );
 }
