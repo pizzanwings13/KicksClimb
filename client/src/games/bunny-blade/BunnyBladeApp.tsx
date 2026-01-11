@@ -76,17 +76,17 @@ interface LevelConfig {
   heartChance: number;
 }
 
-const LEVEL_CONFIGS: Record<number, LevelConfig> = {
-  1: { spawnInterval: 30, maxTargets: 8, bombChance: 0.05, thorChance: 0.01, speedMult: 1.0, coinChance: 0.1, pineappleChance: 0.08, heartChance: 0.05 },
-  2: { spawnInterval: 28, maxTargets: 9, bombChance: 0.08, thorChance: 0.012, speedMult: 1.1, coinChance: 0.12, pineappleChance: 0.08, heartChance: 0.04 },
-  3: { spawnInterval: 25, maxTargets: 10, bombChance: 0.10, thorChance: 0.014, speedMult: 1.2, coinChance: 0.14, pineappleChance: 0.07, heartChance: 0.04 },
-  4: { spawnInterval: 22, maxTargets: 11, bombChance: 0.12, thorChance: 0.016, speedMult: 1.3, coinChance: 0.16, pineappleChance: 0.07, heartChance: 0.03 },
-  5: { spawnInterval: 20, maxTargets: 12, bombChance: 0.14, thorChance: 0.018, speedMult: 1.4, coinChance: 0.18, pineappleChance: 0.06, heartChance: 0.03 },
-  6: { spawnInterval: 18, maxTargets: 13, bombChance: 0.16, thorChance: 0.02, speedMult: 1.5, coinChance: 0.2, pineappleChance: 0.06, heartChance: 0.025 },
-  7: { spawnInterval: 16, maxTargets: 14, bombChance: 0.18, thorChance: 0.022, speedMult: 1.6, coinChance: 0.22, pineappleChance: 0.05, heartChance: 0.025 },
-  8: { spawnInterval: 14, maxTargets: 15, bombChance: 0.20, thorChance: 0.024, speedMult: 1.7, coinChance: 0.24, pineappleChance: 0.05, heartChance: 0.02 },
-  9: { spawnInterval: 12, maxTargets: 16, bombChance: 0.22, thorChance: 0.026, speedMult: 1.8, coinChance: 0.26, pineappleChance: 0.04, heartChance: 0.02 },
-  10: { spawnInterval: 10, maxTargets: 18, bombChance: 0.25, thorChance: 0.03, speedMult: 2.0, coinChance: 0.3, pineappleChance: 0.04, heartChance: 0.015 },
+const LEVEL_CONFIGS: Record<number, LevelConfig & { rubyChance: number }> = {
+  1: { spawnInterval: 30, maxTargets: 8, bombChance: 0.05, thorChance: 0.01, speedMult: 1.0, coinChance: 0.1, pineappleChance: 0.08, heartChance: 0.05, rubyChance: 0.02 },
+  2: { spawnInterval: 28, maxTargets: 9, bombChance: 0.08, thorChance: 0.012, speedMult: 1.1, coinChance: 0.12, pineappleChance: 0.08, heartChance: 0.04, rubyChance: 0.025 },
+  3: { spawnInterval: 25, maxTargets: 10, bombChance: 0.10, thorChance: 0.014, speedMult: 1.2, coinChance: 0.14, pineappleChance: 0.07, heartChance: 0.04, rubyChance: 0.03 },
+  4: { spawnInterval: 22, maxTargets: 11, bombChance: 0.12, thorChance: 0.016, speedMult: 1.3, coinChance: 0.16, pineappleChance: 0.07, heartChance: 0.03, rubyChance: 0.03 },
+  5: { spawnInterval: 20, maxTargets: 12, bombChance: 0.14, thorChance: 0.018, speedMult: 1.4, coinChance: 0.18, pineappleChance: 0.06, heartChance: 0.03, rubyChance: 0.035 },
+  6: { spawnInterval: 18, maxTargets: 13, bombChance: 0.16, thorChance: 0.02, speedMult: 1.5, coinChance: 0.2, pineappleChance: 0.06, heartChance: 0.025, rubyChance: 0.035 },
+  7: { spawnInterval: 16, maxTargets: 14, bombChance: 0.18, thorChance: 0.022, speedMult: 1.6, coinChance: 0.22, pineappleChance: 0.05, heartChance: 0.025, rubyChance: 0.04 },
+  8: { spawnInterval: 14, maxTargets: 15, bombChance: 0.20, thorChance: 0.024, speedMult: 1.7, coinChance: 0.24, pineappleChance: 0.05, heartChance: 0.02, rubyChance: 0.04 },
+  9: { spawnInterval: 12, maxTargets: 16, bombChance: 0.22, thorChance: 0.026, speedMult: 1.8, coinChance: 0.26, pineappleChance: 0.04, heartChance: 0.02, rubyChance: 0.045 },
+  10: { spawnInterval: 10, maxTargets: 18, bombChance: 0.25, thorChance: 0.03, speedMult: 2.0, coinChance: 0.3, pineappleChance: 0.04, heartChance: 0.015, rubyChance: 0.05 },
 };
 
 const LEVEL_TIME = 60;
@@ -315,7 +315,9 @@ export function BunnyBladeApp() {
     thorTimer: 0,
     thorFlashTimer: 0,
     lastSliceTime: 0,
-    frameCount: 0
+    frameCount: 0,
+    slowMotionTimer: 0,
+    slowMotionActive: false
   });
 
   const createSliceParticles = useCallback((x: number, y: number, color: string, count: number = 12, element?: string) => {
@@ -519,6 +521,8 @@ export function BunnyBladeApp() {
       type = 'pineapple';
     } else if (rand < (cumulative += config.heartChance)) {
       type = 'heart';
+    } else if (rand < (cumulative += config.rubyChance)) {
+      type = 'ruby';
     } else if (rand < cumulative + 0.3) {
       type = 'carrot';
     } else {
@@ -531,7 +535,8 @@ export function BunnyBladeApp() {
       coin: '#FFD700',
       bomb: '#FF0000',
       pineapple: '#FFD700',
-      heart: '#FF69B4'
+      heart: '#FF69B4',
+      ruby: '#E0115F'
     };
 
     const side = Math.random();
@@ -866,7 +871,15 @@ export function BunnyBladeApp() {
       lastTimeRef.current = now;
       
       const targetFrameTime = 16.67;
-      const timeScale = Math.min(deltaTime / targetFrameTime, 3);
+      let timeScale = Math.min(deltaTime / targetFrameTime, 3);
+      
+      if (gameRef.current.slowMotionActive) {
+        gameRef.current.slowMotionTimer--;
+        if (gameRef.current.slowMotionTimer <= 0) {
+          gameRef.current.slowMotionActive = false;
+        }
+        timeScale *= 0.3;
+      }
 
       if (gameRef.current.frameCount % 60 === 0) {
         setGameState(prev => {
@@ -1072,30 +1085,30 @@ export function BunnyBladeApp() {
           } else if (target.type === 'bomb') {
             ctx.fillStyle = '#1a1a1a';
             ctx.beginPath();
-            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.arc(0, 0, 28, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#FF0000';
             ctx.beginPath();
-            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.arc(0, 0, 23, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#FF6600';
-            ctx.fillRect(-3, -28, 6, 12);
+            ctx.fillRect(-4, -35, 8, 14);
             ctx.fillStyle = '#FFFF00';
             ctx.beginPath();
-            ctx.arc(0, -32, 5, 0, Math.PI * 2);
+            ctx.arc(0, -40, 6, 0, Math.PI * 2);
             ctx.fill();
           } else if (target.type === 'coin') {
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#FFD700';
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
-            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.arc(0, 0, 26, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#FFA500';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 4;
             ctx.stroke();
             ctx.fillStyle = '#DAA520';
-            ctx.font = 'bold 16px Arial';
+            ctx.font = 'bold 20px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('$', 0, 0);
@@ -1103,41 +1116,41 @@ export function BunnyBladeApp() {
           } else if (target.type === 'carrot') {
             ctx.fillStyle = '#FF6B00';
             ctx.beginPath();
-            ctx.moveTo(0, -25);
-            ctx.lineTo(12, 20);
-            ctx.lineTo(-12, 20);
+            ctx.moveTo(0, -32);
+            ctx.lineTo(16, 26);
+            ctx.lineTo(-16, 26);
             ctx.closePath();
             ctx.fill();
             ctx.fillStyle = '#228B22';
-            ctx.fillRect(-8, -30, 16, 10);
+            ctx.fillRect(-10, -38, 20, 12);
           } else if (target.type === 'leaf') {
             ctx.fillStyle = '#32CD32';
             ctx.beginPath();
-            ctx.ellipse(0, 0, 12, 22, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 16, 28, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#228B22';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(0, -22);
-            ctx.lineTo(0, 22);
+            ctx.moveTo(0, -28);
+            ctx.lineTo(0, 28);
             ctx.stroke();
           } else if (target.type === 'pineapple') {
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
-            ctx.ellipse(0, 5, 16, 22, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 6, 20, 28, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#DAA520';
             ctx.lineWidth = 2;
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 6; i++) {
               ctx.beginPath();
-              ctx.moveTo(-10 + i * 5, -15 + (i % 2) * 5);
-              ctx.lineTo(-10 + i * 5, 25 - (i % 2) * 5);
+              ctx.moveTo(-12 + i * 5, -20 + (i % 2) * 6);
+              ctx.lineTo(-12 + i * 5, 32 - (i % 2) * 6);
               ctx.stroke();
             }
             ctx.fillStyle = '#228B22';
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 6; i++) {
               ctx.beginPath();
-              ctx.ellipse(-8 + i * 4, -25, 4, 10, (i - 2) * 0.3, 0, Math.PI * 2);
+              ctx.ellipse(-10 + i * 4, -32, 5, 12, (i - 2.5) * 0.3, 0, Math.PI * 2);
               ctx.fill();
             }
           } else if (target.type === 'heart') {
@@ -1145,14 +1158,47 @@ export function BunnyBladeApp() {
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#FF69B4';
             ctx.beginPath();
-            ctx.moveTo(0, 8);
-            ctx.bezierCurveTo(-20, -10, -20, -25, 0, -15);
-            ctx.bezierCurveTo(20, -25, 20, -10, 0, 8);
+            ctx.moveTo(0, 10);
+            ctx.bezierCurveTo(-25, -12, -25, -30, 0, -18);
+            ctx.bezierCurveTo(25, -30, 25, -12, 0, 10);
             ctx.fill();
             ctx.fillStyle = '#FFB6C1';
             ctx.beginPath();
-            ctx.arc(-8, -12, 4, 0, Math.PI * 2);
+            ctx.arc(-10, -15, 5, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
+          } else if (target.type === 'ruby') {
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#FF0040';
+            ctx.fillStyle = '#E0115F';
+            ctx.beginPath();
+            ctx.moveTo(0, -28);
+            ctx.lineTo(22, -8);
+            ctx.lineTo(22, 12);
+            ctx.lineTo(0, 28);
+            ctx.lineTo(-22, 12);
+            ctx.lineTo(-22, -8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#FF6B8A';
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(12, -5);
+            ctx.lineTo(0, 8);
+            ctx.lineTo(-12, -5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#FF1493';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -28);
+            ctx.lineTo(22, -8);
+            ctx.lineTo(22, 12);
+            ctx.lineTo(0, 28);
+            ctx.lineTo(-22, 12);
+            ctx.lineTo(-22, -8);
+            ctx.closePath();
+            ctx.stroke();
             ctx.shadowBlur = 0;
           }
           ctx.restore();
@@ -1220,6 +1266,45 @@ export function BunnyBladeApp() {
                 };
               }
 
+              if (target.type === 'ruby') {
+                gameRef.current.slowMotionActive = true;
+                gameRef.current.slowMotionTimer = 300;
+                
+                for (let i = 0; i < 40; i++) {
+                  const angle = (Math.PI * 2 * i) / 40;
+                  const speed = 6 + Math.random() * 8;
+                  gameRef.current.particles.push({
+                    x: target.x, y: target.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 50,
+                    color: i % 3 === 0 ? '#E0115F' : i % 3 === 1 ? '#FF6B8A' : '#FF1493',
+                    size: 6 + Math.random() * 6
+                  });
+                }
+                
+                for (let i = 0; i < 20; i++) {
+                  const angle = Math.random() * Math.PI * 2;
+                  const dist = Math.random() * 100;
+                  gameRef.current.particles.push({
+                    x: target.x + Math.cos(angle) * dist,
+                    y: target.y + Math.sin(angle) * dist,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 60 + Math.random() * 30,
+                    color: '#FFD700',
+                    size: 3 + Math.random() * 3
+                  });
+                }
+                
+                return {
+                  ...prev,
+                  score: prev.score + 100,
+                  kicks: prev.kicks + 50,
+                  streak: prev.streak + 1
+                };
+              }
+
               const newStreak = prev.streak + 1;
               const points = target.type === 'coin' ? 50 : target.type === 'pineapple' ? 25 : target.type === 'carrot' ? 15 : 10;
               const multiplier = 1 + Math.floor(newStreak / 5) * 0.5;
@@ -1235,7 +1320,7 @@ export function BunnyBladeApp() {
           }
         }
 
-        if (target.y > 650 && !target.sliced && target.type !== 'bomb' && target.type !== 'thor' && target.type !== 'heart') {
+        if (target.y > 650 && !target.sliced && target.type !== 'bomb' && target.type !== 'thor' && target.type !== 'heart' && target.type !== 'ruby') {
           setGameState(prev => {
             const newLives = prev.lives - 1;
             return {
@@ -1378,6 +1463,26 @@ export function BunnyBladeApp() {
         }
         
         ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
+      if (gameRef.current.slowMotionActive) {
+        ctx.fillStyle = 'rgba(224, 17, 95, 0.1)';
+        ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+        
+        ctx.strokeStyle = '#E0115F';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#FF1493';
+        ctx.strokeRect(10, 10, BASE_WIDTH - 20, BASE_HEIGHT - 20);
+        ctx.shadowBlur = 0;
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#FFD700';
+        ctx.fillText('⏱ SLOW MOTION ⏱', BASE_WIDTH / 2, 50);
         ctx.shadowBlur = 0;
       }
 
