@@ -1360,10 +1360,10 @@ export function BunnyBladeApp() {
         />
       </div>
       <div className="absolute inset-0 z-10 pointer-events-none">
-        <div className="relative w-full h-full pointer-events-auto">
+        <div className="relative w-full h-full">
 
           {gameState.phase === 'menu' && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-2xl border-4 border-red-500 text-center max-w-md mx-4">
                 <img 
                   src="/textures/rabbits-blade-logo.png" 
@@ -1389,7 +1389,7 @@ export function BunnyBladeApp() {
           )}
 
           {gameState.phase === 'levelComplete' && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-green-900/95 to-emerald-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-green-400 mx-4">
                 <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">Level {gameState.level} Complete!</h2>
@@ -1406,7 +1406,7 @@ export function BunnyBladeApp() {
           )}
 
           {gameState.phase === 'victory' && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-yellow-900/95 to-orange-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-yellow-400 mx-4">
                 <div className="text-6xl mb-4">🏆</div>
                 <h2 className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-2">VICTORY!</h2>
@@ -1443,7 +1443,7 @@ export function BunnyBladeApp() {
           )}
 
           {gameState.showShop && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-purple-800 to-indigo-900 p-4 sm:p-6 rounded-xl max-w-md w-full mx-4 border-4 border-red-500">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl sm:text-2xl font-bold text-white">⚔️ Blade Shop</h2>
@@ -1503,7 +1503,7 @@ export function BunnyBladeApp() {
           )}
 
           {gameState.phase === 'claiming' && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-purple-900/95 to-indigo-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-yellow-400 mx-4">
                 <Loader2 className="w-12 h-12 text-yellow-400 mx-auto mb-4 animate-spin" />
                 <h2 className="text-2xl font-bold text-white mb-2">Claiming KICKS...</h2>
@@ -1513,7 +1513,7 @@ export function BunnyBladeApp() {
           )}
 
           {gameState.phase === 'ended' && (
-            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl">
+            <div className="absolute inset-0 bg-black/85 flex items-center justify-center rounded-xl pointer-events-auto">
               <div className="bg-gradient-to-br from-red-900/95 to-purple-900/95 p-6 sm:p-8 rounded-xl text-center border-4 border-red-500 mx-4">
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">💀 Game Over!</h2>
                 <p className="text-lg text-gray-300 mb-2">Reached Level {gameState.level}/{MAX_LEVEL}</p>
