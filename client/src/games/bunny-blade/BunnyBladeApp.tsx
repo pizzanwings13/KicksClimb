@@ -94,9 +94,11 @@ const MAX_LEVEL = 10;
 const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
 
-const BLADES: Record<string, Blade> = {
+const BLADES: Record<string, Blade & { element?: string }> = {
   Wooden: { radius: 25, color: '#8B4513', cost: 0, name: 'Wooden Blade' },
   Steel: { radius: 35, color: '#C0C0C0', cost: 2500, name: 'Steel Blade' },
+  Ice: { radius: 40, color: '#00BFFF', cost: 4000, name: 'Ice Blade', element: 'ice' },
+  Fire: { radius: 40, color: '#FF4500', cost: 4000, name: 'Fire Blade', element: 'fire' },
   Plasma: { radius: 50, color: '#00FFFF', cost: 5000, name: 'Plasma Blade' }
 };
 
@@ -316,20 +318,73 @@ export function BunnyBladeApp() {
     frameCount: 0
   });
 
-  const createSliceParticles = useCallback((x: number, y: number, color: string, count: number = 12) => {
+  const createSliceParticles = useCallback((x: number, y: number, color: string, count: number = 12, element?: string) => {
+    const blade = BLADES[gameState.activeBlade];
+    const activeElement = element || blade.element;
+    
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count;
       const speed = 4 + Math.random() * 6;
+      
+      let particleColor = color;
+      let particleSize = 3 + Math.random() * 4;
+      let particleLife = 25 + Math.random() * 15;
+      
+      if (activeElement === 'ice') {
+        const iceColors = ['#00BFFF', '#87CEEB', '#E0FFFF', '#B0E0E6', '#ADD8E6'];
+        particleColor = iceColors[Math.floor(Math.random() * iceColors.length)];
+        particleSize = 4 + Math.random() * 6;
+        particleLife = 35 + Math.random() * 20;
+      } else if (activeElement === 'fire') {
+        const fireColors = ['#FF4500', '#FF6347', '#FFA500', '#FFD700', '#FF0000'];
+        particleColor = fireColors[Math.floor(Math.random() * fireColors.length)];
+        particleSize = 3 + Math.random() * 5;
+        particleLife = 20 + Math.random() * 15;
+      }
+      
       gameRef.current.particles.push({
         x, y,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 25 + Math.random() * 15,
-        color,
-        size: 3 + Math.random() * 4
-      });
+        vy: Math.sin(angle) * speed - (activeElement === 'fire' ? 2 : 0),
+        life: particleLife,
+        color: particleColor,
+        size: particleSize,
+        element: activeElement
+      } as Particle & { element?: string });
     }
-  }, []);
+    
+    if (activeElement === 'ice') {
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 3;
+        gameRef.current.particles.push({
+          x: x + (Math.random() - 0.5) * 30,
+          y: y + (Math.random() - 0.5) * 30,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1,
+          life: 40 + Math.random() * 20,
+          color: '#FFFFFF',
+          size: 6 + Math.random() * 4,
+          element: 'ice_crystal'
+        } as Particle & { element?: string });
+      }
+    } else if (activeElement === 'fire') {
+      for (let i = 0; i < 8; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 2;
+        gameRef.current.particles.push({
+          x: x + (Math.random() - 0.5) * 20,
+          y: y + (Math.random() - 0.5) * 20,
+          vx: Math.cos(angle) * speed,
+          vy: -3 - Math.random() * 4,
+          life: 30 + Math.random() * 20,
+          color: '#FF4500',
+          size: 8 + Math.random() * 6,
+          element: 'fire_ember'
+        } as Particle & { element?: string });
+      }
+    }
+  }, [gameState.activeBlade]);
 
   const createSlashEffect = useCallback((x: number, y: number) => {
     const dx = gameRef.current.mousePos.x - gameRef.current.prevMousePos.x;
@@ -855,21 +910,87 @@ export function BunnyBladeApp() {
         gameRef.current.spawnTimer = 0;
       }
 
-      gameRef.current.particles = gameRef.current.particles.filter(p => {
+      gameRef.current.particles = gameRef.current.particles.filter((p: any) => {
         p.x += p.vx * timeScale;
         p.y += p.vy * timeScale;
-        p.vy += 0.2 * timeScale;
-        p.vx *= Math.pow(0.98, timeScale);
+        
+        if (p.element === 'fire_ember') {
+          p.vy -= 0.1 * timeScale;
+          p.vx *= Math.pow(0.95, timeScale);
+        } else if (p.element === 'ice_crystal') {
+          p.vy += 0.05 * timeScale;
+          p.vx *= Math.pow(0.99, timeScale);
+        } else {
+          p.vy += 0.2 * timeScale;
+          p.vx *= Math.pow(0.98, timeScale);
+        }
         p.life -= timeScale;
         
         if (p.life > 0) {
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.life / 40;
-          const size = p.size || 4;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, size * (p.life / 40), 0, Math.PI * 2);
-          ctx.fill();
+          const alpha = p.life / 40;
+          const size = (p.size || 4) * (p.life / 40);
+          
+          if (p.element === 'ice_crystal') {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.life * 0.1);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00BFFF';
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (Math.PI * 2 * i) / 6;
+              const px = Math.cos(angle) * size;
+              const py = Math.sin(angle) * size;
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          } else if (p.element === 'fire_ember') {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+            gradient.addColorStop(0, '#FFFF00');
+            gradient.addColorStop(0.3, p.color);
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.globalAlpha = alpha * 0.8;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#FF4500';
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          } else if (p.element === 'ice') {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00BFFF';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          } else if (p.element === 'fire') {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#FF4500';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+            ctx.fill();
+          }
           ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
           return true;
         }
         return false;
@@ -883,12 +1004,38 @@ export function BunnyBladeApp() {
           ctx.rotate(slash.angle);
           
           const alpha = slash.life / 15;
-          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.lineWidth = 4 * alpha;
-          ctx.lineCap = 'round';
-          ctx.shadowBlur = 20;
-          ctx.shadowColor = BLADES[gameState.activeBlade].color;
+          const blade = BLADES[gameState.activeBlade];
           
+          if (blade.element === 'ice') {
+            const iceGradient = ctx.createLinearGradient(-slash.length / 2, 0, slash.length / 2, 0);
+            iceGradient.addColorStop(0, `rgba(135, 206, 250, 0)`);
+            iceGradient.addColorStop(0.3, `rgba(0, 191, 255, ${alpha})`);
+            iceGradient.addColorStop(0.5, `rgba(224, 255, 255, ${alpha})`);
+            iceGradient.addColorStop(0.7, `rgba(0, 191, 255, ${alpha})`);
+            iceGradient.addColorStop(1, `rgba(135, 206, 250, 0)`);
+            ctx.strokeStyle = iceGradient;
+            ctx.lineWidth = 6 * alpha;
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#00BFFF';
+          } else if (blade.element === 'fire') {
+            const fireGradient = ctx.createLinearGradient(-slash.length / 2, 0, slash.length / 2, 0);
+            fireGradient.addColorStop(0, `rgba(255, 69, 0, 0)`);
+            fireGradient.addColorStop(0.3, `rgba(255, 140, 0, ${alpha})`);
+            fireGradient.addColorStop(0.5, `rgba(255, 255, 0, ${alpha})`);
+            fireGradient.addColorStop(0.7, `rgba(255, 140, 0, ${alpha})`);
+            fireGradient.addColorStop(1, `rgba(255, 69, 0, 0)`);
+            ctx.strokeStyle = fireGradient;
+            ctx.lineWidth = 6 * alpha;
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#FF4500';
+          } else {
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 4 * alpha;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = blade.color;
+          }
+          
+          ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(-slash.length / 2, 0);
           ctx.lineTo(slash.length / 2, 0);
