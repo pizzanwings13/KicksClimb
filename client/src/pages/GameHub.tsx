@@ -160,6 +160,11 @@ function MissionsPanel({
         )}
 
         <div className="space-y-2">
+          {missions.length === 0 && (
+            <div className="text-center py-4 text-gray-400">
+              <p>Loading missions...</p>
+            </div>
+          )}
           {missions.map((mission) => {
             const isCompleted = completedMissions.includes(mission.id);
             const isSelected = selectedMission === mission.id;
@@ -476,7 +481,7 @@ export function GameHub() {
       
       if (missionsRes.ok) {
         const data = await missionsRes.json();
-        setMissions(data.missions);
+        setMissions(data.missions || []);
       }
       
       if (progressRes.ok) {
