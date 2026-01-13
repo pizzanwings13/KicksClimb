@@ -1342,15 +1342,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Invalid mission" });
       }
       
-      const tweetLower = tweetUrl.toLowerCase();
-      const hasMentions = mission.requiredMentions.every(mention => 
-        tweetLower.includes(`@${mention}`) || tweetLower.includes(mention)
-      );
-      
-      if (!hasMentions) {
-        const mentionsList = mission.requiredMentions.map(m => `@${m}`).join(' and ');
-        return res.status(400).json({ error: `Tweet must mention ${mentionsList}` });
+      // Validate it's a valid X/Twitter URL
+      const isValidTweetUrl = tweetUrl.includes('x.com/') || tweetUrl.includes('twitter.com/');
+      if (!isValidTweetUrl) {
+        return res.status(400).json({ error: "Please provide a valid X (Twitter) post URL" });
       }
+      
+      // Note: We can't validate tweet content from just the URL
+      // The actual tweet content verification would require Twitter API access
+      // For now, we trust the user's submission
       
       return res.json({ 
         success: true, 
