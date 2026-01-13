@@ -2,10 +2,14 @@ import {
   users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
   rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard,
   bunnyBladeWeeklyLeaderboard, bunnyBladeInventories,
+  dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleMissionPrizes,
+  dashvilleDailyLeaderboard, dashvilleWeeklyLeaderboard,
   type User, type InsertUser, type Game, type InsertGame, 
   type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
   type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry,
-  type BunnyBladeWeeklyLeaderboardEntry, type BunnyBladeInventory
+  type BunnyBladeWeeklyLeaderboardEntry, type BunnyBladeInventory,
+  type DashvilleMissionSubmission, type DashvilleMissionProgress, type DashvilleMissionPrize,
+  type DashvilleDailyLeaderboardEntry, type DashvilleWeeklyLeaderboardEntry
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -591,6 +595,151 @@ export class DatabaseStorage implements IStorage {
         userId,
         unlockedBlades: JSON.stringify(unlockedBlades),
         activeBlade,
+      });
+    }
+  }
+
+  async getDashvilleMissionProgress(userId: number, weekStart: Date): Promise<DashvilleMissionProgress | null> {
+    const [progress] = await db.select()
+      .from(dashvilleMissionProgress)
+      .where(and(
+        eq(dashvilleMissionProgress.userId, userId),
+        eq(dashvilleMissionProgress.weekStart, weekStart)
+      ));
+    return progress || null;
+  }
+
+  async createDashvilleMissionProgress(userId: number, weekStart: Date): Promise<DashvilleMissionProgress> {
+    const [progress] = await db.insert(dashvilleMissionProgress)
+      .values({
+        userId,
+        weekStart,
+        totalPoints: 0,
+        completedMissions: "[]",
+        dailyCount: 0,
+      })
+      .returning();
+    return progress;
+  }
+
+  async updateDashvilleMissionProgress(
+    userId: number, 
+    weekStart: Date, 
+    updates: { totalPoints: number; completedMissions: string; dailyCount: number; lastDailyDate: Date }
+  ): Promise<void> {
+    await db.update(dashvilleMissionProgress)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(dashvilleMissionProgress.userId, userId),
+        eq(dashvilleMissionProgress.weekStart, weekStart)
+      ));
+  }
+
+  async getDashvilleMissionSubmissions(userId: number, weekStart: Date): Promise<DashvilleMissionSubmission[]> {
+    return await db.select()
+      .from(dashvilleMissionSubmissions)
+      .where(and(
+        eq(dashvilleMissionSubmissions.userId, userId),
+        eq(dashvilleMissionSubmissions.weekStart, weekStart)
+      ))
+      .orderBy(desc(dashvilleMissionSubmissions.submittedAt));
+  }
+
+  async getDashvilleMissionSubmissionByTweetId(tweetId: string): Promise<DashvilleMissionSubmission | null> {
+    const [submission] = await db.select()
+      .from(dashvilleMissionSubmissions)
+      .where(eq(dashvilleMissionSubmissions.tweetId, tweetId));
+    return submission || null;
+  }
+
+  async createDashvilleMissionSubmission(data: {
+    userId: number;
+    missionId: number;
+    tweetId: string;
+    tweetUrl: string;
+    tweetData: string | null;
+    pointsAwarded: number;
+    weekStart: Date;
+  }): Promise<DashvilleMissionSubmission> {
+    const [submission] = await db.insert(dashvilleMissionSubmissions)
+      .values(data)
+      .returning();
+    return submission;
+  }
+
+  async getDashvilleDailyLeaderboard(date: Date, limit: number = 20): Promise<DashvilleDailyLeaderboardEntry[]> {
+    return await db.select()
+      .from(dashvilleDailyLeaderboard)
+      .where(eq(dashvilleDailyLeaderboard.date, date))
+      .orderBy(desc(dashvilleDailyLeaderboard.points))
+      .limit(limit);
+  }
+
+  async getDashvilleWeeklyLeaderboard(weekStart: Date, limit: number = 50): Promise<DashvilleWeeklyLeaderboardEntry[]> {
+    return await db.select()
+      .from(dashvilleWeeklyLeaderboard)
+      .where(eq(dashvilleWeeklyLeaderboard.weekStart, weekStart))
+      .orderBy(desc(dashvilleWeeklyLeaderboard.points))
+      .limit(limit);
+  }
+
+  async updateDashvilleLeaderboards(userId: number, username: string, points: number, weekStart: Date): Promise<void> {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    weekEnd.setUTCHours(23, 59, 59, 999);
+
+    const [existingDaily] = await db.select()
+      .from(dashvilleDailyLeaderboard)
+      .where(and(
+        eq(dashvilleDailyLeaderboard.userId, userId),
+        eq(dashvilleDailyLeaderboard.date, today)
+      ));
+
+    if (existingDaily) {
+      await db.update(dashvilleDailyLeaderboard)
+        .set({
+          points: existingDaily.points + points,
+          missionsCompleted: existingDaily.missionsCompleted + 1,
+        })
+        .where(eq(dashvilleDailyLeaderboard.id, existingDaily.id));
+    } else {
+      await db.insert(dashvilleDailyLeaderboard).values({
+        userId,
+        username,
+        points,
+        missionsCompleted: 1,
+        date: today,
+      });
+    }
+
+    const [existingWeekly] = await db.select()
+      .from(dashvilleWeeklyLeaderboard)
+      .where(and(
+        eq(dashvilleWeeklyLeaderboard.userId, userId),
+        eq(dashvilleWeeklyLeaderboard.weekStart, weekStart)
+      ));
+
+    if (existingWeekly) {
+      await db.update(dashvilleWeeklyLeaderboard)
+        .set({
+          points: existingWeekly.points + points,
+          missionsCompleted: existingWeekly.missionsCompleted + 1,
+        })
+        .where(eq(dashvilleWeeklyLeaderboard.id, existingWeekly.id));
+    } else {
+      await db.insert(dashvilleWeeklyLeaderboard).values({
+        userId,
+        username,
+        points,
+        missionsCompleted: 1,
+        weekStart,
+        weekEnd,
       });
     }
   }

@@ -1,0 +1,64 @@
+Build a complete full-stack web application on Replit named DashvilleMissions using Node.js, Express.js, a simple frontend (EJS templates or basic HTML/CSS/JS), and MongoDB Atlas.
+
+Project goal: Missions/engagement system for Dashville gaming community. Users complete X (Twitter) social missions by tagging @DashKidsnft and @rabbitsonape + posting images/videos, earn points, compete on daily/weekly leaderboards. Weekly top 3 get automatic prizes (KICKS tokens on Solana + NFT for 1st) distributed from a prize wallet.
+
+Core features:
+
+- User authentication:
+  - Signup/login with username + password (use bcrypt for hashing)
+  - JWT for session authentication
+  - Each user has a field for their Solana wallet address (they enter it once in profile/settings after login)
+
+- Missions Tab (main protected page after login):
+  - 5 fixed weekly missions, reset every Monday 00:00 UTC:
+    1. Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape
+    2. Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape
+    3. Post your Dashville high score or achievement screenshot with both tags
+    4. Create and post Dashville fan art or meme tagging both accounts
+    5. Share a funny Dashville gaming moment (image or video) with the required mentions
+  - Each mission = 10 points when completed
+  - Users can complete up to 3 missions per calendar day (daily reset at 00:00 UTC)
+  - Show: current week dates, list of 5 missions with description + completion status, daily progress (X/3 today), total weekly points
+
+- Proof submission & verification (Option A):
+  - "Submit Proof" button for each mission
+  - User pastes the direct X post link (https://x.com/username/status/...)
+  - Backend uses twitter-api-v2 library with Bearer Token authentication
+  - Fetch the tweet using tweet lookup endpoint (/2/tweets/:id)
+  - Request these fields/expansions: tweet.fields=entities,created_at,attachments, media.fields=type,url, expansions=attachments.media_keys
+  - Validation:
+    - Tweet text must contain BOTH @DashKidsnft and @rabbitsonape (case-insensitive)
+    - Must have at least one media attachment (photo OR video)
+    - Tweet must be from current week
+  - If valid and not previously used → award 10 points, mark mission completed for this user/week, update daily count, store tweet ID to prevent duplicates
+
+- Leaderboards:
+  - Weekly: top users by total points this week (show top 50)
+  - Daily: top users by points earned today (top 20)
+  - Update on point awards (or simple refresh/polling)
+
+- Automated Weekly Prize Distribution & Reset:
+  - Use node-cron to run check daily around 00:05 UTC
+  - When new week is detected:
+    - BEFORE reset: get top 3 users by weekly points
+    - Send prizes using @solana/web3.js and @solana/spl-token:
+      - 1st place: 20,000 KICKS tokens + 1 NFT transfer
+      - 2nd place: 15,000 KICKS tokens
+      - 3rd place: 10,000 KICKS tokens
+    - Load prize wallet from PRIVATE_KEY (base58) in env
+    - Use the existing KICKS mint address, NFT mint address, and Solana RPC from environment variables
+    - Send & confirm transactions, log signatures, handle basic errors
+  - AFTER prizes: reset all users' weekly points, completed missions, daily counters, update week start date
+
+Technical requirements:
+- Node.js + Express
+- MongoDB Atlas + mongoose
+- Schemas: User (username, passwordHash, solanaWalletAddress), WeeklyProgress (userId, weekStart, points, completedMissions array, submittedTweetIds array, lastDailyDate, dailyCount)
+- Dependencies: express, mongoose, bcryptjs, jsonwebtoken, twitter-api-v2, @solana/web3.js, @solana/spl-token, node-cron, dotenv
+- Use .env / Replit Secrets for: MONGODB_URI, JWT_SECRET, TWITTER_BEARER_TOKEN, SOLANA_RPC, PRIZE_WALLET_PRIVATE_KEY, KICKS_MINT_ADDRESS, NFT_MINT_ADDRESS
+- Add basic rate limiting on proof submissions
+- Include comments in code, especially around prize sending security
+- Make the frontend simple but functional (mission list, submit form, leaderboards table)
+- After build, provide instructions for setting up env variables and running the app
+
+Start building the full application now!

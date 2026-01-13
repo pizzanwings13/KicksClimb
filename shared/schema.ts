@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -241,6 +241,103 @@ export const bunnyBladeInventoriesRelations = relations(bunnyBladeInventories, (
   }),
 }));
 
+export const dashvilleMissionSubmissions = pgTable("dashville_mission_submissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  missionId: integer("mission_id").notNull(),
+  tweetId: text("tweet_id").notNull(),
+  tweetUrl: text("tweet_url").notNull(),
+  tweetData: text("tweet_data"),
+  pointsAwarded: integer("points_awarded").default(10).notNull(),
+  status: text("status").default("approved").notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+});
+
+export const dashvilleMissionProgress = pgTable("dashville_mission_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  weekStart: timestamp("week_start").notNull(),
+  totalPoints: integer("total_points").default(0).notNull(),
+  completedMissions: text("completed_missions").default("[]").notNull(),
+  dailyCount: integer("daily_count").default(0).notNull(),
+  lastDailyDate: timestamp("last_daily_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dashvilleMissionPrizes = pgTable("dashville_mission_prizes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  weekStart: timestamp("week_start").notNull(),
+  rank: integer("rank").notNull(),
+  kicksAmount: decimal("kicks_amount", { precision: 36, scale: 18 }).notNull(),
+  nftAwarded: boolean("nft_awarded").default(false).notNull(),
+  txHash: text("tx_hash"),
+  nftTxHash: text("nft_tx_hash"),
+  status: text("status").default("pending").notNull(),
+  awardedAt: timestamp("awarded_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const dashvilleDailyLeaderboard = pgTable("dashville_daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  points: integer("points").default(0).notNull(),
+  missionsCompleted: integer("missions_completed").default(0).notNull(),
+  date: timestamp("date").notNull(),
+}, (table) => ({
+  userDateIdx: uniqueIndex("dashville_daily_user_date_idx").on(table.userId, table.date),
+}));
+
+export const dashvilleWeeklyLeaderboard = pgTable("dashville_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  points: integer("points").default(0).notNull(),
+  missionsCompleted: integer("missions_completed").default(0).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+}, (table) => ({
+  userWeekIdx: uniqueIndex("dashville_weekly_user_week_idx").on(table.userId, table.weekStart),
+}));
+
+export const dashvilleMissionSubmissionsRelations = relations(dashvilleMissionSubmissions, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleMissionSubmissions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dashvilleMissionProgressRelations = relations(dashvilleMissionProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleMissionProgress.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dashvilleMissionPrizesRelations = relations(dashvilleMissionPrizes, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleMissionPrizes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dashvilleDailyLeaderboardRelations = relations(dashvilleDailyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleDailyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dashvilleWeeklyLeaderboardRelations = relations(dashvilleWeeklyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleWeeklyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -272,3 +369,8 @@ export type RabbitRushDailyLeaderboardEntry = typeof rabbitRushDailyLeaderboard.
 export type RabbitRushWeeklyLeaderboardEntry = typeof rabbitRushWeeklyLeaderboard.$inferSelect;
 export type BunnyBladeWeeklyLeaderboardEntry = typeof bunnyBladeWeeklyLeaderboard.$inferSelect;
 export type BunnyBladeInventory = typeof bunnyBladeInventories.$inferSelect;
+export type DashvilleMissionSubmission = typeof dashvilleMissionSubmissions.$inferSelect;
+export type DashvilleMissionProgress = typeof dashvilleMissionProgress.$inferSelect;
+export type DashvilleMissionPrize = typeof dashvilleMissionPrizes.$inferSelect;
+export type DashvilleDailyLeaderboardEntry = typeof dashvilleDailyLeaderboard.$inferSelect;
+export type DashvilleWeeklyLeaderboardEntry = typeof dashvilleWeeklyLeaderboard.$inferSelect;

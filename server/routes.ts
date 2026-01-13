@@ -4,6 +4,49 @@ import { storage } from "./storage";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { ethers } from "ethers";
+import { TwitterApi } from "twitter-api-v2";
+
+const MISSIONS = [
+  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 10 },
+  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 10 },
+  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 10 },
+  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10 },
+  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 10 },
+];
+
+function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+  d.setUTCDate(diff);
+  return d;
+}
+
+function getWeekEnd(weekStart: Date): Date {
+  const end = new Date(weekStart);
+  end.setUTCDate(end.getUTCDate() + 6);
+  end.setUTCHours(23, 59, 59, 999);
+  return end;
+}
+
+function getTodayStart(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function extractTweetId(url: string): string | null {
+  const patterns = [
+    /twitter\.com\/\w+\/status\/(\d+)/,
+    /x\.com\/\w+\/status\/(\d+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 const APECHAIN_RPC = "https://apechain.calderachain.xyz/http";
 const APECHAIN_CHAIN_ID = 33139;
@@ -1506,6 +1549,251 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Update bunny blade inventory error:", error);
       res.status(500).json({ error: "Failed to update inventory" });
+    }
+  });
+
+  app.get("/api/missions", async (req, res) => {
+    try {
+      const weekStart = getWeekStart();
+      const weekEnd = getWeekEnd(weekStart);
+      
+      res.json({
+        missions: MISSIONS,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        maxDailyMissions: 3,
+      });
+    } catch (error) {
+      console.error("Get missions error:", error);
+      res.status(500).json({ error: "Failed to get missions" });
+    }
+  });
+
+  app.get("/api/missions/progress/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const weekStart = getWeekStart();
+      const todayStart = getTodayStart();
+      
+      let progress = await storage.getDashvilleMissionProgress(user.id, weekStart);
+      
+      if (!progress) {
+        progress = await storage.createDashvilleMissionProgress(user.id, weekStart);
+      }
+      
+      const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
+      const isNewDay = !lastDailyDate || lastDailyDate < todayStart;
+      const dailyCount = isNewDay ? 0 : progress.dailyCount;
+      
+      const submissions = await storage.getDashvilleMissionSubmissions(user.id, weekStart);
+      
+      res.json({
+        totalPoints: progress.totalPoints,
+        completedMissions: JSON.parse(progress.completedMissions || "[]"),
+        dailyCount,
+        dailyLimit: 3,
+        submissions: submissions.map(s => ({
+          missionId: s.missionId,
+          tweetUrl: s.tweetUrl,
+          submittedAt: s.submittedAt,
+        })),
+      });
+    } catch (error) {
+      console.error("Get mission progress error:", error);
+      res.status(500).json({ error: "Failed to get mission progress" });
+    }
+  });
+
+  app.post("/api/missions/submit", async (req, res) => {
+    try {
+      const { walletAddress, missionId, tweetUrl } = req.body;
+      
+      if (!walletAddress || !missionId || !tweetUrl) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const tweetId = extractTweetId(tweetUrl);
+      if (!tweetId) {
+        return res.status(400).json({ error: "Invalid tweet URL. Please provide a valid X/Twitter post link." });
+      }
+      
+      const mission = MISSIONS.find(m => m.id === missionId);
+      if (!mission) {
+        return res.status(400).json({ error: "Invalid mission ID" });
+      }
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const weekStart = getWeekStart();
+      const todayStart = getTodayStart();
+      
+      let progress = await storage.getDashvilleMissionProgress(user.id, weekStart);
+      if (!progress) {
+        progress = await storage.createDashvilleMissionProgress(user.id, weekStart);
+      }
+      
+      const completedMissions = JSON.parse(progress.completedMissions || "[]");
+      if (completedMissions.includes(missionId)) {
+        return res.status(400).json({ error: "You have already completed this mission this week." });
+      }
+      
+      const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
+      const isNewDay = !lastDailyDate || lastDailyDate < todayStart;
+      const currentDailyCount = isNewDay ? 0 : progress.dailyCount;
+      
+      if (currentDailyCount >= 3) {
+        return res.status(400).json({ error: "You have reached the daily limit of 3 missions. Try again tomorrow!" });
+      }
+      
+      const existingSubmission = await storage.getDashvilleMissionSubmissionByTweetId(tweetId);
+      if (existingSubmission) {
+        return res.status(400).json({ error: "This tweet has already been submitted." });
+      }
+      
+      let tweetData = null;
+      let verificationPassed = false;
+      let verificationError = null;
+      
+      const twitterBearerToken = process.env.TWITTER_BEARER_TOKEN;
+      
+      if (twitterBearerToken) {
+        try {
+          const twitterClient = new TwitterApi(twitterBearerToken);
+          
+          const tweet = await twitterClient.v2.singleTweet(tweetId, {
+            "tweet.fields": ["created_at", "text", "attachments", "entities"],
+            "expansions": ["attachments.media_keys"],
+            "media.fields": ["type", "url"],
+          });
+          
+          tweetData = JSON.stringify(tweet.data);
+          
+          const tweetText = tweet.data.text?.toLowerCase() || "";
+          const hasDashKids = tweetText.includes("@dashkidsnft");
+          const hasRabbitsOnApe = tweetText.includes("@rabbitsonape");
+          
+          if (!hasDashKids || !hasRabbitsOnApe) {
+            return res.status(400).json({ 
+              error: "Tweet must mention both @DashKidsnft and @rabbitsonape" 
+            });
+          }
+          
+          const hasMedia = tweet.includes?.media && tweet.includes.media.length > 0;
+          if (!hasMedia) {
+            return res.status(400).json({ 
+              error: "Tweet must include an image or video attachment" 
+            });
+          }
+          
+          const tweetDate = new Date(tweet.data.created_at || "");
+          if (tweetDate < weekStart) {
+            return res.status(400).json({ 
+              error: "Tweet must be from the current week" 
+            });
+          }
+          
+          verificationPassed = true;
+        } catch (twitterError: any) {
+          console.error("Twitter API error:", twitterError);
+          const errorCode = twitterError.code;
+          if (errorCode === 429 || errorCode === 'ETIMEDOUT' || errorCode === 'ECONNRESET') {
+            verificationPassed = true;
+            console.log("Twitter API rate limited or timeout, allowing submission");
+          } else {
+            return res.status(400).json({ 
+              error: "Could not verify tweet. Please check the URL and try again." 
+            });
+          }
+        }
+      } else {
+        console.log("No TWITTER_BEARER_TOKEN configured, skipping verification");
+        verificationPassed = true;
+      }
+      
+      if (!verificationPassed) {
+        return res.status(400).json({ error: verificationError || "Tweet verification failed" });
+      }
+      
+      await storage.createDashvilleMissionSubmission({
+        userId: user.id,
+        missionId,
+        tweetId,
+        tweetUrl,
+        tweetData,
+        pointsAwarded: mission.points,
+        weekStart,
+      });
+      
+      completedMissions.push(missionId);
+      const newDailyCount = currentDailyCount + 1;
+      const newTotalPoints = progress.totalPoints + mission.points;
+      
+      await storage.updateDashvilleMissionProgress(user.id, weekStart, {
+        totalPoints: newTotalPoints,
+        completedMissions: JSON.stringify(completedMissions),
+        dailyCount: newDailyCount,
+        lastDailyDate: new Date(),
+      });
+      
+      await storage.updateDashvilleLeaderboards(user.id, user.username, mission.points, weekStart);
+      
+      res.json({
+        success: true,
+        pointsAwarded: mission.points,
+        totalPoints: newTotalPoints,
+        dailyCount: newDailyCount,
+        message: `Mission completed! +${mission.points} points`,
+      });
+    } catch (error) {
+      console.error("Submit mission error:", error);
+      res.status(500).json({ error: "Failed to submit mission" });
+    }
+  });
+
+  app.get("/api/missions/leaderboard/daily", async (req, res) => {
+    try {
+      const todayStart = getTodayStart();
+      const leaderboard = await storage.getDashvilleDailyLeaderboard(todayStart, 20);
+      res.json({ leaderboard });
+    } catch (error) {
+      console.error("Get daily leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get leaderboard" });
+    }
+  });
+
+  app.get("/api/missions/leaderboard/weekly", async (req, res) => {
+    try {
+      const weekStart = getWeekStart();
+      const leaderboard = await storage.getDashvilleWeeklyLeaderboard(weekStart, 50);
+      
+      const weekEnd = getWeekEnd(weekStart);
+      const now = new Date();
+      const msRemaining = weekEnd.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      
+      res.json({ 
+        leaderboard,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        daysRemaining,
+        prizes: [
+          { rank: 1, kicks: 20000, nft: true },
+          { rank: 2, kicks: 15000, nft: false },
+          { rank: 3, kicks: 10000, nft: false },
+        ],
+      });
+    } catch (error) {
+      console.error("Get weekly leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get leaderboard" });
     }
   });
 

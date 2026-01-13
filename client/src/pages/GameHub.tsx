@@ -2,10 +2,279 @@ import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints, User, Edit2, Check, X, Target, Trophy } from "lucide-react";
+import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints, User, Edit2, Check, X, Target, Trophy, ExternalLink, Clock, Award, CheckCircle2, Send, AlertCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AnimatedBackground } from "@/components/ui/animated-background";
+
+interface Mission {
+  id: number;
+  title: string;
+  description: string;
+  points: number;
+}
+
+interface MissionProgress {
+  totalPoints: number;
+  completedMissions: number[];
+  dailyCount: number;
+  dailyLimit: number;
+  submissions: { missionId: number; tweetUrl: string; submittedAt: string }[];
+}
+
+interface LeaderboardEntry {
+  id: number;
+  userId: number;
+  username: string;
+  points: number;
+  missionsCompleted: number;
+}
+
+interface MissionsPanelProps {
+  walletAddress: string | null;
+  missions: Mission[];
+  missionProgress: MissionProgress | null;
+  weeklyLeaderboard: LeaderboardEntry[];
+  weekInfo: { weekStart: string; weekEnd: string; daysRemaining: number } | null;
+  selectedMission: number | null;
+  setSelectedMission: (id: number | null) => void;
+  tweetUrl: string;
+  setTweetUrl: (url: string) => void;
+  isSubmitting: boolean;
+  submitError: string | null;
+  submitSuccess: string | null;
+  showLeaderboard: boolean;
+  setShowLeaderboard: (show: boolean) => void;
+  onSubmit: () => void;
+  onRefresh: () => void;
+}
+
+function MissionsPanel({
+  walletAddress,
+  missions,
+  missionProgress,
+  weeklyLeaderboard,
+  weekInfo,
+  selectedMission,
+  setSelectedMission,
+  tweetUrl,
+  setTweetUrl,
+  isSubmitting,
+  submitError,
+  submitSuccess,
+  showLeaderboard,
+  setShowLeaderboard,
+  onSubmit,
+  onRefresh,
+}: MissionsPanelProps) {
+  const completedMissions = missionProgress?.completedMissions || [];
+  const dailyCount = missionProgress?.dailyCount || 0;
+  const totalPoints = missionProgress?.totalPoints || 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-4"
+    >
+      <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-4 border border-yellow-500/30">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Trophy className="w-6 h-6 text-yellow-400" />
+            <div>
+              <h2 className="text-lg font-bold text-white">Weekly Missions</h2>
+              <p className="text-gray-400 text-xs">Tag @DashKidsnft & @rabbitsonape on X</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-yellow-400 font-bold text-lg">{totalPoints} pts</p>
+            <p className="text-gray-400 text-xs">{dailyCount}/3 today</p>
+          </div>
+        </div>
+
+        {weekInfo && (
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-4">
+            <Clock className="w-3 h-3" />
+            <span>{weekInfo.daysRemaining} days left this week</span>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {missions.map((mission) => {
+            const isCompleted = completedMissions.includes(mission.id);
+            const isSelected = selectedMission === mission.id;
+            const canSubmit = !isCompleted && dailyCount < 3;
+
+            return (
+              <div key={mission.id}>
+                <button
+                  onClick={() => canSubmit && setSelectedMission(isSelected ? null : mission.id)}
+                  disabled={isCompleted}
+                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                    isCompleted
+                      ? 'bg-green-500/20 border border-green-500/30'
+                      : isSelected
+                      ? 'bg-yellow-500/20 border border-yellow-500/50'
+                      : 'bg-black/30 border border-gray-700/50 hover:border-yellow-500/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-400" />
+                      ) : (
+                        <Target className="w-5 h-5 text-yellow-400" />
+                      )}
+                      <div>
+                        <p className={`font-semibold text-sm ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                          {mission.title}
+                        </p>
+                        <p className="text-gray-400 text-xs">{mission.description}</p>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-bold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
+                      +{mission.points}
+                    </span>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isSelected && !isCompleted && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-3 bg-black/20 rounded-b-xl border-x border-b border-yellow-500/30">
+                        <p className="text-xs text-gray-400 mb-2">
+                          Paste your X post link below (must include @DashKidsnft & @rabbitsonape + image/video)
+                        </p>
+                        <div className="flex gap-2">
+                          <Input
+                            value={tweetUrl}
+                            onChange={(e) => setTweetUrl(e.target.value)}
+                            placeholder="https://x.com/yourname/status/..."
+                            className="bg-black/30 border-yellow-500/30 text-white text-sm flex-1"
+                          />
+                          <Button
+                            onClick={onSubmit}
+                            disabled={!tweetUrl.trim() || isSubmitting}
+                            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                          >
+                            {isSubmitting ? (
+                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {submitError && (
+                          <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {submitError}
+                          </p>
+                        )}
+                        {submitSuccess && (
+                          <p className="text-green-400 text-xs mt-2 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> {submitSuccess}
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </div>
+
+        {dailyCount >= 3 && (
+          <div className="mt-4 p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
+            <p className="text-orange-400 text-sm text-center">
+              Daily limit reached! Come back tomorrow for more missions.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-4 border border-purple-500/30">
+        <button
+          onClick={() => setShowLeaderboard(!showLeaderboard)}
+          className="w-full flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <Award className="w-5 h-5 text-purple-400" />
+            <span className="text-white font-bold">Weekly Leaderboard</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">Top 3 win KICKS!</span>
+            <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showLeaderboard ? 'rotate-90' : ''}`} />
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {showLeaderboard && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 space-y-2">
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="bg-yellow-500/20 rounded-lg p-2 text-center border border-yellow-500/30">
+                    <Star className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
+                    <p className="text-yellow-400 font-bold text-xs">1st: 20K KICKS + NFT</p>
+                  </div>
+                  <div className="bg-gray-400/20 rounded-lg p-2 text-center border border-gray-400/30">
+                    <Star className="w-4 h-4 text-gray-300 mx-auto mb-1" />
+                    <p className="text-gray-300 font-bold text-xs">2nd: 15K KICKS</p>
+                  </div>
+                  <div className="bg-orange-500/20 rounded-lg p-2 text-center border border-orange-500/30">
+                    <Star className="w-4 h-4 text-orange-400 mx-auto mb-1" />
+                    <p className="text-orange-400 font-bold text-xs">3rd: 10K KICKS</p>
+                  </div>
+                </div>
+
+                {weeklyLeaderboard.length === 0 ? (
+                  <p className="text-gray-400 text-center text-sm py-4">No entries yet. Be the first!</p>
+                ) : (
+                  weeklyLeaderboard.slice(0, 10).map((entry, index) => (
+                    <div
+                      key={entry.id}
+                      className={`flex items-center justify-between p-2 rounded-lg ${
+                        index === 0 ? 'bg-yellow-500/20 border border-yellow-500/30' :
+                        index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
+                        index === 2 ? 'bg-orange-500/10 border border-orange-500/20' :
+                        'bg-black/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
+                          index === 0 ? 'bg-yellow-500 text-black' :
+                          index === 1 ? 'bg-gray-400 text-black' :
+                          index === 2 ? 'bg-orange-500 text-black' :
+                          'bg-gray-700 text-white'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <span className="text-white text-sm">{entry.username}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-yellow-400 font-bold text-sm">{entry.points} pts</p>
+                        <p className="text-gray-400 text-xs">{entry.missionsCompleted} missions</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
 
 const GLOBAL_USERNAME_KEY = 'tokenrush_global_username';
 const GLOBAL_AVATAR_KEY = 'tokenrush_global_avatar';
@@ -121,6 +390,92 @@ export function GameHub() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'games' | 'missions'>('games');
+  
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [missionProgress, setMissionProgress] = useState<MissionProgress | null>(null);
+  const [weeklyLeaderboard, setWeeklyLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [weekInfo, setWeekInfo] = useState<{ weekStart: string; weekEnd: string; daysRemaining: number } | null>(null);
+  const [selectedMission, setSelectedMission] = useState<number | null>(null);
+  const [tweetUrl, setTweetUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  const loadMissionsData = useCallback(async () => {
+    if (!walletAddress) return;
+    
+    try {
+      const [missionsRes, progressRes, leaderboardRes] = await Promise.all([
+        fetch('/api/missions'),
+        fetch(`/api/missions/progress/${walletAddress}`),
+        fetch('/api/missions/leaderboard/weekly'),
+      ]);
+      
+      if (missionsRes.ok) {
+        const data = await missionsRes.json();
+        setMissions(data.missions);
+      }
+      
+      if (progressRes.ok) {
+        const data = await progressRes.json();
+        setMissionProgress(data);
+      }
+      
+      if (leaderboardRes.ok) {
+        const data = await leaderboardRes.json();
+        setWeeklyLeaderboard(data.leaderboard);
+        setWeekInfo({
+          weekStart: data.weekStart,
+          weekEnd: data.weekEnd,
+          daysRemaining: data.daysRemaining,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load missions data:', error);
+    }
+  }, [walletAddress]);
+
+  const handleMissionSubmit = useCallback(async () => {
+    if (!walletAddress || !selectedMission || !tweetUrl.trim()) return;
+    
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+    
+    try {
+      const res = await fetch('/api/missions/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          missionId: selectedMission,
+          tweetUrl: tweetUrl.trim(),
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setSubmitSuccess(data.message);
+        setTweetUrl('');
+        setSelectedMission(null);
+        loadMissionsData();
+      } else {
+        setSubmitError(data.error || 'Failed to submit mission');
+      }
+    } catch (error) {
+      setSubmitError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [walletAddress, selectedMission, tweetUrl, loadMissionsData]);
+
+  useEffect(() => {
+    if (activeTab === 'missions' && walletAddress) {
+      loadMissionsData();
+    }
+  }, [activeTab, walletAddress, loadMissionsData]);
 
   const loadProfile = useCallback(async () => {
     if (!walletAddress) return;
@@ -447,33 +802,24 @@ export function GameHub() {
                 ))}
               </div>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-black/40 backdrop-blur-sm rounded-2xl p-6 border border-yellow-500/30"
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <Trophy className="w-8 h-8 text-yellow-400" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Daily Missions</h2>
-                    <p className="text-gray-400 text-sm">Complete missions to earn bonus KICKS!</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="bg-black/30 rounded-xl p-4 border border-gray-700/50 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                        <Target className="w-5 h-5 text-yellow-400" />
-                      </div>
-                      <div>
-                        <p className="text-white font-semibold">Missions Coming Soon</p>
-                        <p className="text-gray-400 text-sm">Check back for daily challenges!</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+              <MissionsPanel
+                walletAddress={walletAddress}
+                missions={missions}
+                missionProgress={missionProgress}
+                weeklyLeaderboard={weeklyLeaderboard}
+                weekInfo={weekInfo}
+                selectedMission={selectedMission}
+                setSelectedMission={setSelectedMission}
+                tweetUrl={tweetUrl}
+                setTweetUrl={setTweetUrl}
+                isSubmitting={isSubmitting}
+                submitError={submitError}
+                submitSuccess={submitSuccess}
+                showLeaderboard={showLeaderboard}
+                setShowLeaderboard={setShowLeaderboard}
+                onSubmit={handleMissionSubmit}
+                onRefresh={loadMissionsData}
+              />
             )}
           </>
         ) : (
