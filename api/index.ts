@@ -219,9 +219,6 @@ const dashvilleMissionProgress = pgTable("dashville_mission_progress", {
 
 const dashvilleWeeklyLeaderboard = pgTable("dashville_weekly_leaderboard", {
   id: serial("id").primaryKey(),
-  oddseed: text("oddseed"),
-  oddseedHash: text("oddseed_hash"),
-  oddResult: integer("odd_result"),
   userId: integer("user_id").notNull().references(() => users.id),
   username: text("username").notNull(),
   points: integer("points").default(0).notNull(),
