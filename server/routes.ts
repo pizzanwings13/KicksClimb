@@ -7,11 +7,14 @@ import { ethers } from "ethers";
 import { TwitterApi } from "twitter-api-v2";
 
 const MISSIONS = [
-  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 10 },
-  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 10 },
-  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 10 },
-  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10 },
-  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 10 },
+  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 6, title: "RabbitsOnApe NFT", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 10, requiredMentions: ["rabbitsonape"] },
+  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+  { id: 8, title: "DashKidsNFT Promo", description: "Make a post about DashKidsNFT and tag @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
 ];
 
 function getWeekStart(date: Date = new Date()): Date {
@@ -1691,12 +1694,13 @@ export async function registerRoutes(
           tweetData = JSON.stringify(tweet.data);
           
           const tweetText = tweet.data.text?.toLowerCase() || "";
-          const hasDashKids = tweetText.includes("@dashkidsnft");
-          const hasRabbitsOnApe = tweetText.includes("@rabbitsonape");
+          const requiredMentions = mission.requiredMentions || ["dashkidsnft", "rabbitsonape"];
+          const missingMentions = requiredMentions.filter(mention => !tweetText.includes(`@${mention}`));
           
-          if (!hasDashKids || !hasRabbitsOnApe) {
+          if (missingMentions.length > 0) {
+            const mentionsList = missingMentions.map(m => `@${m}`).join(" and ");
             return res.status(400).json({ 
-              error: "Tweet must mention both @DashKidsnft and @rabbitsonape" 
+              error: `Tweet must mention ${mentionsList}` 
             });
           }
           
