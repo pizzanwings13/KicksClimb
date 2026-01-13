@@ -1780,20 +1780,92 @@ export async function registerRoutes(
       const msRemaining = weekEnd.getTime() - now.getTime();
       const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
       
+      const walletAddress = req.query.walletAddress as string | undefined;
+      const userPrize = walletAddress 
+        ? await storage.getUserPendingPrize(walletAddress)
+        : null;
+      
       res.json({ 
         leaderboard,
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         daysRemaining,
         prizes: [
-          { rank: 1, kicks: 20000, nft: true },
-          { rank: 2, kicks: 15000, nft: false },
-          { rank: 3, kicks: 10000, nft: false },
+          { rank: 1, kicks: 15000, nft: true },
+          { rank: 2, kicks: 10000, nft: false },
+          { rank: 3, kicks: 5000, nft: false },
         ],
+        userPrize,
       });
     } catch (error) {
       console.error("Get weekly leaderboard error:", error);
       res.status(500).json({ error: "Failed to get leaderboard" });
+    }
+  });
+
+  app.post("/api/missions/claim-prize", async (req, res) => {
+    try {
+      const { walletAddress } = req.body;
+      
+      if (!walletAddress) {
+        return res.status(400).json({ error: "Wallet address required" });
+      }
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const prize = await storage.getUserPendingPrize(walletAddress);
+      if (!prize) {
+        return res.status(404).json({ error: "No pending prize to claim" });
+      }
+      
+      const kicksAmount = parseFloat(prize.kicksAmount);
+      const KICKS_TOKEN_ADDRESS = "0x79F8f881dD05c93Ca230F7E912ae33f7ECAf0d60";
+      const houseWalletKey = process.env.HOUSE_WALLET_KEY || process.env.HOUSE_WALLET_PRIVATE_KEY;
+      
+      if (!houseWalletKey) {
+        return res.status(500).json({ error: "House wallet not configured" });
+      }
+      
+      const { ethers } = await import("ethers");
+      const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com");
+      const houseWallet = new ethers.Wallet(houseWalletKey, provider);
+      
+      const kicksContract = new ethers.Contract(
+        KICKS_TOKEN_ADDRESS,
+        ["function transfer(address to, uint256 amount) returns (bool)"],
+        houseWallet
+      );
+      
+      const amountWei = ethers.parseUnits(kicksAmount.toString(), 18);
+      const tx = await kicksContract.transfer(walletAddress, amountWei);
+      const receipt = await tx.wait();
+      
+      await storage.markPrizeClaimed(prize.id, receipt.hash);
+      
+      res.json({
+        success: true,
+        txHash: receipt.hash,
+        kicksAmount,
+        rank: prize.rank,
+        message: `Successfully claimed ${kicksAmount.toLocaleString()} KICKS!`,
+      });
+    } catch (error) {
+      console.error("Claim prize error:", error);
+      res.status(500).json({ error: "Failed to claim prize" });
+    }
+  });
+
+  app.get("/api/missions/prizes/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const prize = await storage.getUserPendingPrize(walletAddress);
+      res.json({ prize });
+    } catch (error) {
+      console.error("Get prize error:", error);
+      res.status(500).json({ error: "Failed to get prize" });
     }
   });
 

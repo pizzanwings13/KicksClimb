@@ -743,6 +743,68 @@ export class DatabaseStorage implements IStorage {
       });
     }
   }
+
+  async getUserPendingPrize(walletAddress: string): Promise<DashvilleMissionPrize | null> {
+    const user = await this.getUserByWallet(walletAddress);
+    if (!user) return null;
+    
+    const [prize] = await db.select()
+      .from(dashvilleMissionPrizes)
+      .where(and(
+        eq(dashvilleMissionPrizes.userId, user.id),
+        eq(dashvilleMissionPrizes.status, "pending")
+      ))
+      .orderBy(desc(dashvilleMissionPrizes.createdAt))
+      .limit(1);
+    
+    return prize || null;
+  }
+
+  async markPrizeClaimed(prizeId: number, txHash: string): Promise<void> {
+    await db.update(dashvilleMissionPrizes)
+      .set({
+        status: "claimed",
+        txHash,
+        awardedAt: new Date(),
+      })
+      .where(eq(dashvilleMissionPrizes.id, prizeId));
+  }
+
+  async createWeeklyPrizes(weekStart: Date): Promise<void> {
+    const prizeAmounts = [
+      { rank: 1, kicks: "15000", nft: true },
+      { rank: 2, kicks: "10000", nft: false },
+      { rank: 3, kicks: "5000", nft: false },
+    ];
+
+    const topUsers = await db.select()
+      .from(dashvilleWeeklyLeaderboard)
+      .where(eq(dashvilleWeeklyLeaderboard.weekStart, weekStart))
+      .orderBy(desc(dashvilleWeeklyLeaderboard.points))
+      .limit(3);
+
+    for (let i = 0; i < topUsers.length; i++) {
+      const user = topUsers[i];
+      const prizeInfo = prizeAmounts[i];
+      
+      await db.insert(dashvilleMissionPrizes).values({
+        userId: user.userId,
+        weekStart,
+        rank: prizeInfo.rank,
+        kicksAmount: prizeInfo.kicks,
+        nftAwarded: prizeInfo.nft,
+        status: "pending",
+      });
+    }
+  }
+
+  async getTopWeeklyUsers(weekStart: Date, limit: number = 3) {
+    return await db.select()
+      .from(dashvilleWeeklyLeaderboard)
+      .where(eq(dashvilleWeeklyLeaderboard.weekStart, weekStart))
+      .orderBy(desc(dashvilleWeeklyLeaderboard.points))
+      .limit(limit);
+  }
 }
 
 export const storage = new DatabaseStorage();

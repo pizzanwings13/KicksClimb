@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import cron from "node-cron";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -66,6 +68,28 @@ app.use((req, res, next) => {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
+
+  // Weekly mission prizes scheduler - runs every Monday at 00:00 UTC
+  cron.schedule("0 0 * * 1", async () => {
+    log("Running weekly mission prize distribution...", "scheduler");
+    try {
+      const lastWeekStart = new Date();
+      lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
+      lastWeekStart.setUTCHours(0, 0, 0, 0);
+      const dayOfWeek = lastWeekStart.getUTCDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - diff);
+      
+      await storage.createWeeklyPrizes(lastWeekStart);
+      log("Weekly prizes created for top 3 users", "scheduler");
+    } catch (error) {
+      log(`Failed to create weekly prizes: ${error}`, "scheduler");
+    }
+  }, {
+    timezone: "UTC"
+  });
+  
+  log("Weekly prize scheduler initialized (Mondays at 00:00 UTC)", "scheduler");
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.

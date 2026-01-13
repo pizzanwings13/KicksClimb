@@ -30,12 +30,21 @@ interface LeaderboardEntry {
   missionsCompleted: number;
 }
 
+interface UserPrize {
+  id: number;
+  rank: number;
+  kicksAmount: string;
+  nftAwarded: boolean;
+  status: string;
+}
+
 interface MissionsPanelProps {
   walletAddress: string | null;
   missions: Mission[];
   missionProgress: MissionProgress | null;
   weeklyLeaderboard: LeaderboardEntry[];
   weekInfo: { weekStart: string; weekEnd: string; daysRemaining: number } | null;
+  userPrize: UserPrize | null;
   selectedMission: number | null;
   setSelectedMission: (id: number | null) => void;
   tweetUrl: string;
@@ -47,6 +56,8 @@ interface MissionsPanelProps {
   setShowLeaderboard: (show: boolean) => void;
   onSubmit: () => void;
   onRefresh: () => void;
+  onClaimPrize: () => void;
+  isClaimingPrize: boolean;
 }
 
 function MissionsPanel({
@@ -55,6 +66,7 @@ function MissionsPanel({
   missionProgress,
   weeklyLeaderboard,
   weekInfo,
+  userPrize,
   selectedMission,
   setSelectedMission,
   tweetUrl,
@@ -66,10 +78,14 @@ function MissionsPanel({
   setShowLeaderboard,
   onSubmit,
   onRefresh,
+  onClaimPrize,
+  isClaimingPrize,
 }: MissionsPanelProps) {
   const completedMissions = missionProgress?.completedMissions || [];
   const dailyCount = missionProgress?.dailyCount || 0;
   const totalPoints = missionProgress?.totalPoints || 0;
+
+  const rankLabels = ["1st", "2nd", "3rd"];
 
   return (
     <motion.div
@@ -77,6 +93,49 @@ function MissionsPanel({
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
+      {userPrize && userPrize.status === "pending" && (
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-gradient-to-r from-yellow-500/30 to-orange-500/30 backdrop-blur-sm rounded-2xl p-4 border-2 border-yellow-400"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                <Trophy className="w-6 h-6 text-black" />
+              </div>
+              <div>
+                <p className="text-yellow-400 font-bold text-lg">
+                  {rankLabels[userPrize.rank - 1] || `#${userPrize.rank}`} Place Winner!
+                </p>
+                <p className="text-white text-sm">
+                  Claim {parseFloat(userPrize.kicksAmount).toLocaleString()} KICKS
+                  {userPrize.nftAwarded && " + NFT Reward"}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={onClaimPrize}
+              disabled={isClaimingPrize}
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold"
+            >
+              {isClaimingPrize ? (
+                <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full" />
+              ) : (
+                <>Claim Prize</>
+              )}
+            </Button>
+          </div>
+          {userPrize.nftAwarded && (
+            <div className="mt-3 pt-3 border-t border-yellow-400/30">
+              <p className="text-yellow-300 text-xs flex items-center gap-2">
+                <Star className="w-4 h-4" />
+                NFT will be airdropped to your wallet after KICKS claim
+              </p>
+            </div>
+          )}
+        </motion.div>
+      )}
       <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-4 border border-yellow-500/30">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -224,15 +283,15 @@ function MissionsPanel({
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-yellow-500/20 rounded-lg p-2 text-center border border-yellow-500/30">
                     <Star className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
-                    <p className="text-yellow-400 font-bold text-xs">1st: 20K KICKS + NFT</p>
+                    <p className="text-yellow-400 font-bold text-xs">1st: 15K KICKS + NFT</p>
                   </div>
                   <div className="bg-gray-400/20 rounded-lg p-2 text-center border border-gray-400/30">
                     <Star className="w-4 h-4 text-gray-300 mx-auto mb-1" />
-                    <p className="text-gray-300 font-bold text-xs">2nd: 15K KICKS</p>
+                    <p className="text-gray-300 font-bold text-xs">2nd: 10K KICKS</p>
                   </div>
                   <div className="bg-orange-500/20 rounded-lg p-2 text-center border border-orange-500/30">
                     <Star className="w-4 h-4 text-orange-400 mx-auto mb-1" />
-                    <p className="text-orange-400 font-bold text-xs">3rd: 10K KICKS</p>
+                    <p className="text-orange-400 font-bold text-xs">3rd: 5K KICKS</p>
                   </div>
                 </div>
 
@@ -401,6 +460,8 @@ export function GameHub() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [userPrize, setUserPrize] = useState<UserPrize | null>(null);
+  const [isClaimingPrize, setIsClaimingPrize] = useState(false);
 
   const loadMissionsData = useCallback(async () => {
     if (!walletAddress) return;
@@ -430,11 +491,49 @@ export function GameHub() {
           weekEnd: data.weekEnd,
           daysRemaining: data.daysRemaining,
         });
+        if (data.userPrize) {
+          setUserPrize(data.userPrize);
+        }
+      }
+      
+      const prizeRes = await fetch(`/api/missions/prizes/${walletAddress}`);
+      if (prizeRes.ok) {
+        const data = await prizeRes.json();
+        if (data.prize) {
+          setUserPrize(data.prize);
+        }
       }
     } catch (error) {
       console.error('Failed to load missions data:', error);
     }
   }, [walletAddress]);
+
+  const handleClaimPrize = useCallback(async () => {
+    if (!walletAddress || !userPrize) return;
+    
+    setIsClaimingPrize(true);
+    try {
+      const res = await fetch('/api/missions/claim-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setUserPrize(null);
+        loadMissionsData();
+        alert(`Successfully claimed ${data.kicksAmount.toLocaleString()} KICKS!`);
+      } else {
+        alert(data.error || 'Failed to claim prize');
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    } finally {
+      setIsClaimingPrize(false);
+    }
+  }, [walletAddress, userPrize, loadMissionsData]);
 
   const handleMissionSubmit = useCallback(async () => {
     if (!walletAddress || !selectedMission || !tweetUrl.trim()) return;
@@ -808,6 +907,7 @@ export function GameHub() {
                 missionProgress={missionProgress}
                 weeklyLeaderboard={weeklyLeaderboard}
                 weekInfo={weekInfo}
+                userPrize={userPrize}
                 selectedMission={selectedMission}
                 setSelectedMission={setSelectedMission}
                 tweetUrl={tweetUrl}
@@ -819,6 +919,8 @@ export function GameHub() {
                 setShowLeaderboard={setShowLeaderboard}
                 onSubmit={handleMissionSubmit}
                 onRefresh={loadMissionsData}
+                onClaimPrize={handleClaimPrize}
+                isClaimingPrize={isClaimingPrize}
               />
             )}
           </>
