@@ -1403,10 +1403,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       
-      // Reset daily count if different day
+      // Reset daily count every 24 hours based on UTC date
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
       let dailyCount = progress.dailyCount;
-      if (!lastDailyDate || lastDailyDate.toDateString() !== today.toDateString()) {
+      const todayUTC = today.toISOString().split('T')[0];
+      const lastDateUTC = lastDailyDate ? lastDailyDate.toISOString().split('T')[0] : null;
+      if (!lastDateUTC || lastDateUTC !== todayUTC) {
         dailyCount = 0;
       }
       
@@ -1479,10 +1481,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }).returning();
       }
       
-      // Check daily limit (reset if different day)
+      // Check daily limit (reset every 24 hours based on UTC date)
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
       let dailyCount = progress.dailyCount;
-      if (!lastDailyDate || lastDailyDate.toDateString() !== today.toDateString()) {
+      const todayUTC = today.toISOString().split('T')[0];
+      const lastDateUTC = lastDailyDate ? lastDailyDate.toISOString().split('T')[0] : null;
+      if (!lastDateUTC || lastDateUTC !== todayUTC) {
         dailyCount = 0;
       }
       
