@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@/lib/stores/useWallet";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints, User, Edit2, Check, X } from "lucide-react";
+import { Rabbit, Mountain, ChevronRight, Wallet, LogOut, Footprints, User, Edit2, Check, X, Target, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AnimatedBackground } from "@/components/ui/animated-background";
@@ -120,6 +120,7 @@ export function GameHub() {
   const [usernameInput, setUsernameInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'games' | 'missions'>('games');
 
   const loadProfile = useCallback(async () => {
     if (!walletAddress) return;
@@ -401,18 +402,80 @@ export function GameHub() {
         </motion.div>
 
         {hasUsername ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {GAMES.map((game, index) => (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="flex gap-2 mb-6"
+            >
+              <Button
+                onClick={() => setActiveTab('games')}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                  activeTab === 'games'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                    : 'bg-black/40 text-gray-400 hover:text-white border border-purple-500/30'
+                }`}
+              >
+                <Rabbit className="w-5 h-5 mr-2" />
+                Games
+              </Button>
+              <Button
+                onClick={() => setActiveTab('missions')}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                  activeTab === 'missions'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+                    : 'bg-black/40 text-gray-400 hover:text-white border border-yellow-500/30'
+                }`}
+              >
+                <Target className="w-5 h-5 mr-2" />
+                Missions
+              </Button>
+            </motion.div>
+
+            {activeTab === 'games' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {GAMES.map((game, index) => (
+                  <motion.div
+                    key={game.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + index * 0.1 }}
+                  >
+                    <GameCard {...game} />
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
               <motion.div
-                key={game.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
+                className="bg-black/40 backdrop-blur-sm rounded-2xl p-6 border border-yellow-500/30"
               >
-                <GameCard {...game} />
+                <div className="flex items-center gap-3 mb-6">
+                  <Trophy className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Daily Missions</h2>
+                    <p className="text-gray-400 text-sm">Complete missions to earn bonus KICKS!</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-black/30 rounded-xl p-4 border border-gray-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                        <Target className="w-5 h-5 text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold">Missions Coming Soon</p>
+                        <p className="text-gray-400 text-sm">Check back for daily challenges!</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}

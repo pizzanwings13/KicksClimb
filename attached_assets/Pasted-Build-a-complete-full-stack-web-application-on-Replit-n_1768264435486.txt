@@ -1,0 +1,79 @@
+Build a complete full-stack web application on Replit named DashvilleMissions using Node.js, Express.js, EJS (or basic HTML/CSS/JS frontend), and MongoDB Atlas.
+
+Project goal: A missions/engagement system for the Dashville gaming community. Users complete social missions on X (Twitter), earn points, appear on daily/weekly leaderboards, and top 3 weekly winners get automatic KICKS token prizes on Solana + NFT for 1st place.
+
+Core features:
+
+- User authentication:
+  - Simple signup/login with username + password (bcrypt hashing)
+  - JWT for session auth
+  - Each user has a Solana wallet address field (they input it once in profile/settings after signup/login)
+
+- Missions Tab (protected route after login):
+  - 5 fixed weekly missions that reset every Monday 00:00 UTC:
+    1. Post a Dashville gameplay screenshot tagging @dashkids and @rabbitsonape
+    2. Share a short Dashville gameplay video clip mentioning @dashkids and @rabbitsonape
+    3. Post your Dashville high score or achievement screenshot with both tags
+    4. Create and post Dashville fan art or meme tagging both accounts
+    5. Share a funny Dashville gaming moment (image or video) with the required mentions
+  - Each completed mission = 10 points
+  - Limit: max 3 missions per calendar day (daily reset at 00:00 UTC)
+  - Weekly max effectively 30 points (but users can complete all 5 across days)
+  - UI shows: current week range, list of 5 missions with description + status (pending/completed), daily progress (X/3 today), total weekly points
+
+- Mission completion proof (Option A - semi-automatic verification):
+  - "Submit Proof" button per mission
+  - User pastes direct X post URL (https://x.com/username/status/...)
+  - Backend uses twitter-api-v2 npm package with Bearer Token auth
+  - Fetch tweet via /2/tweets/:id endpoint with expansions=attachments.media_keys, tweet.fields=entities,created_at,attachments, media.fields=type,url
+  - Validation rules:
+    - Tweet text must contain BOTH @dashkids and @rabbitsonape (case-insensitive)
+    - Must have at least 1 media item (photo OR video)
+    - Tweet timestamp must be within current week
+  - If valid & not previously submitted → award 10 points, mark that mission completed for user this week, increment daily count
+  - Prevent duplicates: store submitted tweet IDs per user/week
+
+- Leaderboards:
+  - Weekly leaderboard: top 50 by total points this week
+  - Daily leaderboard: top 20 by points earned today
+  - Real-time-ish updates (recalculate on point award or via simple polling/refresh button)
+
+- Automated Weekly Prizes & Reset:
+  - Use node-cron to check daily at ~00:05 UTC
+  - If new week detected → BEFORE reset:
+    - Get top 3 users by weekly points
+    - Send prizes using @solana/web3.js + @solana/spl-token:
+      - 1st place: 20,000 KICKS SPL token + 1 pre-minted NFT transfer
+      - 2nd: 15,000 KICKS
+      - 3rd: 10,000 KICKS
+    - Prize wallet loaded from PRIVATE_KEY (base58) in .env — use Connection to mainnet (or devnet for testing!)
+    - KICKS mint address: YpxLFM4koHT6EvsB1j7ABAAFdqnQpHiJoWzmEiFKick (placeholder — update!)
+    - For NFT: assume you have a fixed NFT mint address + associated token account in prize wallet; transfer via createTransferCheckedInstruction or similar
+    - Log transaction signatures
+    - Handle errors gracefully (e.g. insufficient balance → skip & notify admin)
+  - AFTER prizes: reset ALL users' weekly points, completed missions, set new week_start date
+
+Tech & setup requirements:
+- Node.js + Express
+- MongoDB Atlas + mongoose ODM
+- Schemas: User (username, passwordHash, solanaWalletAddress), WeeklyProgress (userId, weekStartISO, points, completedMissions: [missionId or name], submittedTweets: [tweetId], lastDailyDate, dailyCount)
+- Dependencies: express, mongoose, bcryptjs, jsonwebtoken, twitter-api-v2, @solana/web3.js, @solana/spl-token, node-cron, dotenv, cors (if needed)
+- .env secrets (use Replit Secrets):
+  MONGODB_URI
+  JWT_SECRET
+  TWITTER_BEARER_TOKEN          # from developer.twitter.com app (Basic tier or higher)
+  SOLANA_RPC=https://api.mainnet-beta.solana.com   # or devnet for testing
+  PRIZE_WALLET_PRIVATE_KEY      # base58 encoded — NEVER expose!
+  KICKS_MINT_ADDRESS=YpxLFM4koHT6EvsB1j7ABAAFdqnQpHiJoWzmEiFKick
+  NFT_MINT_ADDRESS=your_nft_mint_pubkey_here   # pre-minted NFT for 1st place
+- Add rate limiting on proof submission (express-rate-limit)
+- Basic error logging & user feedback
+- Frontend: simple EJS templates or vanilla JS + fetch API calls to backend endpoints
+- Make app secure, commented, and include README instructions for setup
+
+Security warnings in code comments: 
+- Prize wallet private key MUST be in Replit Secrets only — never in git
+- Start with Solana devnet RPC for testing prizes!
+- Fund prize wallet with enough SOL (fees) + KICKS tokens + NFT(s)
+
+Build the full app now, then show setup instructions for .env and running it.
