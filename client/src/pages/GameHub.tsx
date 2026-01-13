@@ -142,7 +142,7 @@ function MissionsPanel({
             <Trophy className="w-6 h-6 text-yellow-400" />
             <div>
               <h2 className="text-lg font-bold text-white">Weekly Missions</h2>
-              <p className="text-gray-400 text-xs">Tag @DashKidsnft & @rabbitsonape on X</p>
+              <p className="text-gray-400 text-xs">Mon-Fri | Tag @DashKidsnft & @rabbitsonape on X</p>
             </div>
           </div>
           <div className="text-right">

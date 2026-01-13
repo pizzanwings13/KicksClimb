@@ -25,9 +25,14 @@ function getWeekStart(date: Date = new Date()): Date {
 
 function getWeekEnd(weekStart: Date): Date {
   const end = new Date(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
+  end.setUTCDate(end.getUTCDate() + 4);
   end.setUTCHours(23, 59, 59, 999);
   return end;
+}
+
+function isWeekday(): boolean {
+  const day = new Date().getUTCDay();
+  return day >= 1 && day <= 5;
 }
 
 function getTodayStart(): Date {
@@ -1557,11 +1562,15 @@ export async function registerRoutes(
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd(weekStart);
       
+      const isActive = isWeekday();
+      
       res.json({
         missions: MISSIONS,
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         maxDailyMissions: 3,
+        isActive,
+        schedule: "Monday-Friday",
       });
     } catch (error) {
       console.error("Get missions error:", error);
@@ -1613,6 +1622,10 @@ export async function registerRoutes(
   app.post("/api/missions/submit", async (req, res) => {
     try {
       const { walletAddress, missionId, tweetUrl } = req.body;
+      
+      if (!isWeekday()) {
+        return res.status(400).json({ error: "Missions are only available Monday-Friday. Come back on Monday!" });
+      }
       
       if (!walletAddress || !missionId || !tweetUrl) {
         return res.status(400).json({ error: "Missing required fields" });
