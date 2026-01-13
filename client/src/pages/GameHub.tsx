@@ -52,7 +52,9 @@ interface MissionsPanelProps {
   setTweetUrl: (url: string) => void;
   isSubmitting: boolean;
   submitError: string | null;
+  setSubmitError: (error: string | null) => void;
   submitSuccess: string | null;
+  setSubmitSuccess: (success: string | null) => void;
   showLeaderboard: boolean;
   setShowLeaderboard: (show: boolean) => void;
   onSubmit: () => void;
@@ -74,7 +76,9 @@ function MissionsPanel({
   setTweetUrl,
   isSubmitting,
   submitError,
+  setSubmitError,
   submitSuccess,
+  setSubmitSuccess,
   showLeaderboard,
   setShowLeaderboard,
   onSubmit,
@@ -173,7 +177,14 @@ function MissionsPanel({
             return (
               <div key={mission.id}>
                 <button
-                  onClick={() => canSubmit && setSelectedMission(isSelected ? null : mission.id)}
+                  onClick={() => {
+                    if (canSubmit) {
+                      setSelectedMission(isSelected ? null : mission.id);
+                      setTweetUrl('');
+                      setSubmitError(null);
+                      setSubmitSuccess(null);
+                    }
+                  }}
                   disabled={isCompleted}
                   className={`w-full text-left p-3 rounded-xl transition-all ${
                     isCompleted
@@ -920,7 +931,9 @@ export function GameHub() {
                 setTweetUrl={setTweetUrl}
                 isSubmitting={isSubmitting}
                 submitError={submitError}
+                setSubmitError={setSubmitError}
                 submitSuccess={submitSuccess}
+                setSubmitSuccess={setSubmitSuccess}
                 showLeaderboard={showLeaderboard}
                 setShowLeaderboard={setShowLeaderboard}
                 onSubmit={handleMissionSubmit}

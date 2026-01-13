@@ -1326,6 +1326,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ prize: null });
     }
 
+    if ((url === '/api/missions/submit' || url.endsWith('/api/missions/submit')) && method === 'POST') {
+      const { walletAddress, missionId, tweetUrl } = req.body;
+      
+      if (!walletAddress || !missionId || !tweetUrl) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      if (!isWeekday()) {
+        return res.status(400).json({ error: "Missions are only available Monday-Friday" });
+      }
+      
+      const mission = MISSIONS.find(m => m.id === missionId);
+      if (!mission) {
+        return res.status(400).json({ error: "Invalid mission" });
+      }
+      
+      const tweetLower = tweetUrl.toLowerCase();
+      const hasMentions = mission.requiredMentions.every(mention => 
+        tweetLower.includes(`@${mention}`) || tweetLower.includes(mention)
+      );
+      
+      if (!hasMentions) {
+        const mentionsList = mission.requiredMentions.map(m => `@${m}`).join(' and ');
+        return res.status(400).json({ error: `Tweet must mention ${mentionsList}` });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: `Mission submitted! +${mission.points} points`,
+        points: mission.points 
+      });
+    }
+
     return res.status(404).json({ error: "Not found" });
   } catch (error: any) {
     console.error('[API Error]', error);
