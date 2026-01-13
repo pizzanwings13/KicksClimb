@@ -14,6 +14,38 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
+const MISSIONS = [
+  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 6, title: "RabbitsOnApe NFT", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 10, requiredMentions: ["rabbitsonape"] },
+  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+  { id: 8, title: "DashKidsNFT Promo", description: "Make a post about DashKidsNFT and tag @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+];
+
+function getMissionWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+  d.setUTCDate(diff);
+  return d;
+}
+
+function getMissionWeekEnd(weekStart: Date): Date {
+  const end = new Date(weekStart);
+  end.setUTCDate(end.getUTCDate() + 4);
+  end.setUTCHours(23, 59, 59, 999);
+  return end;
+}
+
+function isWeekday(): boolean {
+  const day = new Date().getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const users = pgTable("users", {
@@ -1240,6 +1272,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await upsertBunnyBladeWeeklyScore(user.id, playerUsername, score || 0, kicks || 0, level || 0);
       const leaderboard = await getBunnyBladeWeeklyLeaderboard(50);
       return res.json({ success: true, leaderboard });
+    }
+
+    if ((url === '/api/missions' || url.endsWith('/api/missions')) && method === 'GET') {
+      const weekStart = getMissionWeekStart();
+      const weekEnd = getMissionWeekEnd(weekStart);
+      const isActive = isWeekday();
+      
+      return res.json({
+        missions: MISSIONS,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        maxDailyMissions: 3,
+        isActive,
+        schedule: "Monday-Friday",
+      });
+    }
+
+    if ((url === '/api/missions/leaderboard/weekly' || url.endsWith('/api/missions/leaderboard/weekly')) && method === 'GET') {
+      const weekStart = getMissionWeekStart();
+      const weekEnd = getMissionWeekEnd(weekStart);
+      const now = new Date();
+      const msRemaining = weekEnd.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      
+      return res.json({
+        leaderboard: [],
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        daysRemaining,
+        prizes: [
+          { rank: 1, kicks: 15000, nft: true },
+          { rank: 2, kicks: 10000, nft: false },
+          { rank: 3, kicks: 5000, nft: false },
+        ],
+        userPrize: null,
+      });
+    }
+
+    const missionProgressMatch = url.match(/\/api\/missions\/progress\/([^\/]+)$/);
+    if (missionProgressMatch && method === 'GET') {
+      return res.json({
+        totalPoints: 0,
+        completedMissions: [],
+        dailyCount: 0,
+        dailyLimit: 3,
+        submissions: [],
+      });
+    }
+
+    const missionPrizesMatch = url.match(/\/api\/missions\/prizes\/([^\/]+)$/);
+    if (missionPrizesMatch && method === 'GET') {
+      return res.json({ prize: null });
     }
 
     return res.status(404).json({ error: "Not found" });
