@@ -1333,20 +1333,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const msRemaining = weekEnd.getTime() - now.getTime();
       const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
       
-      const leaderboard = await db.select().from(dashvilleWeeklyLeaderboard)
-        .where(eq(dashvilleWeeklyLeaderboard.weekStart, weekStart))
-        .orderBy(desc(dashvilleWeeklyLeaderboard.points))
+      // Use progress table as source of truth for points
+      const progressEntries = await db.select({
+        id: dashvilleMissionProgress.id,
+        userId: dashvilleMissionProgress.userId,
+        totalPoints: dashvilleMissionProgress.totalPoints,
+        completedMissions: dashvilleMissionProgress.completedMissions,
+        username: users.username,
+      })
+        .from(dashvilleMissionProgress)
+        .innerJoin(users, eq(dashvilleMissionProgress.userId, users.id))
+        .where(eq(dashvilleMissionProgress.weekStart, weekStart))
+        .orderBy(desc(dashvilleMissionProgress.totalPoints))
         .limit(50);
       
       return res.json({
-        leaderboard: leaderboard.map((entry, idx) => ({
-          id: entry.id,
-          userId: entry.userId,
-          username: entry.username,
-          points: entry.points,
-          missionsCompleted: entry.missionsCompleted,
-          rank: idx + 1,
-        })),
+        leaderboard: progressEntries.map((entry, idx) => {
+          const completedArr = JSON.parse(entry.completedMissions || "[]");
+          return {
+            id: entry.id,
+            userId: entry.userId,
+            username: entry.username,
+            points: entry.totalPoints,
+            missionsCompleted: completedArr.length,
+            rank: idx + 1,
+          };
+        }),
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         daysRemaining,
