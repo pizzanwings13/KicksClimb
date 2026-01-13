@@ -470,23 +470,15 @@ export function GameHub() {
   const [isClaimingPrize, setIsClaimingPrize] = useState(false);
 
   const loadMissionsData = useCallback(async () => {
-    if (!walletAddress) return;
-    
     try {
-      const [missionsRes, progressRes, leaderboardRes] = await Promise.all([
+      const [missionsRes, leaderboardRes] = await Promise.all([
         fetch('/api/missions'),
-        fetch(`/api/missions/progress/${walletAddress}`),
         fetch('/api/missions/leaderboard/weekly'),
       ]);
       
       if (missionsRes.ok) {
         const data = await missionsRes.json();
         setMissions(data.missions || []);
-      }
-      
-      if (progressRes.ok) {
-        const data = await progressRes.json();
-        setMissionProgress(data);
       }
       
       if (leaderboardRes.ok) {
@@ -497,16 +489,24 @@ export function GameHub() {
           weekEnd: data.weekEnd,
           daysRemaining: data.daysRemaining,
         });
-        if (data.userPrize) {
-          setUserPrize(data.userPrize);
-        }
       }
       
-      const prizeRes = await fetch(`/api/missions/prizes/${walletAddress}`);
-      if (prizeRes.ok) {
-        const data = await prizeRes.json();
-        if (data.prize) {
-          setUserPrize(data.prize);
+      if (walletAddress) {
+        const [progressRes, prizeRes] = await Promise.all([
+          fetch(`/api/missions/progress/${walletAddress}`),
+          fetch(`/api/missions/prizes/${walletAddress}`),
+        ]);
+        
+        if (progressRes.ok) {
+          const data = await progressRes.json();
+          setMissionProgress(data);
+        }
+        
+        if (prizeRes.ok) {
+          const data = await prizeRes.json();
+          if (data.prize) {
+            setUserPrize(data.prize);
+          }
         }
       }
     } catch (error) {
@@ -577,7 +577,7 @@ export function GameHub() {
   }, [walletAddress, selectedMission, tweetUrl, loadMissionsData]);
 
   useEffect(() => {
-    if (activeTab === 'missions' && walletAddress) {
+    if (activeTab === 'missions') {
       loadMissionsData();
     }
   }, [activeTab, walletAddress, loadMissionsData]);
