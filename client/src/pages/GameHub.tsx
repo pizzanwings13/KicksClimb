@@ -12,6 +12,7 @@ interface Mission {
   title: string;
   description: string;
   points: number;
+  requiredMentions?: string[];
 }
 
 interface MissionProgress {
@@ -207,7 +208,7 @@ function MissionsPanel({
                     >
                       <div className="p-3 bg-black/20 rounded-b-xl border-x border-b border-yellow-500/30">
                         <p className="text-xs text-gray-400 mb-2">
-                          Paste your X post link below (must include @DashKidsnft & @rabbitsonape + image/video)
+                          Paste your X post link below (must include {mission.requiredMentions?.map(m => `@${m}`).join(' & ') || '@DashKidsnft & @rabbitsonape'} + image/video)
                         </p>
                         <div className="flex gap-2">
                           <Input
