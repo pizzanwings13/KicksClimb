@@ -192,7 +192,45 @@ const bunnyBladeWeeklyLeaderboard = pgTable("bunny_blade_weekly_leaderboard", {
   weekEnd: timestamp("week_end").notNull(),
 });
 
-const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard };
+const dashvilleMissionSubmissions = pgTable("dashville_mission_submissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  missionId: integer("mission_id").notNull(),
+  tweetId: text("tweet_id").notNull(),
+  tweetUrl: text("tweet_url").notNull(),
+  tweetData: text("tweet_data"),
+  pointsAwarded: integer("points_awarded").default(10).notNull(),
+  status: text("status").default("approved").notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+});
+
+const dashvilleMissionProgress = pgTable("dashville_mission_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  weekStart: timestamp("week_start").notNull(),
+  totalPoints: integer("total_points").default(0).notNull(),
+  completedMissions: text("completed_missions").default("[]").notNull(),
+  dailyCount: integer("daily_count").default(0).notNull(),
+  lastDailyDate: timestamp("last_daily_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+const dashvilleWeeklyLeaderboard = pgTable("dashville_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  oddseed: text("oddseed"),
+  oddseedHash: text("oddseed_hash"),
+  oddResult: integer("odd_result"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  points: integer("points").default(0).notNull(),
+  missionsCompleted: integer("missions_completed").default(0).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleWeeklyLeaderboard };
 const db = drizzle(pool, { schema });
 
 type User = typeof users.$inferSelect;
@@ -1296,8 +1334,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const msRemaining = weekEnd.getTime() - now.getTime();
       const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
       
+      const leaderboard = await db.select().from(dashvilleWeeklyLeaderboard)
+        .where(eq(dashvilleWeeklyLeaderboard.weekStart, weekStart))
+        .orderBy(desc(dashvilleWeeklyLeaderboard.points))
+        .limit(50);
+      
       return res.json({
-        leaderboard: [],
+        leaderboard: leaderboard.map((entry, idx) => ({
+          id: entry.id,
+          userId: entry.userId,
+          username: entry.username,
+          points: entry.points,
+          missionsCompleted: entry.missionsCompleted,
+          rank: idx + 1,
+        })),
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         daysRemaining,
@@ -1312,12 +1362,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const missionProgressMatch = url.match(/\/api\/missions\/progress\/([^\/]+)$/);
     if (missionProgressMatch && method === 'GET') {
+      const walletAddress = missionProgressMatch[1];
+      const user = await getUserByWallet(walletAddress);
+      
+      if (!user) {
+        return res.json({
+          totalPoints: 0,
+          completedMissions: [],
+          dailyCount: 0,
+          dailyLimit: 3,
+          submissions: [],
+        });
+      }
+      
+      const weekStart = getMissionWeekStart();
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      
+      const [progress] = await db.select().from(dashvilleMissionProgress)
+        .where(and(eq(dashvilleMissionProgress.userId, user.id), eq(dashvilleMissionProgress.weekStart, weekStart)));
+      
+      if (!progress) {
+        return res.json({
+          totalPoints: 0,
+          completedMissions: [],
+          dailyCount: 0,
+          dailyLimit: 3,
+          submissions: [],
+        });
+      }
+      
+      // Reset daily count if different day
+      const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
+      let dailyCount = progress.dailyCount;
+      if (!lastDailyDate || lastDailyDate.toDateString() !== today.toDateString()) {
+        dailyCount = 0;
+      }
+      
+      const submissions = await db.select().from(dashvilleMissionSubmissions)
+        .where(and(eq(dashvilleMissionSubmissions.userId, user.id), eq(dashvilleMissionSubmissions.weekStart, weekStart)))
+        .orderBy(desc(dashvilleMissionSubmissions.submittedAt));
+      
       return res.json({
-        totalPoints: 0,
-        completedMissions: [],
-        dailyCount: 0,
+        totalPoints: progress.totalPoints,
+        completedMissions: JSON.parse(progress.completedMissions || "[]"),
+        dailyCount,
         dailyLimit: 3,
-        submissions: [],
+        submissions: submissions.map(s => ({
+          missionId: s.missionId,
+          tweetUrl: s.tweetUrl,
+          submittedAt: s.submittedAt?.toISOString(),
+        })),
       });
     }
 
@@ -1348,14 +1443,97 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Please provide a valid X (Twitter) post URL" });
       }
       
-      // Note: We can't validate tweet content from just the URL
-      // The actual tweet content verification would require Twitter API access
-      // For now, we trust the user's submission
+      const user = await getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found. Please connect your wallet first." });
+      }
+      
+      const weekStart = getMissionWeekStart();
+      const weekEnd = getMissionWeekEnd(weekStart);
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      
+      // Get or create progress record
+      let [progress] = await db.select().from(dashvilleMissionProgress)
+        .where(and(eq(dashvilleMissionProgress.userId, user.id), eq(dashvilleMissionProgress.weekStart, weekStart)));
+      
+      if (!progress) {
+        [progress] = await db.insert(dashvilleMissionProgress).values({
+          userId: user.id,
+          weekStart,
+          totalPoints: 0,
+          completedMissions: "[]",
+          dailyCount: 0,
+          lastDailyDate: today,
+        }).returning();
+      }
+      
+      // Check daily limit (reset if different day)
+      const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
+      let dailyCount = progress.dailyCount;
+      if (!lastDailyDate || lastDailyDate.toDateString() !== today.toDateString()) {
+        dailyCount = 0;
+      }
+      
+      if (dailyCount >= 3) {
+        return res.status(400).json({ error: "Daily limit reached (3 missions per day)" });
+      }
+      
+      // Check if mission already completed this week
+      const completedMissions: number[] = JSON.parse(progress.completedMissions || "[]");
+      if (completedMissions.includes(missionId)) {
+        return res.status(400).json({ error: "Mission already completed this week" });
+      }
+      
+      // Extract tweet ID from URL
+      const tweetIdMatch = tweetUrl.match(/status\/(\d+)/);
+      const tweetId = tweetIdMatch ? tweetIdMatch[1] : nanoid();
+      
+      // Save submission
+      await db.insert(dashvilleMissionSubmissions).values({
+        userId: user.id,
+        missionId,
+        tweetId,
+        tweetUrl,
+        pointsAwarded: mission.points,
+        weekStart,
+      });
+      
+      // Update progress
+      completedMissions.push(missionId);
+      await db.update(dashvilleMissionProgress).set({
+        totalPoints: progress.totalPoints + mission.points,
+        completedMissions: JSON.stringify(completedMissions),
+        dailyCount: dailyCount + 1,
+        lastDailyDate: today,
+        updatedAt: new Date(),
+      }).where(eq(dashvilleMissionProgress.id, progress.id));
+      
+      // Update weekly leaderboard
+      const [existing] = await db.select().from(dashvilleWeeklyLeaderboard)
+        .where(and(eq(dashvilleWeeklyLeaderboard.userId, user.id), eq(dashvilleWeeklyLeaderboard.weekStart, weekStart)));
+      
+      if (existing) {
+        await db.update(dashvilleWeeklyLeaderboard).set({
+          points: existing.points + mission.points,
+          missionsCompleted: existing.missionsCompleted + 1,
+        }).where(eq(dashvilleWeeklyLeaderboard.id, existing.id));
+      } else {
+        await db.insert(dashvilleWeeklyLeaderboard).values({
+          userId: user.id,
+          username: user.username,
+          points: mission.points,
+          missionsCompleted: 1,
+          weekStart,
+          weekEnd,
+        });
+      }
       
       return res.json({ 
         success: true, 
         message: `Mission submitted! +${mission.points} points`,
-        points: mission.points 
+        points: mission.points,
+        totalPoints: progress.totalPoints + mission.points,
       });
     }
 
