@@ -31,7 +31,7 @@ export function GameCamera() {
   useFrame((state, delta) => {
     const isGameActive = phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out";
     
-    currentCameraX.current = THREE.MathUtils.lerp(currentCameraX.current, shipTargetX, delta * 1.5);
+    currentCameraX.current = THREE.MathUtils.lerp(currentCameraX.current, shipTargetX, delta * 0.8);
     
     if (isMobile && isGameActive) {
       targetRef.current.set(currentCameraX.current, 8, 10);
@@ -46,7 +46,7 @@ export function GameCamera() {
       lookAtRef.current.set(0, 0, 0);
     }
     
-    camera.position.lerp(targetRef.current, delta * 2);
+    camera.position.lerp(targetRef.current, delta * 0.8);
     camera.lookAt(lookAtRef.current);
     
     if (isMoving) {

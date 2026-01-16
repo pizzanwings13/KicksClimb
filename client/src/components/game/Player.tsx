@@ -1,5 +1,5 @@
-import { useRef, useMemo, useEffect, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useEffect, useState, Suspense } from "react";
+import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { TextureLoader } from "three";
 import { useGameState } from "@/lib/stores/useGameState";
@@ -126,23 +126,9 @@ function Sail() {
   );
 }
 
-function PirateFlag() {
+function PirateFlagWithTexture() {
   const flagRef = useRef<THREE.Group>(null);
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-
-  useEffect(() => {
-    const loader = new TextureLoader();
-    loader.load(
-      "/textures/pirate-flag.jpg",
-      (loadedTexture) => {
-        setTexture(loadedTexture);
-      },
-      undefined,
-      (error) => {
-        console.error("Failed to load pirate flag texture:", error);
-      }
-    );
-  }, []);
+  const texture = useLoader(TextureLoader, "/textures/pirate-flag.jpg");
 
   useFrame((state) => {
     if (flagRef.current) {
@@ -156,11 +142,37 @@ function PirateFlag() {
         <planeGeometry args={[0.35, 0.35]} />
         <meshStandardMaterial 
           map={texture}
-          color={texture ? "#ffffff" : "#1a1a1a"}
           side={THREE.DoubleSide}
         />
       </mesh>
     </group>
+  );
+}
+
+function FallbackFlag() {
+  const flagRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (flagRef.current) {
+      flagRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2.5) * 0.2;
+    }
+  });
+
+  return (
+    <group ref={flagRef} position={[0, 1, 0.1]}>
+      <mesh position={[0.15, 0, 0]}>
+        <planeGeometry args={[0.35, 0.35]} />
+        <meshStandardMaterial color="#1a1a1a" side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+function PirateFlag() {
+  return (
+    <Suspense fallback={<FallbackFlag />}>
+      <PirateFlagWithTexture />
+    </Suspense>
   );
 }
 
@@ -273,7 +285,7 @@ export function Player() {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 2.5 : 1.5));
+    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 0.8 : 0.5));
     
     const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.15;
     const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.05;
