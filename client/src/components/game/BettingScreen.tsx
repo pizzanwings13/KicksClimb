@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Coins, Anchor, AlertTriangle, Settings, Loader2, CheckCircle, XCircle, Ship } from "lucide-react";
 
-const QUICK_AMOUNTS = ["50", "100", "500", "1000", "2500"];
-const MAX_BET = 5000;
+const QUICK_AMOUNTS = ["50", "100", "250", "500", "1000"];
+const MAX_BET = 1000;
 
 export function BettingScreen() {
   const { 
