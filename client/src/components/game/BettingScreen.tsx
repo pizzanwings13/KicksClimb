@@ -3,7 +3,7 @@ import { useWallet } from "@/lib/stores/useWallet";
 import { useGameState } from "@/lib/stores/useGameState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Coins, Zap, AlertTriangle, Settings, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Coins, Anchor, AlertTriangle, Settings, Loader2, CheckCircle, XCircle, Ship } from "lucide-react";
 
 const QUICK_AMOUNTS = ["50", "100", "500", "1000", "2500"];
 const MAX_BET = 5000;
@@ -107,13 +107,13 @@ export function BettingScreen() {
     if (status === "idle") return null;
     
     const statusConfig = {
-      checking: { icon: Loader2, color: "text-blue-400", bg: "bg-blue-900/20", border: "border-blue-500/30" },
-      approving: { icon: Loader2, color: "text-yellow-400", bg: "bg-yellow-900/20", border: "border-yellow-500/30" },
-      transferring: { icon: Loader2, color: "text-purple-400", bg: "bg-purple-900/20", border: "border-purple-500/30" },
-      signing: { icon: Loader2, color: "text-blue-400", bg: "bg-blue-900/20", border: "border-blue-500/30" },
-      claiming: { icon: Loader2, color: "text-green-400", bg: "bg-green-900/20", border: "border-green-500/30" },
-      success: { icon: CheckCircle, color: "text-green-400", bg: "bg-green-900/20", border: "border-green-500/30" },
-      error: { icon: XCircle, color: "text-red-400", bg: "bg-red-900/20", border: "border-red-500/30" },
+      checking: { icon: Loader2, color: "text-amber-300", bg: "bg-amber-900/30", border: "border-amber-500/30" },
+      approving: { icon: Loader2, color: "text-yellow-400", bg: "bg-yellow-900/30", border: "border-yellow-500/30" },
+      transferring: { icon: Loader2, color: "text-amber-400", bg: "bg-amber-900/30", border: "border-amber-500/30" },
+      signing: { icon: Loader2, color: "text-amber-300", bg: "bg-amber-900/30", border: "border-amber-500/30" },
+      claiming: { icon: Loader2, color: "text-emerald-400", bg: "bg-emerald-900/30", border: "border-emerald-500/30" },
+      success: { icon: CheckCircle, color: "text-emerald-400", bg: "bg-emerald-900/30", border: "border-emerald-500/30" },
+      error: { icon: XCircle, color: "text-red-400", bg: "bg-red-900/30", border: "border-red-500/30" },
     };
     
     const config = statusConfig[status];
@@ -135,24 +135,31 @@ export function BettingScreen() {
   const isValidBet = betValue > 0 && betValue <= balance;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-b from-purple-900/90 via-indigo-900/90 to-black/95 z-50">
+    <div className="fixed inset-0 flex items-center justify-center z-50"
+      style={{
+        background: 'linear-gradient(to bottom, #FF7F50 0%, #FF6347 25%, #1E90FF 60%, #0D47A1 100%)'
+      }}
+    >
       <div className="max-w-md w-full p-8">
         <button
           onClick={() => setPhase("menu")}
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+          className="flex items-center gap-2 text-amber-200 hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Menu
+          Back to Port
         </button>
 
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">Place Your Wager</h2>
-          <p className="text-gray-400">How many KICKS will you risk?</p>
+          <Ship className="w-12 h-12 text-amber-300 mx-auto mb-2" />
+          <h2 className="text-3xl font-bold text-white mb-2" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
+            Load Your Treasure
+          </h2>
+          <p className="text-amber-100">How much KICKS will you wager?</p>
         </div>
 
-        <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
+        <div className="bg-amber-900/60 backdrop-blur-sm rounded-2xl p-6 border-2 border-amber-600/50">
           <div className="flex justify-between items-center mb-4">
-            <span className="text-gray-400">Your Balance</span>
+            <span className="text-amber-200">Your Treasury</span>
             <span className="text-xl font-bold text-yellow-400">
               {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
             </span>
@@ -164,12 +171,12 @@ export function BettingScreen() {
               type="text"
               value={betAmount}
               onChange={(e) => handleBetChange(e.target.value)}
-              className="pl-12 pr-20 py-6 text-2xl font-bold bg-black/50 border-purple-500/50 text-white text-center rounded-xl"
+              className="pl-12 pr-20 py-6 text-2xl font-bold bg-amber-950/50 border-amber-500/50 text-white text-center rounded-xl"
               placeholder="0"
             />
             <button
               onClick={handleMaxBet}
-              className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               MAX
             </button>
@@ -182,8 +189,8 @@ export function BettingScreen() {
                 onClick={() => handleQuickAmount(amount)}
                 className={`py-2 rounded-lg font-semibold transition-all ${
                   betAmount === amount
-                    ? "bg-purple-600 text-white"
-                    : "bg-purple-900/50 text-purple-300 hover:bg-purple-800/50"
+                    ? "bg-amber-500 text-amber-900"
+                    : "bg-amber-800/50 text-amber-200 hover:bg-amber-700/50"
                 }`}
               >
                 {amount}
@@ -191,29 +198,29 @@ export function BettingScreen() {
             ))}
           </div>
 
-          <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 mb-6 border border-green-500/30">
+          <div className="bg-gradient-to-r from-emerald-900/40 to-teal-900/40 rounded-xl p-4 mb-6 border border-emerald-500/30">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-400">Potential Win (10x)</span>
-              <span className="text-xl font-bold text-green-400">
+              <span className="text-amber-100">Max Bounty (10x)</span>
+              <span className="text-xl font-bold text-emerald-400">
                 {(betValue * 10).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
               </span>
             </div>
-            <p className="text-xs text-gray-500">
-              Reach step 100 for maximum multiplier!
+            <p className="text-xs text-amber-200/70">
+              Reach the treasure island for maximum bounty!
             </p>
           </div>
 
           {!isTokenConfigured && (
-            <div className="flex items-center gap-2 text-yellow-400 mb-4 p-3 bg-yellow-900/20 rounded-lg border border-yellow-500/30">
+            <div className="flex items-center gap-2 text-yellow-300 mb-4 p-3 bg-yellow-900/30 rounded-lg border border-yellow-500/30">
               <Settings className="w-5 h-5" />
-              <span className="text-sm">Configure KICKS token address in Settings (bottom right) for real token betting. Demo mode active.</span>
+              <span className="text-sm">Configure KICKS token address in Settings for real token betting. Demo mode active.</span>
             </div>
           )}
 
           {getTransactionStatusUI()}
 
           {error && transactionState.status !== "error" && (
-            <div className="flex items-center gap-2 text-red-400 mb-4 p-3 bg-red-900/20 rounded-lg border border-red-500/30">
+            <div className="flex items-center gap-2 text-red-300 mb-4 p-3 bg-red-900/30 rounded-lg border border-red-500/30">
               <AlertTriangle className="w-5 h-5" />
               <span>{error}</span>
             </div>
@@ -222,16 +229,16 @@ export function BettingScreen() {
           <Button
             onClick={handleStartGame}
             disabled={!isValidBet || isPlacingBet}
-            className="w-full py-6 text-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 disabled:shadow-none"
+            className="w-full py-6 text-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 disabled:shadow-none border-2 border-emerald-400 disabled:border-gray-500"
           >
-            <Zap className="mr-2 h-5 w-5" />
-            {isPlacingBet ? "Starting Game..." : `Wager ${betValue.toLocaleString()} KICKS`}
+            <Anchor className="mr-2 h-5 w-5" />
+            {isPlacingBet ? "Setting Sail..." : `Wager ${betValue.toLocaleString()} KICKS`}
           </Button>
         </div>
 
-        <div className="mt-6 text-center text-gray-500 text-sm">
-          <p>Difficulty increases as you climb higher!</p>
-          <p className="text-xs mt-1">Steps 1-25: Easy | 26-50: Medium | 51-75: Hard | 76-100: Expert</p>
+        <div className="mt-6 text-center text-amber-200/80 text-sm">
+          <p>Danger increases as you sail further!</p>
+          <p className="text-xs mt-1 text-amber-200/60">Tiles 1-25: Calm | 26-50: Choppy | 51-75: Stormy | 76-100: Treacherous</p>
         </div>
       </div>
     </div>

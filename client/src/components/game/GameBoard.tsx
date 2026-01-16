@@ -20,25 +20,25 @@ function getTileTheme(type: StepType): { color: string; emissive: string; icon: 
     case "multiplier_2_5x":
       return { color: "#FF5722", emissive: "#BF360C", icon: "⚓" };
     case "multiplier_3x":
-      return { color: "#E91E63", emissive: "#880E4F", icon: "🗺️" };
+      return { color: "#E65100", emissive: "#BF360C", icon: "🗺️" };
     case "multiplier_4x":
-      return { color: "#AB47BC", emissive: "#7B1FA2", icon: "🦜" };
+      return { color: "#D84315", emissive: "#BF360C", icon: "🦜" };
     case "multiplier_5x":
-      return { color: "#9C27B0", emissive: "#4A148C", icon: "👑" };
+      return { color: "#EF6C00", emissive: "#E65100", icon: "👑" };
     case "multiplier_6x":
-      return { color: "#7C4DFF", emissive: "#651FFF", icon: "💫" };
+      return { color: "#F57C00", emissive: "#EF6C00", icon: "💫" };
     case "multiplier_7x":
-      return { color: "#536DFE", emissive: "#304FFE", icon: "🌊" };
+      return { color: "#FF8F00", emissive: "#F57C00", icon: "🌊" };
     case "multiplier_8x":
-      return { color: "#673AB7", emissive: "#311B92", icon: "🔱" };
+      return { color: "#FFA000", emissive: "#FF8F00", icon: "🔱" };
     case "multiplier_9x":
-      return { color: "#448AFF", emissive: "#2979FF", icon: "🌙" };
+      return { color: "#FFB300", emissive: "#FFA000", icon: "🌟" };
     case "multiplier_10x":
-      return { color: "#3F51B5", emissive: "#1A237E", icon: "⭐" };
+      return { color: "#FFC107", emissive: "#FFB300", icon: "⭐" };
     case "hazard":
       return { color: "#F44336", emissive: "#B71C1C", icon: "🐙" };
     case "reset_trap":
-      return { color: "#1B5E20", emissive: "#0D2610", icon: "🌀" };
+      return { color: "#00BCD4", emissive: "#006064", icon: "🌀" };
     case "finish":
       return { color: "#FFD700", emissive: "#FFB300", icon: "🏝️" };
     case "powerup_shield":
@@ -59,9 +59,9 @@ interface StepTileProps {
   isCurrentPosition: boolean;
 }
 
-function WaterTile({ position }: { position: [number, number, number] }) {
+function WaterTile({ position, index }: { position: [number, number, number]; index: number }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+  const offset = (index * 0.7) % (Math.PI * 2);
   
   useFrame((state) => {
     if (meshRef.current) {
@@ -213,8 +213,8 @@ function DevilFruit({ position }: { position: [number, number, number] }) {
       <mesh ref={meshRef}>
         <sphereGeometry args={[0.15, 12, 12]} />
         <meshStandardMaterial 
-          color="#9C27B0" 
-          emissive="#6A1B9A" 
+          color="#E65100" 
+          emissive="#BF360C" 
           emissiveIntensity={0.5}
         />
       </mesh>
@@ -330,7 +330,7 @@ function StepTile({ step, isCurrentPosition }: StepTileProps) {
 
   return (
     <group position={[x, 0, z]}>
-      <WaterTile position={[0, -0.1, 0]} />
+      <WaterTile position={[0, -0.1, 0]} index={step.position} />
       
       <mesh ref={meshRef} position={[0, 0.1, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[STEP_SIZE * 0.4, STEP_SIZE * 0.42, 0.15, isSafe ? 6 : 8]} />

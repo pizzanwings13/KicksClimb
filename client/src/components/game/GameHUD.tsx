@@ -8,9 +8,9 @@ import { apiRequest } from "@/lib/queryClient";
 const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
 
 const powerUpIcons: Record<string, { icon: typeof Shield; color: string; label: string }> = {
-  shield: { icon: Shield, color: "text-blue-400", label: "Shield (Blocks 1 hazard)" },
-  double: { icon: Zap, color: "text-yellow-400", label: "Double (2x next multiplier)" },
-  skip: { icon: SkipForward, color: "text-green-400", label: "Skip (Jump over hazard)" },
+  shield: { icon: Shield, color: "text-blue-400", label: "Shield (Blocks 1 sea monster)" },
+  double: { icon: Zap, color: "text-amber-400", label: "Devil Fruit (2x next treasure)" },
+  skip: { icon: SkipForward, color: "text-green-400", label: "Wind Boost (Jump over danger)" },
 };
 
 export function GameHUD() {
@@ -139,50 +139,50 @@ export function GameHUD() {
     if (!lastStepType) return null;
     switch (lastStepType) {
       case "hazard":
-        return { text: "HAZARD!", color: "text-red-500", bg: "bg-red-500/20" };
+        return { text: "SEA MONSTER!", color: "text-red-500", bg: "bg-red-500/20" };
       case "reset_trap":
-        return { text: "RESET TRAP! BACK TO START!", color: "text-purple-500", bg: "bg-purple-500/20" };
+        return { text: "WHIRLPOOL! BACK TO PORT!", color: "text-cyan-500", bg: "bg-cyan-500/20" };
       case "multiplier_1x":
-        return { text: "1x MULTIPLIER!", color: "text-green-300", bg: "bg-green-500/20" };
+        return { text: "1x TREASURE!", color: "text-amber-300", bg: "bg-amber-500/20" };
       case "multiplier_1_5x":
-        return { text: "1.5x MULTIPLIER!", color: "text-green-400", bg: "bg-green-500/20" };
+        return { text: "1.5x TREASURE!", color: "text-amber-400", bg: "bg-amber-500/20" };
       case "multiplier_2x":
-        return { text: "2x MULTIPLIER!", color: "text-green-500", bg: "bg-green-500/20" };
+        return { text: "2x TREASURE!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
       case "multiplier_2_5x":
-        return { text: "2.5x MULTIPLIER!", color: "text-teal-400", bg: "bg-teal-500/20" };
+        return { text: "2.5x TREASURE!", color: "text-yellow-500", bg: "bg-yellow-500/20" };
       case "multiplier_3x":
-        return { text: "3x MULTIPLIER!", color: "text-teal-500", bg: "bg-teal-500/20" };
+        return { text: "3x TREASURE!", color: "text-orange-400", bg: "bg-orange-500/20" };
       case "multiplier_4x":
-        return { text: "4x MULTIPLIER!", color: "text-cyan-400", bg: "bg-cyan-500/20" };
+        return { text: "4x TREASURE!", color: "text-orange-500", bg: "bg-orange-500/20" };
       case "multiplier_5x":
-        return { text: "5x MULTIPLIER!", color: "text-blue-400", bg: "bg-blue-500/20" };
+        return { text: "5x TREASURE!", color: "text-amber-500", bg: "bg-amber-600/20" };
       case "multiplier_6x":
-        return { text: "6x MULTIPLIER!", color: "text-blue-500", bg: "bg-blue-500/20" };
+        return { text: "6x TREASURE!", color: "text-yellow-300", bg: "bg-yellow-600/20" };
       case "multiplier_7x":
-        return { text: "7x MULTIPLIER!", color: "text-indigo-300", bg: "bg-indigo-500/20" };
+        return { text: "7x TREASURE!", color: "text-amber-300", bg: "bg-amber-600/20" };
       case "multiplier_8x":
-        return { text: "8x MULTIPLIER!", color: "text-indigo-400", bg: "bg-indigo-500/20" };
+        return { text: "8x TREASURE!", color: "text-yellow-400", bg: "bg-yellow-600/20" };
       case "multiplier_9x":
-        return { text: "9x MULTIPLIER!", color: "text-purple-300", bg: "bg-purple-500/20" };
+        return { text: "9x TREASURE!", color: "text-amber-400", bg: "bg-amber-700/20" };
       case "multiplier_10x":
-        return { text: "10x MULTIPLIER!", color: "text-purple-400", bg: "bg-purple-500/20" };
+        return { text: "10x TREASURE!", color: "text-yellow-500", bg: "bg-yellow-700/20" };
       case "finish":
-        return { text: "FINISH! 10x!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
+        return { text: "TREASURE ISLAND! 10x!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
       case "powerup_shield":
-        return { text: "SHIELD COLLECTED!", color: "text-blue-400", bg: "bg-blue-500/20" };
+        return { text: "SHIELD FOUND!", color: "text-blue-400", bg: "bg-blue-500/20" };
       case "powerup_double":
-        return { text: "DOUBLE COLLECTED!", color: "text-yellow-400", bg: "bg-yellow-500/20" };
+        return { text: "DEVIL FRUIT FOUND!", color: "text-amber-400", bg: "bg-amber-500/20" };
       case "powerup_skip":
-        return { text: "SKIP COLLECTED!", color: "text-green-400", bg: "bg-green-500/20" };
+        return { text: "WIND BOOST!", color: "text-green-400", bg: "bg-green-500/20" };
       case "bonus_chest":
         if (bonusChestReward) {
           if (bonusChestReward.type === "kicks") {
-            return { text: `BONUS CHEST! +${bonusChestReward.multiplierBonus}x & +${bonusChestReward.amount} KICKS!`, color: "text-orange-400", bg: "bg-orange-500/20" };
+            return { text: `TREASURE CHEST! +${bonusChestReward.multiplierBonus}x & +${bonusChestReward.amount} KICKS!`, color: "text-amber-400", bg: "bg-amber-500/20" };
           } else {
-            return { text: `BONUS CHEST! ${bonusChestReward.multiplierBonus}x MULTIPLIER!`, color: "text-orange-400", bg: "bg-orange-500/20" };
+            return { text: `TREASURE CHEST! ${bonusChestReward.multiplierBonus}x BOUNTY!`, color: "text-amber-400", bg: "bg-amber-500/20" };
           }
         }
-        return { text: "BONUS CHEST!", color: "text-orange-400", bg: "bg-orange-500/20" };
+        return { text: "TREASURE CHEST!", color: "text-amber-400", bg: "bg-amber-500/20" };
       default:
         return null;
     }
@@ -194,10 +194,10 @@ export function GameHUD() {
     <div className="fixed inset-0 pointer-events-none z-40">
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-start pointer-events-auto gap-2">
         <div className="flex-shrink-0 w-[120px] sm:w-auto">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-purple-500/30">
-            <div className="text-[10px] sm:text-sm text-gray-400">Current Position</div>
+          <div className="bg-amber-950/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-amber-500/30">
+            <div className="text-[10px] sm:text-sm text-amber-300">Current Tile</div>
             <div className="text-sm sm:text-2xl font-bold text-white whitespace-nowrap">
-              Step {currentPosition} <span className="text-gray-500 text-xs sm:text-lg">/ 100</span>
+              Tile {currentPosition} <span className="text-amber-400/50 text-xs sm:text-lg">/ 100</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-1 sm:h-2 mt-1">
               <div
@@ -207,7 +207,7 @@ export function GameHUD() {
             </div>
           </div>
           {(collectedPowerUps.length > 0 || activePowerUps.filter(p => p.active).length > 0) && (
-            <div className="bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-purple-500/30 mt-1 flex gap-1.5">
+            <div className="bg-amber-950/80 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-amber-500/30 mt-1 flex gap-1.5">
               {collectedPowerUps.map((powerup, idx) => {
                 const config = powerUpIcons[powerup];
                 if (!config) return null;
@@ -255,18 +255,18 @@ export function GameHUD() {
           )}
           
           {wasReset && !isOnFire && (
-            <div className="bg-purple-900/80 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-purple-400/50 animate-pulse">
-              <div className="text-[10px] sm:text-xs text-purple-200">RESET!</div>
+            <div className="bg-cyan-900/80 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-cyan-400/50 animate-pulse">
+              <div className="text-[10px] sm:text-xs text-cyan-200">WHIRLPOOL!</div>
             </div>
           )}
           
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-yellow-500/30 text-right w-[90px] sm:w-auto">
-            <div className="text-[10px] sm:text-sm text-gray-400">Multiplier</div>
+          <div className="bg-amber-950/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-yellow-500/30 text-right w-[90px] sm:w-auto">
+            <div className="text-[10px] sm:text-sm text-amber-300">Treasure</div>
             <div className="text-base sm:text-2xl font-bold text-yellow-400">
               {currentMultiplier.toFixed(2)}x
             </div>
-            <div className="text-[10px] sm:text-sm text-gray-400 whitespace-nowrap">
-              Bet: {parseFloat(betAmount).toLocaleString()} KICKS
+            <div className="text-[10px] sm:text-sm text-amber-200 whitespace-nowrap">
+              Wager: {parseFloat(betAmount).toLocaleString()} KICKS
             </div>
             {streak > 0 && !isOnFire && (
               <div className="text-[10px] sm:text-xs text-orange-400">
@@ -289,21 +289,21 @@ export function GameHUD() {
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 pointer-events-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto">
           {isGameActive && (
-            <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-2xl p-2 sm:p-6 border border-purple-500/30">
+            <div className="bg-amber-950/80 backdrop-blur-sm rounded-lg sm:rounded-2xl p-2 sm:p-6 border border-amber-500/30">
               <div className="flex items-center justify-between mb-2 sm:mb-4">
                 <div>
-                  <div className="text-[10px] sm:text-sm text-gray-400">Potential Payout</div>
-                  <div className="text-base sm:text-2xl font-bold text-green-400">
+                  <div className="text-[10px] sm:text-sm text-amber-200">Potential Bounty</div>
+                  <div className="text-base sm:text-2xl font-bold text-emerald-400">
                     {parseFloat(potentialPayout).toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                   </div>
                   {bonusKicks > 0 && (
-                    <div className="text-[10px] sm:text-xs text-purple-400">
+                    <div className="text-[10px] sm:text-xs text-amber-400">
                       (includes +{bonusKicks} bonus KICKS)
                     </div>
                   )}
                 </div>
-                <div className="flex items-center justify-center w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-lg sm:rounded-xl shadow-lg">
-                  <DiceIcon className={`w-6 h-6 sm:w-12 sm:h-12 text-purple-600 ${isRolling ? 'animate-spin' : ''}`} />
+                <div className="flex items-center justify-center w-10 h-10 sm:w-16 sm:h-16 bg-amber-100 rounded-lg sm:rounded-xl shadow-lg">
+                  <DiceIcon className={`w-6 h-6 sm:w-12 sm:h-12 text-amber-700 ${isRolling ? 'animate-spin' : ''}`} />
                 </div>
               </div>
 
@@ -311,9 +311,9 @@ export function GameHUD() {
                 <Button
                   onClick={handleRollDice}
                   disabled={isMoving || isRolling}
-                  className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
+                  className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
                 >
-                  {isRolling ? "Rolling..." : isMoving ? "Moving..." : "Roll Dice"}
+                  {isRolling ? "Rolling..." : isMoving ? "Sailing..." : "Roll Dice"}
                 </Button>
                 <Button
                   onClick={handleCashOut}
@@ -321,14 +321,14 @@ export function GameHUD() {
                   className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
                 >
                   <HandCoins className="mr-1 sm:mr-2 h-3 w-3 sm:h-5 sm:w-5" />
-                  {isCashingOut ? "Cashing..." : "Cash Out"}
+                  {isCashingOut ? "Claiming..." : "Claim Bounty"}
                 </Button>
               </div>
 
               {currentPosition >= 75 && (
-                <div className="mt-2 sm:mt-4 flex items-center gap-2 text-yellow-400 text-xs sm:text-sm bg-yellow-500/10 p-2 rounded-lg">
+                <div className="mt-2 sm:mt-4 flex items-center gap-2 text-red-400 text-xs sm:text-sm bg-red-500/10 p-2 rounded-lg">
                   <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                  <span>Expert zone! 50% hazard chance.</span>
+                  <span>Treacherous waters! Sea monsters ahead!</span>
                 </div>
               )}
             </div>
@@ -342,8 +342,8 @@ export function GameHUD() {
                 {phase === "lost" ? (
                   <>
                     <AlertTriangle className="w-10 h-10 sm:w-16 sm:h-16 text-red-500 mx-auto mb-2 sm:mb-4" />
-                    <h2 className="text-xl sm:text-3xl font-bold text-red-400 mb-1 sm:mb-2">Game Over!</h2>
-                    <p className="text-sm sm:text-base text-gray-400">Hazard at step {currentPosition}</p>
+                    <h2 className="text-xl sm:text-3xl font-bold text-red-400 mb-1 sm:mb-2">Ship Sunk!</h2>
+                    <p className="text-sm sm:text-base text-amber-200">Sea monster at tile {currentPosition}</p>
                     <p className="text-lg sm:text-xl text-red-400 mt-1 sm:mt-2">
                       Lost {parseFloat(betAmount).toLocaleString()} KICKS
                     </p>
@@ -351,23 +351,23 @@ export function GameHUD() {
                 ) : (
                   <>
                     <Trophy className="w-10 h-10 sm:w-16 sm:h-16 text-yellow-400 mx-auto mb-2 sm:mb-4" />
-                    <h2 className="text-xl sm:text-3xl font-bold text-green-400 mb-1 sm:mb-2">
-                      {phase === "won" ? "Victory!" : "Cashed Out!"}
+                    <h2 className="text-xl sm:text-3xl font-bold text-emerald-400 mb-1 sm:mb-2">
+                      {phase === "won" ? "Treasure Found!" : "Bounty Claimed!"}
                     </h2>
-                    <p className="text-sm sm:text-base text-gray-400">
+                    <p className="text-sm sm:text-base text-amber-200">
                       {phase === "won" 
-                        ? `Reached step ${currentPosition}!`
-                        : `Step ${currentPosition}`
+                        ? `Reached treasure island at tile ${currentPosition}!`
+                        : `Tile ${currentPosition}`
                       }
                     </p>
                     <div className="mt-2 sm:mt-4 flex justify-center gap-6">
                       <div>
-                        <div className="text-xs sm:text-sm text-gray-400">Multiplier</div>
+                        <div className="text-xs sm:text-sm text-amber-300">Treasure</div>
                         <div className="text-lg sm:text-2xl font-bold text-yellow-400">{currentMultiplier.toFixed(2)}x</div>
                       </div>
                       <div>
-                        <div className="text-xs sm:text-sm text-gray-400">Winnings</div>
-                        <div className="text-lg sm:text-2xl font-bold text-green-400">
+                        <div className="text-xs sm:text-sm text-amber-300">Bounty</div>
+                        <div className="text-lg sm:text-2xl font-bold text-emerald-400">
                           +{parseFloat(currentGame?.payout || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })} KICKS
                         </div>
                       </div>
@@ -429,10 +429,10 @@ export function GameHUD() {
 
               <Button
                 onClick={handlePlayAgain}
-                className="w-full py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl"
+                className="w-full py-4 sm:py-6 text-sm sm:text-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-xl"
               >
                 <RotateCcw className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                Play Again
+                Set Sail Again
               </Button>
             </div>
           )}
