@@ -17,15 +17,6 @@ import { useGameState } from "@/lib/stores/useGameState";
 import { useWallet } from "@/lib/stores/useWallet";
 import { ArrowLeft } from "lucide-react";
 
-function SkyBackdrop() {
-  return (
-    <mesh position={[0, -5, -150]} rotation={[0, 0, 0]}>
-      <planeGeometry args={[600, 100]} />
-      <meshBasicMaterial color="#87CEEB" />
-    </mesh>
-  );
-}
-
 function GameScene() {
   const { phase } = useGameState();
   const showGame = phase !== "menu" && phase !== "betting";
@@ -34,7 +25,6 @@ function GameScene() {
     <>
       <Lights />
       <GameCamera />
-      <SkyBackdrop />
       {showGame && (
         <Suspense fallback={null}>
           <GameBoard />

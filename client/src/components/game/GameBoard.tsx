@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
-const OCEAN_SIZE = 500;
+const OCEAN_SIZE = 800;
 const WAVE_SEGMENTS = 64;
 
 function Ocean() {
@@ -46,7 +46,7 @@ function Ocean() {
   });
 
   return (
-    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
+    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 100]} receiveShadow>
       <planeGeometry ref={geometryRef} args={[OCEAN_SIZE, OCEAN_SIZE, WAVE_SEGMENTS, WAVE_SEGMENTS]} />
       <meshStandardMaterial 
         color="#0088CC"
