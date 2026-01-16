@@ -471,7 +471,7 @@ function FloatingIcon({ type, position }: { type: string; position: [number, num
   );
 }
 
-function LandingIndicator({ position, isActive, type }: { position: [number, number, number]; isActive: boolean; type?: string }) {
+function LandingIndicator({ position, isActive }: { position: [number, number, number]; isActive: boolean; type?: string }) {
   const ringRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
@@ -485,20 +485,17 @@ function LandingIndicator({ position, isActive, type }: { position: [number, num
   if (!isActive) return null;
 
   return (
-    <group>
-      <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.5, 2, 24]} />
-        <meshStandardMaterial 
-          color="#FFFFFF"
-          emissive="#FFFFFF"
-          emissiveIntensity={1}
-          transparent
-          opacity={0.7}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      {type && <FloatingIcon type={type} position={position} />}
-    </group>
+    <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[1.5, 2, 24]} />
+      <meshStandardMaterial 
+        color="#00FF00"
+        emissive="#00FF00"
+        emissiveIntensity={1}
+        transparent
+        opacity={0.7}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
@@ -550,7 +547,7 @@ export function GameBoard() {
       worldGroupRef.current.position.z = THREE.MathUtils.lerp(
         worldGroupRef.current.position.z,
         targetZ,
-        delta * (isMoving ? 1.5 : 1.0)
+        delta * (isMoving ? 3.0 : 2.0)
       );
     }
   });
@@ -577,11 +574,14 @@ export function GameBoard() {
               {island.type === "reset_trap" && <MonsterIsland position={pos} />}
               {island.type === "safe" && <SafeIsland position={pos} />}
               
-              <LandingIndicator 
-                position={[island.x, 0.2, island.z]} 
-                isActive={isCurrentIsland && !isMoving}
-                type={island.type}
-              />
+              <FloatingIcon type={island.type} position={[island.x, 0.5, island.z]} />
+              {isCurrentIsland && !isMoving && (
+                <LandingIndicator 
+                  position={[island.x, 0.2, island.z]} 
+                  isActive={true}
+                  type={island.type}
+                />
+              )}
             </group>
           );
         })}
