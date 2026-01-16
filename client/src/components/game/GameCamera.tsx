@@ -34,15 +34,15 @@ export function GameCamera() {
     currentCameraX.current = THREE.MathUtils.lerp(currentCameraX.current, shipTargetX, delta * 0.5);
     
     if (isMobile && isGameActive) {
-      targetRef.current.set(currentCameraX.current * 0.3, 10, 12);
-      lookAtRef.current.set(currentCameraX.current * 0.3, 0, -10);
+      targetRef.current.set(currentCameraX.current * 0.2, 14, 18);
+      lookAtRef.current.set(currentCameraX.current * 0.2, 0, -5);
     } else if (isGameActive) {
-      const cameraY = 7;
-      const cameraZ = 10;
-      targetRef.current.set(currentCameraX.current * 0.3, cameraY, cameraZ);
-      lookAtRef.current.set(currentCameraX.current * 0.3, 0, -10);
+      const cameraY = 12;
+      const cameraZ = 16;
+      targetRef.current.set(currentCameraX.current * 0.2, cameraY, cameraZ);
+      lookAtRef.current.set(currentCameraX.current * 0.2, 0, -5);
     } else {
-      targetRef.current.set(0, 8, 12);
+      targetRef.current.set(0, 10, 16);
       lookAtRef.current.set(0, 0, 0);
     }
     
