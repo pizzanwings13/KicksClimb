@@ -317,7 +317,7 @@ export function GameHUD() {
                 </Button>
                 <Button
                   onClick={handleCashOut}
-                  disabled={isMoving || isRolling || isCashingOut || currentMultiplier <= 1}
+                  disabled={isMoving || isRolling || isCashingOut || currentMultiplier < 1}
                   className="py-2.5 sm:py-6 text-xs sm:text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg sm:rounded-xl"
                 >
                   <HandCoins className="mr-1 sm:mr-2 h-3 w-3 sm:h-5 sm:w-5" />
