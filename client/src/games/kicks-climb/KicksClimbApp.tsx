@@ -106,7 +106,7 @@ export function TreasureQuestApp() {
             position: isMobile ? [0, 8, 10] : [0, 6, 8],
             fov: isMobile ? 65 : 55,
             near: 0.1,
-            far: 500
+            far: 1000
           }}
           gl={{
             antialias: !isMobile,
@@ -117,7 +117,7 @@ export function TreasureQuestApp() {
           }}
         >
           <color attach="background" args={["#4FC3F7"]} />
-          <fog attach="fog" args={["#87CEEB", 30, 80]} />
+          <fog attach="fog" args={["#87CEEB", 50, 200]} />
           <GameScene />
         </Canvas>
       )}

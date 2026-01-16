@@ -1,7 +1,7 @@
-import { useRef, useMemo, useEffect, Suspense } from "react";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import { TextureLoader } from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
 function calculateTargetX(currentPosition: number, board: { position: number; type: string }[]): number {
@@ -126,9 +126,23 @@ function Sail() {
   );
 }
 
-function PirateFlagMesh() {
+function PirateFlag() {
   const flagRef = useRef<THREE.Group>(null);
-  const texture = useTexture("/textures/pirate-flag.jpg");
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+
+  useEffect(() => {
+    const loader = new TextureLoader();
+    loader.load(
+      "/textures/pirate-flag.jpg",
+      (loadedTexture) => {
+        setTexture(loadedTexture);
+      },
+      undefined,
+      (error) => {
+        console.error("Failed to load pirate flag texture:", error);
+      }
+    );
+  }, []);
 
   useFrame((state) => {
     if (flagRef.current) {
@@ -141,38 +155,12 @@ function PirateFlagMesh() {
       <mesh position={[0.15, 0, 0]}>
         <planeGeometry args={[0.35, 0.35]} />
         <meshStandardMaterial 
-          map={texture} 
+          map={texture}
+          color={texture ? "#ffffff" : "#1a1a1a"}
           side={THREE.DoubleSide}
         />
       </mesh>
     </group>
-  );
-}
-
-function FallbackFlag() {
-  const flagRef = useRef<THREE.Group>(null);
-
-  useFrame((state) => {
-    if (flagRef.current) {
-      flagRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2.5) * 0.2;
-    }
-  });
-
-  return (
-    <group ref={flagRef} position={[0, 1, 0.1]}>
-      <mesh position={[0.15, 0, 0]}>
-        <planeGeometry args={[0.35, 0.35]} />
-        <meshStandardMaterial color="#1a1a1a" side={THREE.DoubleSide} />
-      </mesh>
-    </group>
-  );
-}
-
-function PirateFlag() {
-  return (
-    <Suspense fallback={<FallbackFlag />}>
-      <PirateFlagMesh />
-    </Suspense>
   );
 }
 
