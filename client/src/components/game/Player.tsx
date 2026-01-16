@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -126,7 +126,7 @@ function Sail() {
   );
 }
 
-function PirateFlag() {
+function PirateFlagMesh() {
   const flagRef = useRef<THREE.Group>(null);
   const texture = useTexture("/textures/pirate-flag.jpg");
 
@@ -143,11 +143,36 @@ function PirateFlag() {
         <meshStandardMaterial 
           map={texture} 
           side={THREE.DoubleSide}
-          transparent
-          alphaTest={0.1}
         />
       </mesh>
     </group>
+  );
+}
+
+function FallbackFlag() {
+  const flagRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (flagRef.current) {
+      flagRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2.5) * 0.2;
+    }
+  });
+
+  return (
+    <group ref={flagRef} position={[0, 1, 0.1]}>
+      <mesh position={[0.15, 0, 0]}>
+        <planeGeometry args={[0.35, 0.35]} />
+        <meshStandardMaterial color="#1a1a1a" side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+function PirateFlag() {
+  return (
+    <Suspense fallback={<FallbackFlag />}>
+      <PirateFlagMesh />
+    </Suspense>
   );
 }
 

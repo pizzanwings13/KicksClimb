@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
-const OCEAN_SIZE = 300;
+const OCEAN_SIZE = 500;
 const WAVE_SEGMENTS = 64;
 
 function Ocean() {
