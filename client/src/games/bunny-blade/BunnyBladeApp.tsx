@@ -1562,7 +1562,9 @@ export function BunnyBladeApp() {
       thorTimer: 0,
       thorFlashTimer: 0,
       lastSliceTime: 0,
-      frameCount: 0
+      frameCount: 0,
+      slowMotionTimer: 0,
+      slowMotionActive: false
     };
     lastTimeRef.current = Date.now();
 

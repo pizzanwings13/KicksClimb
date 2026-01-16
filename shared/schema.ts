@@ -155,6 +155,7 @@ export const rabbitRushRuns = pgTable("rabbit_rush_runs", {
   depositTxHash: text("deposit_tx_hash"),
   claimNonce: text("claim_nonce"),
   claimTxHash: text("claim_tx_hash"),
+  claimStatus: text("claim_status").default("pending"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
 });
