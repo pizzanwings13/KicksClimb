@@ -1,82 +1,56 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Text, useTexture } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameState, BoardStep, StepType } from "@/lib/stores/useGameState";
 
 const STEP_SIZE = 1.2;
 const BOARD_COLS = 10;
 
-function getStepColor(type: StepType): string {
+function getTileTheme(type: StepType): { color: string; emissive: string; icon: string } {
   switch (type) {
     case "safe":
-      return "#4a5568";
+      return { color: "#2196F3", emissive: "#0D47A1", icon: "~" };
     case "multiplier_1x":
-      return "#68d391";
+      return { color: "#FFD700", emissive: "#B8860B", icon: "💰" };
     case "multiplier_1_5x":
-      return "#48bb78";
+      return { color: "#FFC107", emissive: "#FF8F00", icon: "💎" };
     case "multiplier_2x":
-      return "#38a169";
+      return { color: "#FF9800", emissive: "#E65100", icon: "🏴‍☠️" };
     case "multiplier_2_5x":
-      return "#38b2ac";
+      return { color: "#FF5722", emissive: "#BF360C", icon: "⚓" };
     case "multiplier_3x":
-      return "#319795";
+      return { color: "#E91E63", emissive: "#880E4F", icon: "🗺️" };
+    case "multiplier_4x":
+      return { color: "#AB47BC", emissive: "#7B1FA2", icon: "🦜" };
     case "multiplier_5x":
-      return "#4299e1";
+      return { color: "#9C27B0", emissive: "#4A148C", icon: "👑" };
+    case "multiplier_6x":
+      return { color: "#7C4DFF", emissive: "#651FFF", icon: "💫" };
+    case "multiplier_7x":
+      return { color: "#536DFE", emissive: "#304FFE", icon: "🌊" };
     case "multiplier_8x":
-      return "#667eea";
+      return { color: "#673AB7", emissive: "#311B92", icon: "🔱" };
+    case "multiplier_9x":
+      return { color: "#448AFF", emissive: "#2979FF", icon: "🌙" };
     case "multiplier_10x":
-      return "#9f7aea";
-    case "multiplier_11x":
-      return "#b794f4";
+      return { color: "#3F51B5", emissive: "#1A237E", icon: "⭐" };
     case "hazard":
-      return "#e53e3e";
+      return { color: "#F44336", emissive: "#B71C1C", icon: "🐙" };
     case "reset_trap":
-      return "#1a1a2e";
+      return { color: "#1B5E20", emissive: "#0D2610", icon: "🌀" };
     case "finish":
-      return "#ecc94b";
+      return { color: "#FFD700", emissive: "#FFB300", icon: "🏝️" };
     case "powerup_shield":
-      return "#63b3ed";
+      return { color: "#03A9F4", emissive: "#01579B", icon: "🛡️" };
     case "powerup_double":
-      return "#f6e05e";
+      return { color: "#FFEB3B", emissive: "#F57F17", icon: "⚡" };
     case "powerup_skip":
-      return "#68d391";
+      return { color: "#4CAF50", emissive: "#1B5E20", icon: "💨" };
     case "bonus_chest":
-      return "#ed8936";
+      return { color: "#8D6E63", emissive: "#4E342E", icon: "📦" };
     default:
-      return "#4a5568";
-  }
-}
-
-function getStepEmissive(type: StepType): string {
-  switch (type) {
-    case "multiplier_1x":
-    case "multiplier_1_5x":
-    case "multiplier_2x":
-    case "multiplier_2_5x":
-    case "multiplier_3x":
-    case "multiplier_5x":
-      return "#22543d";
-    case "multiplier_8x":
-    case "multiplier_10x":
-    case "multiplier_11x":
-      return "#553c9a";
-    case "hazard":
-      return "#742a2a";
-    case "reset_trap":
-      return "#4a1a6b";
-    case "finish":
-      return "#744210";
-    case "powerup_shield":
-      return "#2b6cb0";
-    case "powerup_double":
-      return "#d69e2e";
-    case "powerup_skip":
-      return "#276749";
-    case "bonus_chest":
-      return "#c05621";
-    default:
-      return "#000000";
+      return { color: "#2196F3", emissive: "#0D47A1", icon: "~" };
   }
 }
 
@@ -85,8 +59,244 @@ interface StepTileProps {
   isCurrentPosition: boolean;
 }
 
+function WaterTile({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.position.y = -0.05 + Math.sin(state.clock.elapsedTime * 0.8 + offset) * 0.03;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[STEP_SIZE * 0.95, STEP_SIZE * 0.95]} />
+      <meshStandardMaterial 
+        color="#1565C0"
+        emissive="#0D47A1"
+        emissiveIntensity={0.15}
+        transparent
+        opacity={0.7}
+        metalness={0.6}
+        roughness={0.4}
+      />
+    </mesh>
+  );
+}
+
+function TreasureChest({ position, floating = false }: { position: [number, number, number]; floating?: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current && floating) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.3;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh castShadow>
+        <boxGeometry args={[0.3, 0.2, 0.2]} />
+        <meshStandardMaterial color="#8B4513" metalness={0.3} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.32, 0.08, 0.22]} />
+        <meshStandardMaterial color="#A0522D" metalness={0.4} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.05, 0.11]}>
+        <boxGeometry args={[0.08, 0.08, 0.02]} />
+        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} metalness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function SeaMonster({ position }: { position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 1.5) * 0.1;
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.3;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh castShadow>
+        <sphereGeometry args={[0.2, 12, 12]} />
+        <meshStandardMaterial color="#2E7D32" emissive="#1B5E20" emissiveIntensity={0.3} />
+      </mesh>
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <mesh key={i} position={[Math.cos(i * 0.8) * 0.25, -0.1, Math.sin(i * 0.8) * 0.25]} rotation={[0.5, i * 0.8, 0]}>
+          <cylinderGeometry args={[0.02, 0.04, 0.25, 6]} />
+          <meshStandardMaterial color="#1B5E20" />
+        </mesh>
+      ))}
+      <mesh position={[-0.08, 0.08, 0.15]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#FFEB3B" emissive="#FFEB3B" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[0.08, 0.08, 0.15]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#FFEB3B" emissive="#FFEB3B" emissiveIntensity={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function Whirlpool({ position }: { position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = state.clock.elapsedTime * 2;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.2, 0.05, 8, 16]} />
+        <meshStandardMaterial color="#00BCD4" emissive="#00838F" emissiveIntensity={0.5} transparent opacity={0.8} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+        <torusGeometry args={[0.12, 0.03, 8, 16]} />
+        <meshStandardMaterial color="#26C6DA" emissive="#00ACC1" emissiveIntensity={0.6} transparent opacity={0.7} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]}>
+        <circleGeometry args={[0.06, 16]} />
+        <meshStandardMaterial color="#4DD0E1" emissive="#00BCD4" emissiveIntensity={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function GoldCoin({ position, multiplier }: { position: [number, number, number]; multiplier?: number }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 2;
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 3) * 0.03;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <cylinderGeometry args={[0.12, 0.12, 0.04, 16]} />
+      <meshStandardMaterial 
+        color="#FFD700" 
+        emissive="#FFB300" 
+        emissiveIntensity={0.6}
+        metalness={0.9}
+        roughness={0.1}
+      />
+    </mesh>
+  );
+}
+
+function DevilFruit({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime;
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[0.15, 12, 12]} />
+        <meshStandardMaterial 
+          color="#9C27B0" 
+          emissive="#6A1B9A" 
+          emissiveIntensity={0.5}
+        />
+      </mesh>
+      <mesh position={[0, 0.18, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.06, 6]} />
+        <meshStandardMaterial color="#2E7D32" />
+      </mesh>
+      <mesh position={[0.05, 0.22, 0]} rotation={[0, 0, 0.5]}>
+        <boxGeometry args={[0.08, 0.04, 0.02]} />
+        <meshStandardMaterial color="#4CAF50" />
+      </mesh>
+    </group>
+  );
+}
+
+function Shield({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <sphereGeometry args={[0.2, 16, 16]} />
+      <meshStandardMaterial 
+        color="#03A9F4" 
+        emissive="#0288D1" 
+        emissiveIntensity={0.6}
+        transparent
+        opacity={0.7}
+        metalness={0.3}
+        roughness={0.2}
+      />
+    </mesh>
+  );
+}
+
+function TreasureIsland({ position }: { position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime) * 0.02;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh castShadow>
+        <cylinderGeometry args={[0.35, 0.4, 0.15, 8]} />
+        <meshStandardMaterial color="#D4A574" />
+      </mesh>
+      <mesh position={[0.1, 0.15, 0]} castShadow>
+        <cylinderGeometry args={[0.02, 0.02, 0.4, 6]} />
+        <meshStandardMaterial color="#5D4037" />
+      </mesh>
+      <mesh position={[0.1, 0.35, 0]} castShadow>
+        <coneGeometry args={[0.15, 0.2, 8]} />
+        <meshStandardMaterial color="#2E7D32" />
+      </mesh>
+      <mesh position={[0.1, 0.45, 0]} castShadow>
+        <coneGeometry args={[0.1, 0.15, 8]} />
+        <meshStandardMaterial color="#4CAF50" />
+      </mesh>
+      <mesh position={[-0.12, 0.1, 0.08]}>
+        <boxGeometry args={[0.12, 0.08, 0.08]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      <mesh position={[-0.12, 0.15, 0.08]}>
+        <boxGeometry args={[0.04, 0.04, 0.01]} />
+        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
 function StepTile({ step, isCurrentPosition }: StepTileProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
   
   const row = Math.floor(step.position / BOARD_COLS);
   const colInRow = step.position % BOARD_COLS;
@@ -95,36 +305,61 @@ function StepTile({ step, isCurrentPosition }: StepTileProps) {
   const x = (col - BOARD_COLS / 2 + 0.5) * STEP_SIZE;
   const z = (row - 5) * STEP_SIZE;
   
-  const color = getStepColor(step.type);
-  const emissive = getStepEmissive(step.type);
+  const theme = getTileTheme(step.type);
   
   useFrame((state) => {
     if (meshRef.current) {
       if (isCurrentPosition) {
         meshRef.current.position.y = 0.15 + Math.sin(state.clock.elapsedTime * 3) * 0.05;
-      } else if (step.type === "hazard" || step.type === "finish" || step.multiplier) {
-        meshRef.current.position.y = 0.1 + Math.sin(state.clock.elapsedTime * 2 + step.position) * 0.02;
+      } else {
+        meshRef.current.position.y = 0.08 + Math.sin(state.clock.elapsedTime * 0.8 + step.position * 0.5) * 0.02;
       }
+    }
+    if (glowRef.current && isCurrentPosition) {
+      glowRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 4) * 0.1);
     }
   });
 
+  const isSafe = step.type === "safe";
+  const isMultiplier = step.type.startsWith("multiplier");
+  const isHazard = step.type === "hazard";
+  const isResetTrap = step.type === "reset_trap";
+  const isFinish = step.type === "finish";
+  const isPowerup = step.type.startsWith("powerup");
+  const isChest = step.type === "bonus_chest";
+
   return (
     <group position={[x, 0, z]}>
+      <WaterTile position={[0, -0.1, 0]} />
+      
       <mesh ref={meshRef} position={[0, 0.1, 0]} castShadow receiveShadow>
-        <boxGeometry args={[STEP_SIZE * 0.9, 0.2, STEP_SIZE * 0.9]} />
+        <cylinderGeometry args={[STEP_SIZE * 0.4, STEP_SIZE * 0.42, 0.15, isSafe ? 6 : 8]} />
         <meshStandardMaterial 
-          color={color} 
-          emissive={emissive}
-          emissiveIntensity={isCurrentPosition ? 0.5 : 0.2}
-          metalness={0.3}
-          roughness={0.7}
+          color={theme.color} 
+          emissive={theme.emissive}
+          emissiveIntensity={isCurrentPosition ? 0.6 : 0.25}
+          metalness={0.2}
+          roughness={0.6}
         />
       </mesh>
       
+      {isCurrentPosition && (
+        <mesh ref={glowRef} position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[STEP_SIZE * 0.45, STEP_SIZE * 0.55, 32]} />
+          <meshStandardMaterial 
+            color="#FFD700"
+            emissive="#FFD700"
+            emissiveIntensity={1}
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+      )}
+      
       <Text
-        position={[0, 0.25, 0]}
+        position={[0, 0.22, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.35}
+        fontSize={0.25}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
@@ -135,164 +370,179 @@ function StepTile({ step, isCurrentPosition }: StepTileProps) {
         {step.position}
       </Text>
       
-      {step.multiplier && step.type !== "finish" && (
-        <mesh position={[0, 0.35, 0]}>
-          <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
-          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.3} />
-        </mesh>
+      {isMultiplier && step.multiplier && (
+        <GoldCoin position={[0, 0.35, 0]} multiplier={step.multiplier} />
       )}
       
-      {step.type === "hazard" && (
-        <mesh position={[0, 0.35, 0]} rotation={[0, Math.PI / 4, 0]}>
-          <boxGeometry args={[0.2, 0.3, 0.2]} />
-          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
-        </mesh>
+      {isHazard && (
+        <SeaMonster position={[0, 0.35, 0]} />
       )}
       
-      {step.type === "finish" && (
-        <mesh position={[0, 0.45, 0]}>
-          <coneGeometry args={[0.25, 0.4, 4]} />
-          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.5} />
-        </mesh>
+      {isResetTrap && (
+        <Whirlpool position={[0, 0.25, 0]} />
+      )}
+      
+      {isFinish && (
+        <TreasureIsland position={[0, 0.25, 0]} />
       )}
       
       {step.type === "powerup_shield" && (
-        <mesh position={[0, 0.4, 0]}>
-          <sphereGeometry args={[0.2, 16, 16]} />
-          <meshStandardMaterial color="#63b3ed" emissive="#63b3ed" emissiveIntensity={0.6} transparent opacity={0.8} />
-        </mesh>
+        <Shield position={[0, 0.4, 0]} />
       )}
       
       {step.type === "powerup_double" && (
-        <mesh position={[0, 0.4, 0]}>
-          <torusGeometry args={[0.15, 0.06, 8, 16]} />
-          <meshStandardMaterial color="#f6e05e" emissive="#f6e05e" emissiveIntensity={0.6} />
-        </mesh>
+        <DevilFruit position={[0, 0.35, 0]} />
       )}
       
       {step.type === "powerup_skip" && (
-        <mesh position={[0, 0.4, 0]} rotation={[0, 0, Math.PI / 4]}>
+        <mesh position={[0, 0.35, 0]} rotation={[0, 0, Math.PI / 4]}>
           <boxGeometry args={[0.25, 0.08, 0.08]} />
-          <meshStandardMaterial color="#68d391" emissive="#68d391" emissiveIntensity={0.6} />
+          <meshStandardMaterial color="#4CAF50" emissive="#2E7D32" emissiveIntensity={0.6} />
         </mesh>
       )}
       
-      {step.type === "bonus_chest" && (
-        <mesh position={[0, 0.35, 0]}>
-          <boxGeometry args={[0.25, 0.2, 0.18]} />
-          <meshStandardMaterial color="#ed8936" emissive="#ed8936" emissiveIntensity={0.4} />
-        </mesh>
+      {isChest && (
+        <TreasureChest position={[0, 0.25, 0]} floating />
       )}
       
-      {step.type === "reset_trap" && (
-        <group position={[0, 0.35, 0]}>
-          <mesh rotation={[0, 0, Math.PI]}>
-            <coneGeometry args={[0.18, 0.25, 3]} />
-            <meshStandardMaterial color="#6b21a8" emissive="#9333ea" emissiveIntensity={0.7} />
-          </mesh>
-          <mesh position={[0, -0.15, 0]}>
-            <sphereGeometry args={[0.12, 8, 8]} />
-            <meshStandardMaterial color="#7c3aed" emissive="#a855f7" emissiveIntensity={0.5} />
-          </mesh>
-        </group>
-      )}
-      
-      {(step.type === "multiplier_8x" || step.type === "multiplier_10x" || step.type === "multiplier_11x") && (
-        <mesh position={[0, 0.4, 0]} rotation={[0, 0, 0]}>
-          <octahedronGeometry args={[0.2]} />
-          <meshStandardMaterial color="#9f7aea" emissive="#b794f4" emissiveIntensity={0.6} />
-        </mesh>
+      {step.multiplier && step.type !== "finish" && (
+        <Text
+          position={[0, 0.55, 0]}
+          rotation={[-Math.PI / 4, 0, 0]}
+          fontSize={0.18}
+          color="#FFD700"
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+          outlineWidth={0.02}
+          outlineColor="#000000"
+        >
+          {step.multiplier}x
+        </Text>
       )}
     </group>
   );
 }
 
-function LogoWall() {
-  const logoTexture = useTexture("/textures/dashkids-logo.jpg");
+function OceanBackground() {
+  const meshRef = useRef<THREE.Mesh>(null);
   
+  useFrame((state) => {
+    if (meshRef.current && meshRef.current.material) {
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.1 + Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
+    }
+  });
+
   return (
-    <group position={[0, 4, -12]}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[16, 8, 0.5]} />
-        <meshStandardMaterial color="#2d3748" metalness={0.2} roughness={0.8} />
-      </mesh>
-      
-      <mesh position={[0, 0, 0.26]}>
-        <planeGeometry args={[8, 8]} />
-        <meshStandardMaterial 
-          map={logoTexture} 
-          emissive="#ffffff"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-      
-      <pointLight position={[0, 2, 2]} intensity={0.5} color="#f6e05e" />
-    </group>
+    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
+      <planeGeometry args={[60, 60]} />
+      <meshStandardMaterial 
+        color="#0D47A1"
+        emissive="#1565C0"
+        emissiveIntensity={0.1}
+        metalness={0.3}
+        roughness={0.6}
+      />
+    </mesh>
   );
 }
 
-function Landscape() {
-  const mountainPositions = useMemo(() => [
-    { x: -15, z: -20, scale: 4, color: "#4a5568" },
-    { x: -8, z: -25, scale: 6, color: "#2d3748" },
-    { x: 5, z: -22, scale: 5, color: "#4a5568" },
-    { x: 15, z: -18, scale: 4.5, color: "#2d3748" },
-    { x: 20, z: -25, scale: 7, color: "#4a5568" },
-    { x: -20, z: -28, scale: 5.5, color: "#1a202c" },
-  ], []);
-  
-  const treePositions = useMemo(() => [
-    { x: -10, z: -8 },
-    { x: -12, z: -6 },
-    { x: 10, z: -7 },
-    { x: 12, z: -5 },
-    { x: -11, z: 8 },
-    { x: 11, z: 9 },
-    { x: -13, z: 6 },
-    { x: 13, z: 7 },
-  ], []);
-  
+function ParchmentBoard() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.15, 0]} receiveShadow>
+      <planeGeometry args={[14, 14]} />
+      <meshStandardMaterial 
+        color="#D4A574"
+        emissive="#8B6914"
+        emissiveIntensity={0.05}
+        metalness={0.1}
+        roughness={0.9}
+      />
+    </mesh>
+  );
+}
+
+function SunsetSky() {
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#1a365d" />
+      <mesh position={[20, 12, -25]}>
+        <sphereGeometry args={[4, 32, 32]} />
+        <meshStandardMaterial 
+          color="#FF6B35"
+          emissive="#FF4500"
+          emissiveIntensity={1}
+        />
       </mesh>
+      <pointLight position={[20, 12, -25]} intensity={0.8} color="#FF6B35" distance={80} />
       
-      {mountainPositions.map((mt, i) => (
-        <mesh key={i} position={[mt.x, mt.scale / 2 - 0.5, mt.z]} castShadow>
-          <coneGeometry args={[mt.scale * 0.8, mt.scale, 6]} />
-          <meshStandardMaterial color={mt.color} flatShading />
-        </mesh>
-      ))}
-      
-      {treePositions.map((tree, i) => (
-        <group key={i} position={[tree.x, 0, tree.z]}>
-          <mesh position={[0, 0.5, 0]} castShadow>
-            <cylinderGeometry args={[0.15, 0.2, 1, 8]} />
-            <meshStandardMaterial color="#5D4037" />
+      <mesh position={[-15, 8, -20]}>
+        <sphereGeometry args={[1.5, 16, 16]} />
+        <meshStandardMaterial color="#FFE4B5" emissive="#FFA500" emissiveIntensity={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function DistantIslands() {
+  const islands = useMemo(() => [
+    { x: -18, z: -15, scale: 2.5 },
+    { x: 18, z: -12, scale: 2 },
+    { x: -12, z: -20, scale: 3 },
+    { x: 15, z: -22, scale: 2.8 },
+    { x: 0, z: -25, scale: 4 },
+  ], []);
+
+  return (
+    <group>
+      {islands.map((island, i) => (
+        <group key={i} position={[island.x, 0, island.z]}>
+          <mesh castShadow>
+            <coneGeometry args={[island.scale * 0.8, island.scale * 1.2, 8]} />
+            <meshStandardMaterial color="#228B22" flatShading />
           </mesh>
-          <mesh position={[0, 1.5, 0]} castShadow>
-            <coneGeometry args={[0.8, 2, 8]} />
-            <meshStandardMaterial color="#2E7D32" />
+          <mesh position={[0, island.scale * 0.6, 0]} castShadow>
+            <coneGeometry args={[island.scale * 0.5, island.scale * 0.8, 8]} />
+            <meshStandardMaterial color="#2E8B57" flatShading />
           </mesh>
-          <mesh position={[0, 2.2, 0]} castShadow>
-            <coneGeometry args={[0.6, 1.5, 8]} />
-            <meshStandardMaterial color="#388E3C" />
+          <mesh position={[island.scale * 0.3, island.scale * 0.3, 0]} castShadow>
+            <cylinderGeometry args={[0.1, 0.1, island.scale * 0.8, 6]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          <mesh position={[island.scale * 0.3, island.scale * 0.7, 0]} castShadow>
+            <sphereGeometry args={[island.scale * 0.25, 8, 8]} />
+            <meshStandardMaterial color="#228B22" />
           </mesh>
         </group>
       ))}
-      
-      <mesh position={[15, 8, -30]}>
-        <sphereGeometry args={[2, 32, 32]} />
-        <meshStandardMaterial color="#f6e05e" emissive="#f6e05e" emissiveIntensity={0.8} />
-      </mesh>
-      <pointLight position={[15, 8, -30]} intensity={0.3} color="#f6e05e" distance={50} />
-      
-      <mesh position={[-8, 6, -35]}>
-        <sphereGeometry args={[1, 16, 16]} />
-        <meshStandardMaterial color="#a0aec0" emissive="#a0aec0" emissiveIntensity={0.2} />
-      </mesh>
+    </group>
+  );
+}
+
+function FloatingShips() {
+  const ships = useMemo(() => [
+    { x: -10, z: 8 },
+    { x: 12, z: 10 },
+  ], []);
+
+  return (
+    <group>
+      {ships.map((ship, i) => (
+        <group key={i} position={[ship.x, 0.5, ship.z]}>
+          <mesh rotation={[0, i * Math.PI / 3, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.3, 0.4]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          <mesh position={[0, 0.4, 0]} castShadow>
+            <cylinderGeometry args={[0.03, 0.03, 0.6, 6]} />
+            <meshStandardMaterial color="#5D4037" />
+          </mesh>
+          <mesh position={[0, 0.5, 0.08]} rotation={[0, Math.PI / 2, 0]} castShadow>
+            <planeGeometry args={[0.3, 0.4]} />
+            <meshStandardMaterial color="#FFFFFF" side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
@@ -311,13 +561,11 @@ export function GameBoard() {
 
   return (
     <group>
-      <Landscape />
-      <LogoWall />
-      
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-        <planeGeometry args={[20, 15]} />
-        <meshStandardMaterial color="#1a202c" />
-      </mesh>
+      <OceanBackground />
+      <ParchmentBoard />
+      <SunsetSky />
+      <DistantIslands />
+      <FloatingShips />
       
       {visibleBoard.map((step) => (
         <StepTile

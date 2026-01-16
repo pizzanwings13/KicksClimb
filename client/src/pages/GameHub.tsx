@@ -423,11 +423,11 @@ function GameCard({ title, description, icon, route, gradient, available, coming
 
 const GAMES: GameCardProps[] = [
   {
-    title: "Kicks Climb",
-    description: "Bet KICKS tokens and climb 100 steps. Land on multipliers to boost winnings, avoid hazards, or cash out anytime!",
+    title: "DASHKIDS Treasure Quest",
+    description: "Sail the seas and hunt for treasure! Land on loot to boost your bounty, avoid sea monsters, or cash out anytime!",
     icon: <Mountain className="w-6 h-6 text-white" />,
-    route: "/kicks-climb",
-    gradient: "bg-gradient-to-br from-purple-600 to-indigo-600",
+    route: "/treasure-quest",
+    gradient: "bg-gradient-to-br from-amber-600 to-orange-600",
     available: true,
   },
   {

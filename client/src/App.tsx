@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 
 import { GameHub } from "./pages/GameHub";
-import { KicksClimbApp } from "./games/kicks-climb/KicksClimbApp";
+import { TreasureQuestApp } from "./games/kicks-climb/KicksClimbApp";
 import { RabbitRushApp } from "./games/rabbit-rush/RabbitRushApp";
 import { EndlessRunnerApp } from "./games/endless-runner/EndlessRunnerApp";
 import { BunnyBladeApp } from "./games/bunny-blade/BunnyBladeApp";
@@ -134,8 +134,8 @@ function App() {
       <WalletModalManager />
       
       <Switch>
-        <Route path="/kicks-climb">
-          <KicksClimbApp />
+        <Route path="/treasure-quest">
+          <TreasureQuestApp />
         </Route>
         <Route path="/rabbit-rush">
           <RabbitRushApp />

@@ -62,7 +62,7 @@ function BackToHubButton() {
   );
 }
 
-export function KicksClimbApp() {
+export function TreasureQuestApp() {
   const [isMobile, setIsMobile] = useState(false);
   const { phase } = useGameState();
   const { isConnected } = useWallet();
@@ -113,11 +113,11 @@ export function KicksClimbApp() {
             powerPreference: isMobile ? "low-power" : "default"
           }}
           style={{
-            background: 'linear-gradient(to bottom, #1a1a2e, #16213e, #0f0f23)'
+            background: 'linear-gradient(to bottom, #FF7F50, #FF6347, #1E90FF, #0D47A1)'
           }}
         >
-          <color attach="background" args={["#0f0f23"]} />
-          <fog attach="fog" args={["#0f0f23", 60, 120]} />
+          <color attach="background" args={["#1E90FF"]} />
+          <fog attach="fog" args={["#87CEEB", 40, 100]} />
           <GameScene />
         </Canvas>
       )}
