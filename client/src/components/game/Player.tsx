@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
@@ -127,6 +128,7 @@ function Sail() {
 
 function PirateFlag() {
   const flagRef = useRef<THREE.Group>(null);
+  const texture = useTexture("/textures/pirate-flag.jpg");
 
   useFrame((state) => {
     if (flagRef.current) {
@@ -136,21 +138,14 @@ function PirateFlag() {
 
   return (
     <group ref={flagRef} position={[0, 1, 0.1]}>
-      <mesh position={[0.12, 0, 0]}>
-        <planeGeometry args={[0.25, 0.18]} />
-        <meshStandardMaterial color="#1a1a1a" side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0.12, 0, 0.01]}>
-        <circleGeometry args={[0.035, 8]} />
-        <meshStandardMaterial color="#FFFFFF" />
-      </mesh>
-      <mesh position={[0.08, -0.025, 0.01]} rotation={[0, 0, Math.PI / 4]}>
-        <boxGeometry args={[0.06, 0.015, 0.01]} />
-        <meshStandardMaterial color="#FFFFFF" />
-      </mesh>
-      <mesh position={[0.16, -0.025, 0.01]} rotation={[0, 0, -Math.PI / 4]}>
-        <boxGeometry args={[0.06, 0.015, 0.01]} />
-        <meshStandardMaterial color="#FFFFFF" />
+      <mesh position={[0.15, 0, 0]}>
+        <planeGeometry args={[0.35, 0.35]} />
+        <meshStandardMaterial 
+          map={texture} 
+          side={THREE.DoubleSide}
+          transparent
+          alphaTest={0.1}
+        />
       </mesh>
     </group>
   );
