@@ -361,7 +361,117 @@ function Seagull({ position, speed = 1 }: { position: [number, number, number]; 
   );
 }
 
-function LandingIndicator({ position, isActive }: { position: [number, number, number]; isActive: boolean }) {
+function FloatingIcon({ type, position }: { type: string; position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.3;
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.5;
+    }
+  });
+
+  const getIconContent = () => {
+    if (type.includes("multiplier")) {
+      const mult = type.replace("multiplier_", "").replace("x", "").replace("_", ".");
+      return (
+        <group>
+          <mesh>
+            <cylinderGeometry args={[0.4, 0.4, 0.1, 16]} />
+            <meshStandardMaterial color="#FFD700" metalness={0.8} roughness={0.2} emissive="#FFD700" emissiveIntensity={0.3} />
+          </mesh>
+          <mesh position={[0, 0.06, 0]}>
+            <cylinderGeometry args={[0.3, 0.3, 0.05, 16]} />
+            <meshStandardMaterial color="#FFA500" metalness={0.6} roughness={0.3} />
+          </mesh>
+        </group>
+      );
+    }
+    if (type === "hazard" || type === "reset_trap") {
+      return (
+        <group>
+          <mesh>
+            <sphereGeometry args={[0.35, 8, 8]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+          <mesh position={[0.12, 0.15, 0.25]}>
+            <sphereGeometry args={[0.08, 6, 6]} />
+            <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={0.5} />
+          </mesh>
+          <mesh position={[-0.12, 0.15, 0.25]}>
+            <sphereGeometry args={[0.08, 6, 6]} />
+            <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      );
+    }
+    if (type === "bonus_chest") {
+      return (
+        <group>
+          <mesh>
+            <boxGeometry args={[0.5, 0.35, 0.35]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          <mesh position={[0, 0.22, 0]}>
+            <boxGeometry args={[0.55, 0.1, 0.38]} />
+            <meshStandardMaterial color="#A0522D" />
+          </mesh>
+          <mesh position={[0, 0.1, 0.18]}>
+            <boxGeometry args={[0.1, 0.1, 0.05]} />
+            <meshStandardMaterial color="#FFD700" metalness={0.8} roughness={0.2} />
+          </mesh>
+        </group>
+      );
+    }
+    if (type.includes("powerup_shield")) {
+      return (
+        <mesh>
+          <sphereGeometry args={[0.35, 16, 16]} />
+          <meshStandardMaterial color="#00BFFF" transparent opacity={0.7} emissive="#00BFFF" emissiveIntensity={0.4} />
+        </mesh>
+      );
+    }
+    if (type.includes("powerup_skip")) {
+      return (
+        <group rotation={[0, 0, -Math.PI / 2]}>
+          <mesh>
+            <coneGeometry args={[0.25, 0.5, 8]} />
+            <meshStandardMaterial color="#00FF00" emissive="#00FF00" emissiveIntensity={0.3} />
+          </mesh>
+        </group>
+      );
+    }
+    if (type === "finish") {
+      return (
+        <group>
+          <mesh>
+            <cylinderGeometry args={[0.05, 0.05, 0.8, 8]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          <mesh position={[0.2, 0.25, 0]}>
+            <boxGeometry args={[0.4, 0.3, 0.05]} />
+            <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      );
+    }
+    return (
+      <mesh>
+        <torusGeometry args={[0.3, 0.08, 8, 16]} />
+        <meshStandardMaterial color="#32CD32" emissive="#32CD32" emissiveIntensity={0.3} />
+      </mesh>
+    );
+  };
+
+  return (
+    <group ref={groupRef} position={[position[0], position[1] + 2, position[2]]}>
+      {getIconContent()}
+      <pointLight position={[0, 0.5, 0]} intensity={0.5} color="#FFFFFF" distance={3} />
+    </group>
+  );
+}
+
+function LandingIndicator({ position, isActive, type }: { position: [number, number, number]; isActive: boolean; type?: string }) {
   const ringRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
@@ -375,17 +485,20 @@ function LandingIndicator({ position, isActive }: { position: [number, number, n
   if (!isActive) return null;
 
   return (
-    <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[1.5, 2, 24]} />
-      <meshStandardMaterial 
-        color="#FFFFFF"
-        emissive="#FFFFFF"
-        emissiveIntensity={1}
-        transparent
-        opacity={0.7}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
+    <group>
+      <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.5, 2, 24]} />
+        <meshStandardMaterial 
+          color="#FFFFFF"
+          emissive="#FFFFFF"
+          emissiveIntensity={1}
+          transparent
+          opacity={0.7}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      {type && <FloatingIcon type={type} position={position} />}
+    </group>
   );
 }
 
@@ -466,7 +579,8 @@ export function GameBoard() {
               
               <LandingIndicator 
                 position={[island.x, 0.2, island.z]} 
-                isActive={isCurrentIsland && !isMoving} 
+                isActive={isCurrentIsland && !isMoving}
+                type={island.type}
               />
             </group>
           );
