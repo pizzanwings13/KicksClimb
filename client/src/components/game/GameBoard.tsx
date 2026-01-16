@@ -395,13 +395,13 @@ export function GameBoard() {
   
   const islandPositions = useMemo(() => {
     return board.map((step: { position: number; type: string }, i: number) => {
-      const xOffset = ((i * 7.3) % 8) - 4;
-      const showSafeIsland = step.type !== "safe" || (i % 3 === 0);
+      const xOffset = ((i * 17.3 + step.position * 7.1) % 14) - 7;
+      const showSafeIsland = step.type !== "safe" || (i % 4 === 0);
       return {
         position: step.position,
         type: step.type,
         x: xOffset,
-        z: -step.position * 3,
+        z: -step.position * 8,
         show: showSafeIsland
       };
     }).filter((item: { show: boolean }) => item.show);
@@ -433,11 +433,11 @@ export function GameBoard() {
 
   useFrame((_, delta) => {
     if (worldGroupRef.current) {
-      const targetZ = currentPosition * 3;
+      const targetZ = currentPosition * 8;
       worldGroupRef.current.position.z = THREE.MathUtils.lerp(
         worldGroupRef.current.position.z,
         targetZ,
-        delta * (isMoving ? 4 : 2)
+        delta * (isMoving ? 3 : 1.5)
       );
     }
   });
@@ -454,8 +454,7 @@ export function GameBoard() {
       <group ref={worldGroupRef}>
         {islandPositions.map((island: { position: number; type: string; x: number; z: number; show: boolean }, i: number) => {
           const isCurrentIsland = island.position === currentPosition;
-          const islandX = island.type === "safe" ? island.x : 0;
-          const pos: [number, number, number] = [islandX, 0.5, island.z];
+          const pos: [number, number, number] = [island.x, 0.5, island.z];
           
           return (
             <group key={`island-${island.position}`}>
@@ -466,7 +465,7 @@ export function GameBoard() {
               {island.type === "safe" && <SafeIsland position={pos} />}
               
               <LandingIndicator 
-                position={[islandX, 0.2, island.z]} 
+                position={[island.x, 0.2, island.z]} 
                 isActive={isCurrentIsland && !isMoving} 
               />
             </group>

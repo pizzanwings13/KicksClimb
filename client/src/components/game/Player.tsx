@@ -1,7 +1,16 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
+
+function calculateTargetX(currentPosition: number, board: { position: number; type: string }[]): number {
+  const currentStep = board.find(step => step.position === currentPosition);
+  if (!currentStep) return 0;
+  
+  const index = board.findIndex(step => step.position === currentPosition);
+  const xOffset = ((index * 17.3 + currentPosition * 7.1) % 14) - 7;
+  return xOffset;
+}
 
 function WakeEffect({ intensity = 1 }: { intensity?: number }) {
   const wakeRef = useRef<THREE.Group>(null);
@@ -241,15 +250,28 @@ function GoldenGlow({ active }: { active: boolean }) {
 
 export function Player() {
   const groupRef = useRef<THREE.Group>(null);
-  const { phase, isMoving, isOnFire, streak } = useGameState();
+  const { phase, isMoving, isOnFire, streak, currentPosition, board } = useGameState();
+  const targetXRef = useRef(0);
+  const currentXRef = useRef(0);
 
-  useFrame((state) => {
+  const targetX = useMemo(() => {
+    return calculateTargetX(currentPosition, board);
+  }, [currentPosition, board]);
+
+  useEffect(() => {
+    targetXRef.current = targetX;
+  }, [targetX]);
+
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
 
+    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 2.5 : 1.5));
+    
     const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.15;
     const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.05;
     const rollBob = Math.sin(state.clock.elapsedTime * 0.7) * 0.08;
 
+    groupRef.current.position.x = currentXRef.current;
     groupRef.current.position.y = 0.6 + bobOffset;
     groupRef.current.rotation.x = pitchBob;
     groupRef.current.rotation.z = rollBob;
@@ -257,6 +279,10 @@ export function Player() {
     if (isMoving) {
       groupRef.current.rotation.x = pitchBob + 0.12;
       groupRef.current.position.y = 0.8 + bobOffset;
+      const turnAngle = (targetXRef.current - currentXRef.current) * 0.05;
+      groupRef.current.rotation.y = THREE.MathUtils.clamp(turnAngle, -0.3, 0.3);
+    } else {
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, delta * 2);
     }
   });
 

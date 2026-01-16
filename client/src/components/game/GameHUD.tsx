@@ -195,9 +195,9 @@ export function GameHUD() {
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-start pointer-events-auto gap-2">
         <div className="flex-shrink-0 w-[120px] sm:w-auto">
           <div className="bg-amber-950/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-1.5 sm:p-4 border border-amber-500/30">
-            <div className="text-[10px] sm:text-sm text-amber-300">Current Tile</div>
+            <div className="text-[10px] sm:text-sm text-amber-300">Current Island</div>
             <div className="text-sm sm:text-2xl font-bold text-white whitespace-nowrap">
-              Tile {currentPosition} <span className="text-amber-400/50 text-xs sm:text-lg">/ 100</span>
+              Island {currentPosition} <span className="text-amber-400/50 text-xs sm:text-lg">/ 100</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-1 sm:h-2 mt-1">
               <div
@@ -343,7 +343,7 @@ export function GameHUD() {
                   <>
                     <AlertTriangle className="w-10 h-10 sm:w-16 sm:h-16 text-red-500 mx-auto mb-2 sm:mb-4" />
                     <h2 className="text-xl sm:text-3xl font-bold text-red-400 mb-1 sm:mb-2">Ship Sunk!</h2>
-                    <p className="text-sm sm:text-base text-amber-200">Sea monster at tile {currentPosition}</p>
+                    <p className="text-sm sm:text-base text-amber-200">Sea monster at island {currentPosition}</p>
                     <p className="text-lg sm:text-xl text-red-400 mt-1 sm:mt-2">
                       Lost {parseFloat(betAmount).toLocaleString()} KICKS
                     </p>
@@ -356,8 +356,8 @@ export function GameHUD() {
                     </h2>
                     <p className="text-sm sm:text-base text-amber-200">
                       {phase === "won" 
-                        ? `Reached treasure island at tile ${currentPosition}!`
-                        : `Tile ${currentPosition}`
+                        ? `Reached treasure island at island ${currentPosition}!`
+                        : `Island ${currentPosition}`
                       }
                     </p>
                     <div className="mt-2 sm:mt-4 flex justify-center gap-6">
