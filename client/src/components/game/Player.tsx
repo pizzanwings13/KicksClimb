@@ -128,7 +128,7 @@ function Sail() {
 
 function PirateFlagWithTexture() {
   const flagRef = useRef<THREE.Group>(null);
-  const texture = useLoader(TextureLoader, "/textures/pirate-flag.jpg");
+  const texture = useLoader(TextureLoader, "/textures/pirate-flag.png");
 
   useFrame((state) => {
     if (flagRef.current) {
@@ -285,7 +285,7 @@ export function Player() {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 0.8 : 0.5));
+    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 1.5 : 1.0));
     
     const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.15;
     const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.05;

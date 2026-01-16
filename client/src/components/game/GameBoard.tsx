@@ -437,7 +437,7 @@ export function GameBoard() {
       worldGroupRef.current.position.z = THREE.MathUtils.lerp(
         worldGroupRef.current.position.z,
         targetZ,
-        delta * (isMoving ? 0.8 : 0.5)
+        delta * (isMoving ? 1.5 : 1.0)
       );
     }
   });
