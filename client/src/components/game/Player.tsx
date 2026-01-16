@@ -314,7 +314,7 @@ export function Player() {
   const fireIntensity = Math.min(streak / 5, 1.5);
 
   return (
-    <group ref={groupRef} position={[0, 0.6, 0]} scale={1.3}>
+    <group ref={groupRef} position={[0, 0.6, 3]} scale={1.5}>
       <ShipHull />
       <ShipDeck />
       <Mast />
