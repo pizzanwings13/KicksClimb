@@ -123,39 +123,39 @@ function TreasureIsland({ position, discovered }: { position: [number, number, n
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.4) * 0.1;
+      groupRef.current.position.y = position[1] + 0.8 + Math.sin(state.clock.elapsedTime * 0.4) * 0.05;
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} scale={1.5}>
       <mesh castShadow receiveShadow>
-        <coneGeometry args={[2.5, 1.5, 8]} />
+        <coneGeometry args={[2.5, 1.8, 8]} />
         <meshStandardMaterial color="#F4A460" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <coneGeometry args={[0.3, 2, 6]} />
+      <mesh position={[0, 1.4, 0]} castShadow>
+        <coneGeometry args={[0.35, 2.5, 6]} />
         <meshStandardMaterial color="#228B22" />
       </mesh>
-      <mesh position={[-0.5, 0.9, 0.5]} castShadow>
-        <coneGeometry args={[0.25, 1.5, 6]} />
+      <mesh position={[-0.6, 1.1, 0.5]} castShadow>
+        <coneGeometry args={[0.3, 2, 6]} />
         <meshStandardMaterial color="#2E8B57" />
       </mesh>
       
-      <mesh position={[0.8, 0.8, -0.3]} castShadow>
-        <boxGeometry args={[0.5, 0.35, 0.35]} />
+      <mesh position={[0.9, 1, -0.3]} castShadow>
+        <boxGeometry args={[0.6, 0.4, 0.4]} />
         <meshStandardMaterial color="#8B4513" metalness={0.3} roughness={0.7} />
       </mesh>
-      <mesh position={[0.8, 1, -0.3]}>
-        <boxGeometry args={[0.12, 0.12, 0.03]} />
+      <mesh position={[0.9, 1.25, -0.3]}>
+        <boxGeometry args={[0.15, 0.15, 0.04]} />
         <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={1} metalness={0.9} />
       </mesh>
       
-      <GlowRing position={[0, 2.5, 0]} color="#FFD700" label="TREASURE" />
+      <GlowRing position={[0, 3, 0]} color="#FFD700" label="TREASURE" />
       
       {!discovered && (
-        <mesh position={[0, 3.5, 0]}>
-          <sphereGeometry args={[0.3, 8, 8]} />
+        <mesh position={[0, 4, 0]}>
+          <sphereGeometry args={[0.35, 8, 8]} />
           <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={1.5} />
         </mesh>
       )}
@@ -168,38 +168,38 @@ function MonsterIsland({ position }: { position: [number, number, number] }) {
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.12;
+      groupRef.current.position.y = position[1] + 0.8 + Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} scale={1.5}>
       <mesh castShadow receiveShadow>
-        <coneGeometry args={[2.2, 1.8, 8]} />
+        <coneGeometry args={[2.2, 2, 8]} />
         <meshStandardMaterial color="#4A4A4A" roughness={0.95} />
       </mesh>
       
-      <mesh position={[0.4, 1.2, 0]} castShadow>
+      <mesh position={[0.4, 1.4, 0]} castShadow>
+        <coneGeometry args={[0.3, 1, 5]} />
+        <meshStandardMaterial color="#333333" roughness={0.9} />
+      </mesh>
+      <mesh position={[-0.5, 1.2, 0.3]} castShadow>
         <coneGeometry args={[0.25, 0.8, 5]} />
         <meshStandardMaterial color="#333333" roughness={0.9} />
       </mesh>
-      <mesh position={[-0.5, 1, 0.3]} castShadow>
-        <coneGeometry args={[0.2, 0.6, 5]} />
-        <meshStandardMaterial color="#333333" roughness={0.9} />
-      </mesh>
       
-      <mesh position={[0, 0.5, 0.8]}>
+      <mesh position={[0, 0.7, 0.9]}>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.35, 0.7, 0.85]}>
         <sphereGeometry args={[0.15, 8, 8]} />
         <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={1.5} />
       </mesh>
-      <mesh position={[0.3, 0.5, 0.75]}>
-        <sphereGeometry args={[0.12, 8, 8]} />
-        <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={1.5} />
-      </mesh>
       
-      <GlowRing position={[0, 2.5, 0]} color="#FF4444" label="DANGER" />
+      <GlowRing position={[0, 3, 0]} color="#FF4444" label="DANGER" />
       
-      <pointLight position={[0, 1.5, 0]} color="#FF4444" intensity={0.8} distance={5} />
+      <pointLight position={[0, 2, 0]} color="#FF4444" intensity={1} distance={6} />
     </group>
   );
 }
@@ -209,30 +209,30 @@ function SafeIsland({ position }: { position: [number, number, number] }) {
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.35) * 0.08;
+      groupRef.current.position.y = position[1] + 0.8 + Math.sin(state.clock.elapsedTime * 0.35) * 0.04;
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} scale={1.5}>
       <mesh castShadow receiveShadow>
-        <coneGeometry args={[2, 1.2, 8]} />
+        <coneGeometry args={[2, 1.5, 8]} />
         <meshStandardMaterial color="#DEB887" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 1, 0]} castShadow>
-        <coneGeometry args={[0.28, 1.8, 6]} />
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <coneGeometry args={[0.35, 2.2, 6]} />
         <meshStandardMaterial color="#32CD32" />
       </mesh>
-      <mesh position={[0.5, 0.8, 0.4]} castShadow>
-        <coneGeometry args={[0.22, 1.3, 6]} />
+      <mesh position={[0.6, 1, 0.4]} castShadow>
+        <coneGeometry args={[0.28, 1.6, 6]} />
         <meshStandardMaterial color="#228B22" />
       </mesh>
-      <mesh position={[-0.4, 0.85, -0.3]} castShadow>
-        <coneGeometry args={[0.18, 1.1, 6]} />
+      <mesh position={[-0.5, 1, -0.3]} castShadow>
+        <coneGeometry args={[0.22, 1.3, 6]} />
         <meshStandardMaterial color="#2E8B57" />
       </mesh>
       
-      <GlowRing position={[0, 2.2, 0]} color="#4CAF50" label="SAFE" />
+      <GlowRing position={[0, 2.8, 0]} color="#4CAF50" label="SAFE" />
     </group>
   );
 }
@@ -242,31 +242,31 @@ function BonusIsland({ position }: { position: [number, number, number] }) {
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.6) * 0.15;
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+      groupRef.current.position.y = position[1] + 0.8 + Math.sin(state.clock.elapsedTime * 0.6) * 0.06;
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.05;
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} scale={1.5}>
       <mesh castShadow receiveShadow>
-        <coneGeometry args={[2.3, 1.4, 8]} />
+        <coneGeometry args={[2.3, 1.6, 8]} />
         <meshStandardMaterial color="#87CEEB" roughness={0.8} />
       </mesh>
       
-      <mesh position={[0, 1.5, 0]}>
-        <torusGeometry args={[0.8, 0.15, 8, 16]} />
+      <mesh position={[0, 1.7, 0]}>
+        <torusGeometry args={[0.9, 0.18, 8, 16]} />
         <meshStandardMaterial color="#00BFFF" emissive="#00BFFF" emissiveIntensity={0.8} />
       </mesh>
       
-      <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.6, 0.12, 8, 16]} />
+      <mesh position={[0, 1.7, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.7, 0.14, 8, 16]} />
         <meshStandardMaterial color="#00CED1" emissive="#00CED1" emissiveIntensity={0.6} />
       </mesh>
       
-      <GlowRing position={[0, 2.8, 0]} color="#00BFFF" label="BONUS" />
+      <GlowRing position={[0, 3.2, 0]} color="#00BFFF" label="BONUS" />
       
-      <pointLight position={[0, 2, 0]} color="#00BFFF" intensity={1} distance={6} />
+      <pointLight position={[0, 2.5, 0]} color="#00BFFF" intensity={1.2} distance={7} />
     </group>
   );
 }
@@ -547,7 +547,7 @@ export function GameBoard() {
       worldGroupRef.current.position.z = THREE.MathUtils.lerp(
         worldGroupRef.current.position.z,
         targetZ,
-        delta * (isMoving ? 3.0 : 2.0)
+        delta * (isMoving ? 0.8 : 1.5)
       );
     }
   });
@@ -574,7 +574,7 @@ export function GameBoard() {
               {island.type === "reset_trap" && <MonsterIsland position={pos} />}
               {island.type === "safe" && <SafeIsland position={pos} />}
               
-              <FloatingIcon type={island.type} position={[island.x, 0.5, island.z]} />
+              <FloatingIcon type={island.type} position={[island.x, 4, island.z]} />
               {isCurrentIsland && !isMoving && (
                 <LandingIndicator 
                   position={[island.x, 0.2, island.z]} 

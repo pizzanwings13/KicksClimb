@@ -285,24 +285,24 @@ export function Player() {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 1.5 : 1.0));
+    currentXRef.current = THREE.MathUtils.lerp(currentXRef.current, targetXRef.current, delta * (isMoving ? 0.6 : 0.8));
     
-    const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.15;
-    const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.05;
-    const rollBob = Math.sin(state.clock.elapsedTime * 0.7) * 0.08;
+    const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.1;
+    const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.03;
+    const rollBob = Math.sin(state.clock.elapsedTime * 0.7) * 0.05;
 
     groupRef.current.position.x = currentXRef.current;
-    groupRef.current.position.y = 0.6 + bobOffset;
+    groupRef.current.position.y = 0.5 + bobOffset;
     groupRef.current.rotation.x = pitchBob;
     groupRef.current.rotation.z = rollBob;
 
     if (isMoving) {
-      groupRef.current.rotation.x = pitchBob + 0.12;
-      groupRef.current.position.y = 0.8 + bobOffset;
-      const turnAngle = (targetXRef.current - currentXRef.current) * 0.05;
-      groupRef.current.rotation.y = THREE.MathUtils.clamp(turnAngle, -0.3, 0.3);
+      groupRef.current.rotation.x = pitchBob + 0.08;
+      groupRef.current.position.y = 0.6 + bobOffset;
+      const turnAngle = (targetXRef.current - currentXRef.current) * 0.03;
+      groupRef.current.rotation.y = THREE.MathUtils.clamp(turnAngle, -0.15, 0.15);
     } else {
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, delta * 2);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, delta * 1.5);
     }
   });
 

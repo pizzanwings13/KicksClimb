@@ -31,26 +31,26 @@ export function GameCamera() {
   useFrame((state, delta) => {
     const isGameActive = phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out";
     
-    currentCameraX.current = THREE.MathUtils.lerp(currentCameraX.current, shipTargetX, delta * 1.5);
+    currentCameraX.current = THREE.MathUtils.lerp(currentCameraX.current, shipTargetX, delta * 0.5);
     
     if (isMobile && isGameActive) {
-      targetRef.current.set(currentCameraX.current, 8, 10);
-      lookAtRef.current.set(currentCameraX.current, 0, -15);
+      targetRef.current.set(currentCameraX.current * 0.3, 10, 12);
+      lookAtRef.current.set(currentCameraX.current * 0.3, 0, -10);
     } else if (isGameActive) {
-      const cameraY = isMoving ? 5 : 5.5;
-      const cameraZ = isMoving ? 6 : 7;
-      targetRef.current.set(currentCameraX.current, cameraY, cameraZ);
-      lookAtRef.current.set(currentCameraX.current, 0, -15);
+      const cameraY = 7;
+      const cameraZ = 10;
+      targetRef.current.set(currentCameraX.current * 0.3, cameraY, cameraZ);
+      lookAtRef.current.set(currentCameraX.current * 0.3, 0, -10);
     } else {
       targetRef.current.set(0, 8, 12);
       lookAtRef.current.set(0, 0, 0);
     }
     
-    camera.position.lerp(targetRef.current, delta * 1.5);
+    camera.position.lerp(targetRef.current, delta * 0.8);
     camera.lookAt(lookAtRef.current);
     
     if (isMoving) {
-      camera.position.y += Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
+      camera.position.y += Math.sin(state.clock.elapsedTime * 1.0) * 0.02;
     }
   });
   
