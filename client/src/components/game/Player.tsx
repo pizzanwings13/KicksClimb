@@ -242,22 +242,21 @@ function GoldenGlow({ active }: { active: boolean }) {
 export function Player() {
   const groupRef = useRef<THREE.Group>(null);
   const { phase, isMoving, isOnFire, streak } = useGameState();
-  const bobOffset = useRef(0);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!groupRef.current) return;
 
-    bobOffset.current = Math.sin(state.clock.elapsedTime * 1.5) * 0.12;
-    const pitchBob = Math.sin(state.clock.elapsedTime * 1.2) * 0.04;
-    const rollBob = Math.sin(state.clock.elapsedTime * 0.8) * 0.06;
+    const bobOffset = Math.sin(state.clock.elapsedTime * 1.2) * 0.15;
+    const pitchBob = Math.sin(state.clock.elapsedTime * 1.0) * 0.05;
+    const rollBob = Math.sin(state.clock.elapsedTime * 0.7) * 0.08;
 
-    groupRef.current.position.y = 0.4 + bobOffset.current;
+    groupRef.current.position.y = 0.6 + bobOffset;
     groupRef.current.rotation.x = pitchBob;
     groupRef.current.rotation.z = rollBob;
 
     if (isMoving) {
-      groupRef.current.rotation.x = pitchBob + 0.08;
-      groupRef.current.position.y = 0.5 + bobOffset.current;
+      groupRef.current.rotation.x = pitchBob + 0.12;
+      groupRef.current.position.y = 0.8 + bobOffset;
     }
   });
 
@@ -266,18 +265,17 @@ export function Player() {
   }
 
   const isVictory = phase === "won" || phase === "cashed_out";
-  const isLost = phase === "lost";
   const fireIntensity = Math.min(streak / 5, 1.5);
 
   return (
-    <group ref={groupRef} position={[0, 0.5, 0]}>
+    <group ref={groupRef} position={[0, 0.6, 0]} scale={1.3}>
       <ShipHull />
       <ShipDeck />
       <Mast />
       <Sail />
       <PirateFlag />
       <GoldenBow />
-      <WakeEffect intensity={isMoving ? 1.5 : 0.8} />
+      <WakeEffect intensity={isMoving ? 1.8 : 1} />
       <FireEffect active={isOnFire} intensity={fireIntensity} />
       <GoldenGlow active={isVictory} />
     </group>

@@ -6,8 +6,8 @@ import { useGameState } from "@/lib/stores/useGameState";
 export function GameCamera() {
   const { camera } = useThree();
   const { phase, isMoving } = useGameState();
-  const targetRef = useRef(new THREE.Vector3(0, 6, 8));
-  const lookAtRef = useRef(new THREE.Vector3(0, 0, -5));
+  const targetRef = useRef(new THREE.Vector3(0, 5, 6));
+  const lookAtRef = useRef(new THREE.Vector3(0, 0, -8));
   
   const [isMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -18,23 +18,24 @@ export function GameCamera() {
     const isGameActive = phase === "playing" || phase === "won" || phase === "lost" || phase === "cashed_out";
     
     if (isMobile && isGameActive) {
-      targetRef.current.set(0, 8, 10);
-      lookAtRef.current.set(0, 0, -8);
+      targetRef.current.set(0, 7, 8);
+      lookAtRef.current.set(0, 0, -12);
     } else if (isGameActive) {
-      const cameraY = isMoving ? 5.5 : 6;
-      const cameraZ = isMoving ? 7 : 8;
+      const cameraY = isMoving ? 4.5 : 5;
+      const cameraZ = isMoving ? 5 : 6;
       targetRef.current.set(0, cameraY, cameraZ);
-      lookAtRef.current.set(0, 0, -10);
+      lookAtRef.current.set(0, 0, -12);
     } else {
       targetRef.current.set(0, 8, 12);
       lookAtRef.current.set(0, 0, 0);
     }
     
-    camera.position.lerp(targetRef.current, delta * 2);
+    camera.position.lerp(targetRef.current, delta * 2.5);
     camera.lookAt(lookAtRef.current);
     
     if (isMoving) {
-      camera.position.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.3;
+      camera.position.x = Math.sin(state.clock.elapsedTime * 0.8) * 0.2;
+      camera.position.y += Math.sin(state.clock.elapsedTime * 1.5) * 0.05;
     }
   });
   

@@ -1,14 +1,16 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameState } from "@/lib/stores/useGameState";
 
-const OCEAN_SIZE = 200;
-const WAVE_SEGMENTS = 48;
+const OCEAN_SIZE = 300;
+const WAVE_SEGMENTS = 64;
 
 function Ocean() {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometryRef = useRef<THREE.PlaneGeometry>(null);
+  const { currentPosition } = useGameState();
+  const scrollOffsetRef = useRef(0);
   
   const initialPositions = useMemo(() => {
     const positions: number[] = [];
@@ -23,18 +25,20 @@ function Ocean() {
     return new Float32Array(positions);
   }, []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (geometryRef.current) {
       const positions = geometryRef.current.attributes.position.array as Float32Array;
       const time = state.clock.elapsedTime;
       
+      scrollOffsetRef.current = THREE.MathUtils.lerp(scrollOffsetRef.current, currentPosition * 0.5, delta * 2);
+      
       for (let i = 0; i < positions.length; i += 3) {
         const x = initialPositions[i];
-        const z = initialPositions[i + 2];
+        const z = initialPositions[i + 2] + scrollOffsetRef.current;
         positions[i + 1] = 
-          Math.sin(x * 0.08 + time * 0.7) * 0.25 +
-          Math.sin(z * 0.1 + time * 0.5) * 0.2 +
-          Math.sin((x + z) * 0.06 + time * 0.3) * 0.12;
+          Math.sin(x * 0.06 + time * 0.8) * 0.3 +
+          Math.sin(z * 0.08 + time * 0.6) * 0.25 +
+          Math.sin((x + z) * 0.04 + time * 0.4) * 0.15;
       }
       geometryRef.current.attributes.position.needsUpdate = true;
       geometryRef.current.computeVertexNormals();
@@ -42,14 +46,14 @@ function Ocean() {
   });
 
   return (
-    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
+    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
       <planeGeometry ref={geometryRef} args={[OCEAN_SIZE, OCEAN_SIZE, WAVE_SEGMENTS, WAVE_SEGMENTS]} />
       <meshStandardMaterial 
-        color="#0077BE"
-        emissive="#004080"
-        emissiveIntensity={0.15}
-        metalness={0.5}
-        roughness={0.5}
+        color="#0088CC"
+        emissive="#003366"
+        emissiveIntensity={0.2}
+        metalness={0.4}
+        roughness={0.6}
         side={THREE.DoubleSide}
       />
     </mesh>
@@ -57,21 +61,31 @@ function Ocean() {
 }
 
 function OceanFoam() {
+  const { currentPosition } = useGameState();
+  const groupRef = useRef<THREE.Group>(null);
+  
   const foamPatches = useMemo(() => {
     const patches: { x: number; z: number; scale: number; offset: number }[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) {
       patches.push({
-        x: ((i * 17.3) % 50) - 25,
-        z: ((i * 23.7) % 80) - 40,
-        scale: 0.6 + (i * 0.7) % 1.2,
+        x: ((i * 17.3) % 60) - 30,
+        z: ((i * 23.7) % 100) - 50,
+        scale: 0.8 + (i * 0.7) % 1.5,
         offset: (i * 1.3) % (Math.PI * 2)
       });
     }
     return patches;
   }, []);
 
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      const targetZ = currentPosition * 0.8;
+      groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 3);
+    }
+  });
+
   return (
-    <group position={[0, 0.05, 0]}>
+    <group ref={groupRef} position={[0, 0.1, 0]}>
       {foamPatches.map((patch, i) => (
         <FoamPatch key={i} position={[patch.x, 0, patch.z]} scale={patch.scale} offset={patch.offset} />
       ))}
@@ -86,128 +100,200 @@ function FoamPatch({ position, scale, offset }: { position: [number, number, num
     if (meshRef.current) {
       meshRef.current.scale.setScalar(scale * (0.8 + Math.sin(state.clock.elapsedTime * 1.5 + offset) * 0.2));
       const mat = meshRef.current.material as THREE.MeshStandardMaterial;
-      mat.opacity = 0.35 + Math.sin(state.clock.elapsedTime * 2 + offset) * 0.15;
+      mat.opacity = 0.4 + Math.sin(state.clock.elapsedTime * 2 + offset) * 0.15;
     }
   });
 
   return (
     <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <circleGeometry args={[0.8, 10]} />
+      <circleGeometry args={[1, 12]} />
       <meshStandardMaterial 
         color="#FFFFFF"
         emissive="#E0F7FA"
-        emissiveIntensity={0.2}
+        emissiveIntensity={0.3}
         transparent
-        opacity={0.4}
+        opacity={0.45}
       />
     </mesh>
   );
 }
 
-function Island({ position, size = 1 }: { position: [number, number, number]; size?: number }) {
+function TreasureIsland({ position, discovered }: { position: [number, number, number]; discovered?: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.3) * 0.08;
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.4) * 0.1;
     }
   });
 
   return (
-    <group ref={groupRef} position={position} scale={size}>
-      <mesh castShadow>
-        <coneGeometry args={[1.8, 1.2, 8]} />
+    <group ref={groupRef} position={position}>
+      <mesh castShadow receiveShadow>
+        <coneGeometry args={[2.5, 1.5, 8]} />
         <meshStandardMaterial color="#F4A460" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 1, 0]} castShadow>
-        <coneGeometry args={[0.25, 1.8, 6]} />
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <coneGeometry args={[0.3, 2, 6]} />
         <meshStandardMaterial color="#228B22" />
       </mesh>
-      <mesh position={[-0.4, 0.8, 0.4]} castShadow>
-        <coneGeometry args={[0.2, 1.3, 6]} />
-        <meshStandardMaterial color="#2E8B2E" />
+      <mesh position={[-0.5, 0.9, 0.5]} castShadow>
+        <coneGeometry args={[0.25, 1.5, 6]} />
+        <meshStandardMaterial color="#2E8B57" />
       </mesh>
-      <mesh position={[0.35, 0.75, -0.25]} castShadow>
-        <coneGeometry args={[0.18, 1.1, 6]} />
-        <meshStandardMaterial color="#32CD32" />
-      </mesh>
-    </group>
-  );
-}
-
-function Rock({ position, size = 1 }: { position: [number, number, number]; size?: number }) {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.04;
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={position} scale={size}>
-      <mesh castShadow>
-        <dodecahedronGeometry args={[0.4, 0]} />
-        <meshStandardMaterial color="#696969" roughness={0.8} />
-      </mesh>
-      <mesh position={[0.25, 0.15, 0.1]} castShadow>
-        <dodecahedronGeometry args={[0.2, 0]} />
-        <meshStandardMaterial color="#808080" roughness={0.9} />
-      </mesh>
-    </group>
-  );
-}
-
-function FloatingTreasure({ position }: { position: [number, number, number] }) {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.12;
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.4;
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={position}>
-      <mesh castShadow>
-        <boxGeometry args={[0.4, 0.28, 0.28]} />
+      
+      <mesh position={[0.8, 0.8, -0.3]} castShadow>
+        <boxGeometry args={[0.5, 0.35, 0.35]} />
         <meshStandardMaterial color="#8B4513" metalness={0.3} roughness={0.7} />
       </mesh>
-      <mesh position={[0, 0.16, 0]} castShadow>
-        <boxGeometry args={[0.42, 0.1, 0.3]} />
-        <meshStandardMaterial color="#A0522D" metalness={0.4} roughness={0.6} />
+      <mesh position={[0.8, 1, -0.3]}>
+        <boxGeometry args={[0.12, 0.12, 0.03]} />
+        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={1} metalness={0.9} />
       </mesh>
-      <mesh position={[0, 0.08, 0.15]}>
-        <boxGeometry args={[0.08, 0.08, 0.02]} />
-        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.7} metalness={0.9} />
-      </mesh>
-      <SparkleEffect position={[0, 0.35, 0]} />
+      
+      <GlowRing position={[0, 2.5, 0]} color="#FFD700" label="TREASURE" />
+      
+      {!discovered && (
+        <mesh position={[0, 3.5, 0]}>
+          <sphereGeometry args={[0.3, 8, 8]} />
+          <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={1.5} />
+        </mesh>
+      )}
     </group>
   );
 }
 
-function SparkleEffect({ position }: { position: [number, number, number] }) {
+function MonsterIsland({ position }: { position: [number, number, number] }) {
   const groupRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 3;
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.12;
     }
   });
 
   return (
     <group ref={groupRef} position={position}>
-      {[0, 1, 2, 3].map((i) => (
-        <mesh key={i} position={[Math.cos(i * Math.PI / 2) * 0.15, Math.sin(i * Math.PI / 2) * 0.15, 0]}>
-          <sphereGeometry args={[0.025, 6, 6]} />
-          <meshStandardMaterial 
-            color="#FFFF00" 
-            emissive="#FFD700" 
-            emissiveIntensity={2}
-          />
-        </mesh>
-      ))}
+      <mesh castShadow receiveShadow>
+        <coneGeometry args={[2.2, 1.8, 8]} />
+        <meshStandardMaterial color="#4A4A4A" roughness={0.95} />
+      </mesh>
+      
+      <mesh position={[0.4, 1.2, 0]} castShadow>
+        <coneGeometry args={[0.25, 0.8, 5]} />
+        <meshStandardMaterial color="#333333" roughness={0.9} />
+      </mesh>
+      <mesh position={[-0.5, 1, 0.3]} castShadow>
+        <coneGeometry args={[0.2, 0.6, 5]} />
+        <meshStandardMaterial color="#333333" roughness={0.9} />
+      </mesh>
+      
+      <mesh position={[0, 0.5, 0.8]}>
+        <sphereGeometry args={[0.15, 8, 8]} />
+        <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.3, 0.5, 0.75]}>
+        <sphereGeometry args={[0.12, 8, 8]} />
+        <meshStandardMaterial color="#FF0000" emissive="#FF0000" emissiveIntensity={1.5} />
+      </mesh>
+      
+      <GlowRing position={[0, 2.5, 0]} color="#FF4444" label="DANGER" />
+      
+      <pointLight position={[0, 1.5, 0]} color="#FF4444" intensity={0.8} distance={5} />
+    </group>
+  );
+}
+
+function SafeIsland({ position }: { position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.35) * 0.08;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh castShadow receiveShadow>
+        <coneGeometry args={[2, 1.2, 8]} />
+        <meshStandardMaterial color="#DEB887" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 1, 0]} castShadow>
+        <coneGeometry args={[0.28, 1.8, 6]} />
+        <meshStandardMaterial color="#32CD32" />
+      </mesh>
+      <mesh position={[0.5, 0.8, 0.4]} castShadow>
+        <coneGeometry args={[0.22, 1.3, 6]} />
+        <meshStandardMaterial color="#228B22" />
+      </mesh>
+      <mesh position={[-0.4, 0.85, -0.3]} castShadow>
+        <coneGeometry args={[0.18, 1.1, 6]} />
+        <meshStandardMaterial color="#2E8B57" />
+      </mesh>
+      
+      <GlowRing position={[0, 2.2, 0]} color="#4CAF50" label="SAFE" />
+    </group>
+  );
+}
+
+function BonusIsland({ position }: { position: [number, number, number] }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.6) * 0.15;
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh castShadow receiveShadow>
+        <coneGeometry args={[2.3, 1.4, 8]} />
+        <meshStandardMaterial color="#87CEEB" roughness={0.8} />
+      </mesh>
+      
+      <mesh position={[0, 1.5, 0]}>
+        <torusGeometry args={[0.8, 0.15, 8, 16]} />
+        <meshStandardMaterial color="#00BFFF" emissive="#00BFFF" emissiveIntensity={0.8} />
+      </mesh>
+      
+      <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.6, 0.12, 8, 16]} />
+        <meshStandardMaterial color="#00CED1" emissive="#00CED1" emissiveIntensity={0.6} />
+      </mesh>
+      
+      <GlowRing position={[0, 2.8, 0]} color="#00BFFF" label="BONUS" />
+      
+      <pointLight position={[0, 2, 0]} color="#00BFFF" intensity={1} distance={6} />
+    </group>
+  );
+}
+
+function GlowRing({ position, color, label }: { position: [number, number, number]; color: string; label: string }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = state.clock.elapsedTime * 1.5;
+      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.5, 0.08, 8, 16]} />
+        <meshStandardMaterial 
+          color={color} 
+          emissive={color} 
+          emissiveIntensity={1}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <pointLight position={[0, 0.2, 0]} color={color} intensity={0.6} distance={4} />
     </group>
   );
 }
@@ -218,27 +304,27 @@ function Cloud({ position, scale = 1 }: { position: [number, number, number]; sc
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.x = baseX + Math.sin(state.clock.elapsedTime * 0.08) * 1.5;
+      groupRef.current.position.x = baseX + Math.sin(state.clock.elapsedTime * 0.05) * 2;
     }
   });
 
   return (
     <group ref={groupRef} position={position} scale={scale}>
       <mesh>
-        <sphereGeometry args={[1.5, 12, 12]} />
-        <meshStandardMaterial color="#FFFFFF" emissive="#F0F8FF" emissiveIntensity={0.25} />
+        <sphereGeometry args={[1.8, 12, 12]} />
+        <meshStandardMaterial color="#FFFFFF" emissive="#F8F8FF" emissiveIntensity={0.3} />
       </mesh>
-      <mesh position={[1.2, 0.2, 0]}>
-        <sphereGeometry args={[1.1, 12, 12]} />
-        <meshStandardMaterial color="#FFFFFF" emissive="#F0F8FF" emissiveIntensity={0.25} />
+      <mesh position={[1.4, 0.2, 0]}>
+        <sphereGeometry args={[1.3, 12, 12]} />
+        <meshStandardMaterial color="#FFFFFF" emissive="#F8F8FF" emissiveIntensity={0.3} />
       </mesh>
-      <mesh position={[-1.1, 0.15, 0]}>
+      <mesh position={[-1.3, 0.15, 0]}>
+        <sphereGeometry args={[1.2, 12, 12]} />
+        <meshStandardMaterial color="#FFFFFF" emissive="#F8F8FF" emissiveIntensity={0.3} />
+      </mesh>
+      <mesh position={[0, 0.7, 0]}>
         <sphereGeometry args={[1, 12, 12]} />
-        <meshStandardMaterial color="#FFFFFF" emissive="#F0F8FF" emissiveIntensity={0.25} />
-      </mesh>
-      <mesh position={[0, 0.6, 0]}>
-        <sphereGeometry args={[0.9, 12, 12]} />
-        <meshStandardMaterial color="#FFFFFF" emissive="#F0F8FF" emissiveIntensity={0.25} />
+        <meshStandardMaterial color="#FFFFFF" emissive="#F8F8FF" emissiveIntensity={0.3} />
       </mesh>
     </group>
   );
@@ -251,130 +337,114 @@ function Seagull({ position, speed = 1 }: { position: [number, number, number]; 
   useFrame((state) => {
     if (groupRef.current) {
       const t = state.clock.elapsedTime * speed;
-      groupRef.current.position.x = startX + Math.sin(t * 0.4) * 8;
-      groupRef.current.position.y = position[1] + Math.sin(t * 1.8) * 0.4;
-      groupRef.current.rotation.z = Math.sin(t * 2.5) * 0.15;
+      groupRef.current.position.x = startX + Math.sin(t * 0.3) * 10;
+      groupRef.current.position.y = position[1] + Math.sin(t * 1.5) * 0.5;
+      groupRef.current.rotation.z = Math.sin(t * 2) * 0.2;
     }
   });
 
   return (
     <group ref={groupRef} position={position}>
       <mesh rotation={[0, 0, Math.PI / 6]}>
-        <boxGeometry args={[0.5, 0.04, 0.12]} />
+        <boxGeometry args={[0.6, 0.05, 0.15]} />
         <meshStandardMaterial color="#FFFFFF" />
       </mesh>
       <mesh rotation={[0, 0, -Math.PI / 6]}>
-        <boxGeometry args={[0.5, 0.04, 0.12]} />
+        <boxGeometry args={[0.6, 0.05, 0.15]} />
         <meshStandardMaterial color="#FFFFFF" />
       </mesh>
       <mesh>
-        <sphereGeometry args={[0.08, 6, 6]} />
+        <sphereGeometry args={[0.1, 6, 6]} />
         <meshStandardMaterial color="#FFFFFF" />
       </mesh>
     </group>
   );
 }
 
-function DiscoveryMarker({ position, type }: { position: [number, number, number]; type: string }) {
-  const groupRef = useRef<THREE.Group>(null);
+function LandingIndicator({ position, isActive }: { position: [number, number, number]; isActive: boolean }) {
+  const ringRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 3) * 0.08;
-      groupRef.current.rotation.y = state.clock.elapsedTime * 1.5;
+    if (ringRef.current && isActive) {
+      ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 4) * 0.2);
+      const mat = ringRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = 0.6 + Math.sin(state.clock.elapsedTime * 3) * 0.3;
     }
   });
 
-  const getColor = () => {
-    if (type.includes("multiplier")) return "#FFD700";
-    if (type === "hazard") return "#FF4444";
-    if (type === "bonus_chest") return "#8B4513";
-    if (type === "reset_trap") return "#00BCD4";
-    return "#4CAF50";
-  };
+  if (!isActive) return null;
 
   return (
-    <group ref={groupRef} position={position}>
-      <mesh>
-        <torusGeometry args={[0.4, 0.08, 8, 16]} />
-        <meshStandardMaterial 
-          color={getColor()} 
-          emissive={getColor()} 
-          emissiveIntensity={0.6}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
-      <pointLight position={[0, 0.3, 0]} color={getColor()} intensity={0.5} distance={3} />
-    </group>
+    <mesh ref={ringRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[1.5, 2, 24]} />
+      <meshStandardMaterial 
+        color="#FFFFFF"
+        emissive="#FFFFFF"
+        emissiveIntensity={1}
+        transparent
+        opacity={0.7}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
 export function GameBoard() {
-  const { currentPosition, board } = useGameState();
+  const { currentPosition, board, isMoving } = useGameState();
   const worldGroupRef = useRef<THREE.Group>(null);
   
-  const sceneElements = useMemo(() => {
-    const elements: { type: string; x: number; z: number; size: number }[] = [];
+  const islandPositions = useMemo(() => {
+    return board.map((step: { position: number; type: string }, i: number) => {
+      const xOffset = ((i * 7.3) % 8) - 4;
+      const showSafeIsland = step.type !== "safe" || (i % 3 === 0);
+      return {
+        position: step.position,
+        type: step.type,
+        x: xOffset,
+        z: -step.position * 3,
+        show: showSafeIsland
+      };
+    }).filter((item: { show: boolean }) => item.show);
+  }, [board]);
+
+  const decorativeElements = useMemo(() => {
+    const elements: { type: string; x: number; z: number; scale: number }[] = [];
     
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 15; i++) {
       elements.push({
-        type: "island",
-        x: ((i * 13.7) % 40) - 20,
-        z: -i * 12 - 8,
-        size: 0.5 + (i * 0.3) % 0.7
+        type: "cloud",
+        x: ((i * 31.7) % 80) - 40,
+        z: -i * 25 - 20,
+        scale: 0.8 + (i * 0.4) % 0.6
       });
     }
     
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 10; i++) {
       elements.push({
-        type: "rock",
-        x: ((i * 11.3) % 50) - 25,
-        z: -i * 10 - 5,
-        size: 0.4 + (i * 0.2) % 0.5
-      });
-    }
-    
-    for (let i = 0; i < 12; i++) {
-      elements.push({
-        type: "treasure",
-        x: ((i * 17.9) % 35) - 17,
-        z: -i * 18 - 12,
-        size: 1
+        type: "seagull",
+        x: ((i * 19.3) % 60) - 30,
+        z: -i * 30 - 15,
+        scale: 0.8 + (i * 0.3) % 0.5
       });
     }
     
     return elements;
   }, []);
 
-  const clouds = useMemo(() => {
-    return Array.from({ length: 10 }, (_, i) => ({
-      x: ((i * 23.7) % 70) - 35,
-      y: 12 + (i * 2.8) % 8,
-      z: -i * 20 - 15,
-      scale: 0.7 + (i * 0.35) % 0.5
-    }));
-  }, []);
-
-  const seagulls = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => ({
-      x: ((i * 19.3) % 50) - 25,
-      y: 6 + (i * 1.8) % 4,
-      z: -i * 25 - 8,
-      speed: 0.7 + (i * 0.25) % 0.4
-    }));
-  }, []);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (worldGroupRef.current) {
-      const targetZ = currentPosition * 2;
+      const targetZ = currentPosition * 3;
       worldGroupRef.current.position.z = THREE.MathUtils.lerp(
         worldGroupRef.current.position.z,
         targetZ,
-        0.08
+        delta * (isMoving ? 4 : 2)
       );
     }
   });
+
+  const currentIsland = useMemo(() => {
+    return islandPositions.find((island: { position: number }) => island.position === currentPosition);
+  }, [currentPosition, islandPositions]);
 
   return (
     <group>
@@ -382,37 +452,33 @@ export function GameBoard() {
       <OceanFoam />
       
       <group ref={worldGroupRef}>
-        {sceneElements.map((el, i) => {
-          if (el.type === "island") {
-            return <Island key={`island-${i}`} position={[el.x, 0.3, el.z]} size={el.size} />;
-          }
-          if (el.type === "rock") {
-            return <Rock key={`rock-${i}`} position={[el.x, 0.15, el.z]} size={el.size} />;
-          }
-          if (el.type === "treasure") {
-            return <FloatingTreasure key={`treasure-${i}`} position={[el.x, 0.4, el.z]} />;
-          }
-          return null;
+        {islandPositions.map((island: { position: number; type: string; x: number; z: number; show: boolean }, i: number) => {
+          const isCurrentIsland = island.position === currentPosition;
+          const islandX = island.type === "safe" ? island.x : 0;
+          const pos: [number, number, number] = [islandX, 0.5, island.z];
+          
+          return (
+            <group key={`island-${island.position}`}>
+              {island.type === "hazard" && <MonsterIsland position={pos} />}
+              {island.type.includes("multiplier") && <TreasureIsland position={pos} discovered={island.position < currentPosition} />}
+              {island.type === "bonus_chest" && <BonusIsland position={pos} />}
+              {island.type === "reset_trap" && <MonsterIsland position={pos} />}
+              {island.type === "safe" && <SafeIsland position={pos} />}
+              
+              <LandingIndicator 
+                position={[islandX, 0.2, island.z]} 
+                isActive={isCurrentIsland && !isMoving} 
+              />
+            </group>
+          );
         })}
         
-        {clouds.map((cloud, i) => (
-          <Cloud key={`cloud-${i}`} position={[cloud.x, cloud.y, cloud.z]} scale={cloud.scale} />
-        ))}
-        
-        {seagulls.map((bird, i) => (
-          <Seagull key={`seagull-${i}`} position={[bird.x, bird.y, bird.z]} speed={bird.speed} />
-        ))}
-        
-        {board.map((step: { position: number; type: string }, i: number) => {
-          if (step.type !== "safe") {
-            const stepZ = -step.position * 2;
-            return (
-              <DiscoveryMarker 
-                key={`marker-${step.position}`} 
-                position={[0, 0.3, stepZ]} 
-                type={step.type}
-              />
-            );
+        {decorativeElements.map((el, i) => {
+          if (el.type === "cloud") {
+            return <Cloud key={`cloud-${i}`} position={[el.x, 15 + (i % 5), el.z]} scale={el.scale} />;
+          }
+          if (el.type === "seagull") {
+            return <Seagull key={`seagull-${i}`} position={[el.x, 8 + (i % 3), el.z]} speed={el.scale} />;
           }
           return null;
         })}
