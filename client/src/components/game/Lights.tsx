@@ -8,37 +8,37 @@ export function Lights() {
   
   useFrame((state) => {
     if (sunRef.current) {
-      sunRef.current.intensity = 0.6 + Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
+      sunRef.current.intensity = 0.8 + Math.sin(state.clock.elapsedTime * 0.3) * 0.15;
     }
   });
   
   return (
     <>
-      <ambientLight intensity={0.5} color="#FFE4C4" />
+      <ambientLight intensity={0.6} color="#87CEEB" />
       
       <directionalLight
         ref={directionalRef}
-        position={[15, 12, -10]}
-        intensity={1.0}
-        color="#FF8C00"
+        position={[20, 25, -15]}
+        intensity={1.2}
+        color="#FFD700"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-far={50}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-camera-far={100}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
         shadow-bias={-0.0001}
       />
       
-      <pointLight ref={sunRef} position={[20, 15, -20]} intensity={0.6} color="#FF6B35" distance={80} />
+      <pointLight ref={sunRef} position={[30, 20, -30]} intensity={0.8} color="#FF8C00" distance={100} />
       
-      <pointLight position={[-10, 8, 10]} intensity={0.3} color="#87CEEB" />
-      <pointLight position={[10, 6, 15]} intensity={0.25} color="#4FC3F7" />
+      <pointLight position={[-15, 10, 10]} intensity={0.4} color="#4FC3F7" />
+      <pointLight position={[15, 8, 15]} intensity={0.3} color="#00BCD4" />
       
       <hemisphereLight
-        args={["#FF7F50", "#1E90FF", 0.4]}
+        args={["#87CEEB", "#0077BE", 0.5]}
       />
     </>
   );

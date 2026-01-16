@@ -103,21 +103,21 @@ export function TreasureQuestApp() {
         <Canvas
           shadows
           camera={{
-            position: isMobile ? [0, 55, 40] : [0, 12, 15],
-            fov: isMobile ? 75 : 50,
+            position: isMobile ? [0, 8, 10] : [0, 6, 8],
+            fov: isMobile ? 65 : 55,
             near: 0.1,
-            far: 1000
+            far: 500
           }}
           gl={{
             antialias: !isMobile,
             powerPreference: isMobile ? "low-power" : "default"
           }}
           style={{
-            background: 'linear-gradient(to bottom, #FF7F50, #FF6347, #1E90FF, #0D47A1)'
+            background: 'linear-gradient(to bottom, #87CEEB 0%, #4FC3F7 30%, #0288D1 60%, #01579B 100%)'
           }}
         >
-          <color attach="background" args={["#1E90FF"]} />
-          <fog attach="fog" args={["#87CEEB", 40, 100]} />
+          <color attach="background" args={["#4FC3F7"]} />
+          <fog attach="fog" args={["#87CEEB", 30, 80]} />
           <GameScene />
         </Canvas>
       )}

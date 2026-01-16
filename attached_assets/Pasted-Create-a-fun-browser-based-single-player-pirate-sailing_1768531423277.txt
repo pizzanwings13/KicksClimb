@@ -1,0 +1,30 @@
+Create a fun, browser-based single-player pirate sailing adventure game using HTML5, CSS, and JavaScript with Canvas for rendering. No external libraries needed.
+
+Game concept:
+- The screen shows a beautiful deep blue ocean background with subtle waves, scattered small green islands/trees/rocks, some floating treasure chests, and distant horizon.
+- A cute cartoon pirate ship (simple sprite or drawn shape: brown hull, white sails, flag) starts near the bottom-center of the screen.
+- The game progresses like a board game: player rolls a dice (6-sided, show rolling animation), ship moves forward across the ocean by that many "steps" (smooth animation: ship slides rightward/upward or ocean scrolls left to simulate sailing).
+- The ocean is a large scrolling map (wider/taller than screen, procedurally generated or tiled) so it feels like endless sailing — camera follows the ship smoothly.
+- Progress tracked as "Current Tile: X / 100" (starts at 0/100, increases by dice roll each turn).
+- Every few moves or when passing islands/treasures, discover events that increase multiplier (1.00x → higher) or build streak.
+- UI elements at top:
+  - Current Tile: X / 100 (progress bar)
+  - Treasure: 1.00x (increases as you progress/streak)
+  - Streak: current streak count
+- Bottom buttons:
+  - Big orange "Roll Dice" button (animates dice roll 1-6, shows result with bounce)
+  - "Claim Bounty" (grayed out until conditions met, like streak or tile reached)
+- When reaching tile 100 or special treasure, show win screen with celebration.
+- Add smooth animations: ship bobs on waves, dice spins, treasures sparkle, confetti on wins.
+- Mobile-friendly: touch buttons, responsive layout, full-screen canvas.
+- Pirate theme: sea colors (deep blue, teal, foam white), clouds, seagulls flying, gentle wave audio if possible (or placeholders).
+- Visually immersive: NO rigid numbered tile grid — pure open ocean with occasional visual islands/chests as discovery points.
+
+Core loop:
+1. Roll dice → animate roll → show number.
+2. Animate ship sailing forward by that distance (scroll ocean).
+3. Update tile progress, check for treasure/island events (random or positioned).
+4. Increase multiplier/streak if lucky.
+5. Repeat until 100 or claim.
+
+Start with basic canvas ocean + ship movement + dice. Make it addictive, beautiful, and feel like real sailing exploration!
