@@ -15,6 +15,8 @@ const MISSIONS = [
   { id: 6, title: "RabbitsOnApe NFT", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 10, requiredMentions: ["rabbitsonape"] },
   { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
   { id: 8, title: "DashKidsNFT Promo", description: "Make a post about DashKidsNFT and tag @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+  { id: 9, title: "Treasure Quest Adventure", description: "Post a picture or video of your adventure in DashKids Treasure Quest tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 10, title: "GM Post", description: "Post a GM using your @rabbitsonape or @DashKidsnft NFT and tag the account", points: 30, requiredMentions: ["rabbitsonape", "dashkidsnft"] },
 ];
 
 function getWeekStart(date: Date = new Date()): Date {
