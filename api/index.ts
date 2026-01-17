@@ -15,35 +15,45 @@ if (!process.env.DATABASE_URL) {
 }
 
 const MISSIONS = [
-  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 20, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 35, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 5, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 25, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 6, title: "RabbitsOnApe NFT", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 10, requiredMentions: ["rabbitsonape"] },
-  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
-  { id: 8, title: "DashKidsNFT Promo", description: "Make a post about DashKidsNFT and tag @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+  { id: 1, title: "Gameplay Screenshot", description: "Post a cool or epic Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 25, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 2, title: "Gameplay Video Clip", description: "Share a short (10-30s) Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 45, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 3, title: "Funny Moment", description: "Share your funniest Dashville fail, clutch, or WTF moment (image or video) tagging @DashKidsnft and @rabbitsonape", points: 50, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 4, title: "High Score / Achievement Brag", description: "Post your best Dashville high score or achievement screenshot tagging @DashKidsnft and @rabbitsonape", points: 20, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 5, title: "Fan Art or Meme", description: "Create & post original Dashville fan art or meme tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 6, title: "RabbitsOnApe NFT Showcase", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 15, requiredMentions: ["rabbitsonape"] },
+  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 15, requiredMentions: ["dashkidsnft"] },
+  { id: 8, title: "Squad / Duo Moment", description: "Post a screenshot or clip of you playing Dashville with friends/squad mentioning @DashKidsnft and @rabbitsonape", points: 35, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 9, title: "Treasure Quest Adventure", description: "Post a picture or video of your adventure in DashKids Treasure Quest tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 10, title: "GM Post", description: "Post a GM using your @rabbitsonape or @DashKidsnft NFT and tag the account", points: 30, requiredMentions: ["rabbitsonape", "dashkidsnft"] },
+];
+
+const COMBO_BONUSES = [
+  { name: "Triple Threat", condition: "3+ different missions completed", requiredCount: 3, bonusPoints: 30 },
+  { name: "Viral Power", condition: "Funny Moment + Gameplay Video", requiredMissions: [2, 3], bonusPoints: 25 },
+  { name: "Full Send", condition: "5+ missions completed", requiredCount: 5, bonusPoints: 60 },
 ];
 
 function getMissionWeekStart(date: Date = new Date()): Date {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
-  const day = d.getUTCDay();
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-  d.setUTCDate(diff);
+  const dayOfWeek = d.getUTCDay();
+  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+  const daysSinceLastSaturday = daysUntilSaturday === 0 ? 0 : 7 - daysUntilSaturday;
+  d.setUTCDate(d.getUTCDate() - daysSinceLastSaturday);
   return d;
 }
 
 function getMissionWeekEnd(weekStart: Date): Date {
   const end = new Date(weekStart);
-  end.setUTCDate(end.getUTCDate() + 4);
+  end.setUTCDate(end.getUTCDate() + 7);
   end.setUTCHours(23, 59, 59, 999);
   return end;
 }
 
-function isWeekday(): boolean {
-  const day = new Date().getUTCDay();
-  return day >= 1 && day <= 5;
+function getTodayStart(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
 }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -1312,21 +1322,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if ((url === '/api/missions' || url.endsWith('/api/missions')) && method === 'GET') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const weekStart = getMissionWeekStart();
       const weekEnd = getMissionWeekEnd(weekStart);
-      const isActive = isWeekday();
       
       return res.json({
         missions: MISSIONS,
+        combos: COMBO_BONUSES,
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         maxDailyMissions: 3,
-        isActive,
-        schedule: "Monday-Friday",
+        isActive: true,
+        schedule: "All Week",
       });
     }
 
     if ((url === '/api/missions/leaderboard/weekly' || url.endsWith('/api/missions/leaderboard/weekly')) && method === 'GET') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const weekStart = getMissionWeekStart();
       const weekEnd = getMissionWeekEnd(weekStart);
       const now = new Date();
@@ -1373,6 +1391,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const missionProgressMatch = url.match(/\/api\/missions\/progress\/([^\/]+)$/);
     if (missionProgressMatch && method === 'GET') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const walletAddress = missionProgressMatch[1];
       const user = await getUserByWallet(walletAddress);
       
@@ -1387,8 +1409,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       
       const weekStart = getMissionWeekStart();
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const todayStart = getTodayStart();
       
       const [progress] = await db.select().from(dashvilleMissionProgress)
         .where(and(eq(dashvilleMissionProgress.userId, user.id), eq(dashvilleMissionProgress.weekStart, weekStart)));
@@ -1403,14 +1424,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       
-      // Reset daily count every 24 hours based on UTC date
+      // Reset daily missions at midnight UTC
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
-      let dailyCount = progress.dailyCount;
-      const todayUTC = today.toISOString().split('T')[0];
-      const lastDateUTC = lastDailyDate ? lastDailyDate.toISOString().split('T')[0] : null;
-      if (!lastDateUTC || lastDateUTC !== todayUTC) {
-        dailyCount = 0;
-      }
+      const isNewDay = !lastDailyDate || lastDailyDate < todayStart;
+      const dailyCount = isNewDay ? 0 : progress.dailyCount;
+      const completedMissionsToday = isNewDay ? [] : JSON.parse(progress.completedMissions || "[]");
       
       const submissions = await db.select().from(dashvilleMissionSubmissions)
         .where(and(eq(dashvilleMissionSubmissions.userId, user.id), eq(dashvilleMissionSubmissions.weekStart, weekStart)))
@@ -1418,7 +1436,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       return res.json({
         totalPoints: progress.totalPoints,
-        completedMissions: JSON.parse(progress.completedMissions || "[]"),
+        completedMissions: completedMissionsToday,
         dailyCount,
         dailyLimit: 3,
         submissions: submissions.map(s => ({
@@ -1441,9 +1459,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       
-      if (!isWeekday()) {
-        return res.status(400).json({ error: "Missions are only available Monday-Friday" });
-      }
       
       const mission = MISSIONS.find(m => m.id === missionId);
       if (!mission) {
