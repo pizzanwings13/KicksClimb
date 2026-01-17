@@ -1602,12 +1602,13 @@ export async function registerRoutes(
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
       const isNewDay = !lastDailyDate || lastDailyDate < todayStart;
       const dailyCount = isNewDay ? 0 : progress.dailyCount;
+      const completedMissionsToday = isNewDay ? [] : JSON.parse(progress.completedMissions || "[]");
       
       const submissions = await storage.getDashvilleMissionSubmissions(user.id, weekStart);
       
       res.json({
         totalPoints: progress.totalPoints,
-        completedMissions: JSON.parse(progress.completedMissions || "[]"),
+        completedMissions: completedMissionsToday,
         dailyCount,
         dailyLimit: 3,
         submissions: submissions.map(s => ({
@@ -1657,13 +1658,14 @@ export async function registerRoutes(
         progress = await storage.createDashvilleMissionProgress(user.id, weekStart);
       }
       
-      const completedMissions = JSON.parse(progress.completedMissions || "[]");
-      if (completedMissions.includes(missionId)) {
-        return res.status(400).json({ error: "You have already completed this mission this week." });
-      }
-      
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
       const isNewDay = !lastDailyDate || lastDailyDate < todayStart;
+      const completedMissionsToday = isNewDay ? [] : JSON.parse(progress.completedMissions || "[]");
+      
+      if (completedMissionsToday.includes(missionId)) {
+        return res.status(400).json({ error: "You have already completed this mission today. Try again tomorrow!" });
+      }
+      
       const currentDailyCount = isNewDay ? 0 : progress.dailyCount;
       
       if (currentDailyCount >= 3) {
@@ -1750,13 +1752,13 @@ export async function registerRoutes(
         weekStart,
       });
       
-      completedMissions.push(missionId);
+      completedMissionsToday.push(missionId);
       const newDailyCount = currentDailyCount + 1;
       const newTotalPoints = progress.totalPoints + mission.points;
       
       await storage.updateDashvilleMissionProgress(user.id, weekStart, {
         totalPoints: newTotalPoints,
-        completedMissions: JSON.stringify(completedMissions),
+        completedMissions: JSON.stringify(completedMissionsToday),
         dailyCount: newDailyCount,
         lastDailyDate: new Date(),
       });
