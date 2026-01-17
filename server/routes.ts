@@ -1567,15 +1567,13 @@ export async function registerRoutes(
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd(weekStart);
       
-      const isActive = isWeekday();
-      
       res.json({
         missions: MISSIONS,
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         maxDailyMissions: 3,
-        isActive,
-        schedule: "Monday-Friday",
+        isActive: true,
+        schedule: "All Week",
       });
     } catch (error) {
       console.error("Get missions error:", error);
@@ -1629,9 +1627,6 @@ export async function registerRoutes(
     try {
       const { walletAddress, missionId, tweetUrl } = req.body;
       
-      if (!isWeekday()) {
-        return res.status(400).json({ error: "Missions are only available Monday-Friday. Come back on Monday!" });
-      }
       
       if (!walletAddress || !missionId || !tweetUrl) {
         return res.status(400).json({ error: "Missing required fields" });

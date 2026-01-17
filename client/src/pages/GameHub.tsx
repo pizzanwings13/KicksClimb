@@ -147,7 +147,7 @@ function MissionsPanel({
             <Trophy className="w-6 h-6 text-yellow-400" />
             <div>
               <h2 className="text-lg font-bold text-white">Weekly Missions</h2>
-              <p className="text-gray-400 text-xs">Mon-Fri | Tag @DashKidsnft & @rabbitsonape on X</p>
+              <p className="text-gray-400 text-xs">All Week | Tag @DashKidsnft & @rabbitsonape on X</p>
             </div>
           </div>
           <div className="text-right">
@@ -163,7 +163,7 @@ function MissionsPanel({
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-yellow-500/50 scrollbar-track-transparent">
           {missions.length === 0 && (
             <div className="text-center py-4 text-gray-400">
               <p>Loading missions...</p>
