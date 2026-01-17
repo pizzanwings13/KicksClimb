@@ -1571,6 +1571,10 @@ export async function registerRoutes(
 
   app.get("/api/missions", async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd(weekStart);
       
@@ -1591,6 +1595,10 @@ export async function registerRoutes(
 
   app.get("/api/missions/progress/:walletAddress", async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const { walletAddress } = req.params;
       
       const user = await storage.getUserByWallet(walletAddress);
@@ -1796,6 +1804,10 @@ export async function registerRoutes(
 
   app.get("/api/missions/leaderboard/weekly", async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const weekStart = getWeekStart();
       const leaderboard = await storage.getDashvilleWeeklyLeaderboard(weekStart, 50);
       
