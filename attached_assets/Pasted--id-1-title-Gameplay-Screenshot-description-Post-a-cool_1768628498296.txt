@@ -1,0 +1,77 @@
+[
+  {
+    "id": 1,
+    "title": "Gameplay Screenshot",
+    "description": "Post a cool or epic Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape",
+    "points": 25,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  {
+    "id": 2,
+    "title": "Gameplay Video Clip",
+    "description": "Share a short (10–30s) Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape",
+    "points": 45,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  {
+    "id": 3,
+    "title": "Funny Moment",
+    "description": "Share your funniest Dashville fail, clutch, or WTF moment (image or video) tagging @DashKidsnft and @rabbitsonape",
+    "points": 50,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  {
+    "id": 4,
+    "title": "High Score / Achievement Brag",
+    "description": "Post your best Dashville high score or achievement screenshot tagging @DashKidsnft and @rabbitsonape",
+    "points": 20,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  {
+    "id": 5,
+    "title": "Fan Art or Meme",
+    "description": "Create & post original Dashville fan art or meme tagging @DashKidsnft and @rabbitsonape",
+    "points": 30,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  {
+    "id": 6,
+    "title": "RabbitsOnApe NFT Showcase",
+    "description": "Post your RabbitsOnApe NFT and mention @rabbitsonape",
+    "points": 15,
+    "tags_required": ["@rabbitsonape"]
+  },
+  {
+    "id": 7,
+    "title": "DashKidsNFT Showcase",
+    "description": "Post your DashKidsNFT and mention @DashKidsnft",
+    "points": 15,
+    "tags_required": ["@DashKidsnft"]
+  },
+  {
+    "id": 8,
+    "title": "Squad / Duo Moment",
+    "description": "Post a screenshot or clip of you playing Dashville with friends/squad mentioning @DashKidsnft and @rabbitsonape",
+    "points": 35,
+    "tags_required": ["@DashKidsnft", "@rabbitsonape"]
+  },
+  // Combos (handle in your logic)
+  {
+    "type": "combo",
+    "name": "Triple Threat",
+    "condition": "3+ different missions completed",
+    "bonus_points": 30
+  },
+  {
+    "type": "combo",
+    "name": "Viral Power",
+    "condition": "Funny Moment + Gameplay Video",
+    "bonus_points": 25
+  },
+  {
+    "type": "combo",
+    "name": "Full Send",
+    "condition": "5+ missions completed",
+    "bonus_points": 60
+  }
+]

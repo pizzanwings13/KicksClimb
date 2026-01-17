@@ -7,16 +7,22 @@ import { ethers } from "ethers";
 import { TwitterApi } from "twitter-api-v2";
 
 const MISSIONS = [
-  { id: 1, title: "Gameplay Screenshot", description: "Post a Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 2, title: "Gameplay Video", description: "Share a short Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 3, title: "High Score Post", description: "Post your Dashville high score or achievement screenshot with both tags", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 4, title: "Fan Art or Meme", description: "Create and post Dashville fan art or meme tagging both accounts", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 5, title: "Funny Moment", description: "Share a funny Dashville gaming moment (image or video) with the required mentions", points: 10, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 6, title: "RabbitsOnApe NFT", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 10, requiredMentions: ["rabbitsonape"] },
-  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
-  { id: 8, title: "DashKidsNFT Promo", description: "Make a post about DashKidsNFT and tag @DashKidsnft", points: 10, requiredMentions: ["dashkidsnft"] },
+  { id: 1, title: "Gameplay Screenshot", description: "Post a cool or epic Dashville gameplay screenshot tagging @DashKidsnft and @rabbitsonape", points: 25, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 2, title: "Gameplay Video Clip", description: "Share a short (10-30s) Dashville gameplay video clip mentioning @DashKidsnft and @rabbitsonape", points: 45, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 3, title: "Funny Moment", description: "Share your funniest Dashville fail, clutch, or WTF moment (image or video) tagging @DashKidsnft and @rabbitsonape", points: 50, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 4, title: "High Score / Achievement Brag", description: "Post your best Dashville high score or achievement screenshot tagging @DashKidsnft and @rabbitsonape", points: 20, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 5, title: "Fan Art or Meme", description: "Create & post original Dashville fan art or meme tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 6, title: "RabbitsOnApe NFT Showcase", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 15, requiredMentions: ["rabbitsonape"] },
+  { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 15, requiredMentions: ["dashkidsnft"] },
+  { id: 8, title: "Squad / Duo Moment", description: "Post a screenshot or clip of you playing Dashville with friends/squad mentioning @DashKidsnft and @rabbitsonape", points: 35, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
   { id: 9, title: "Treasure Quest Adventure", description: "Post a picture or video of your adventure in DashKids Treasure Quest tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
   { id: 10, title: "GM Post", description: "Post a GM using your @rabbitsonape or @DashKidsnft NFT and tag the account", points: 30, requiredMentions: ["rabbitsonape", "dashkidsnft"] },
+];
+
+const COMBO_BONUSES = [
+  { name: "Triple Threat", condition: "3+ different missions completed", requiredCount: 3, bonusPoints: 30 },
+  { name: "Viral Power", condition: "Funny Moment + Gameplay Video", requiredMissions: [2, 3], bonusPoints: 25 },
+  { name: "Full Send", condition: "5+ missions completed", requiredCount: 5, bonusPoints: 60 },
 ];
 
 function getWeekStart(date: Date = new Date()): Date {
@@ -1569,6 +1575,7 @@ export async function registerRoutes(
       
       res.json({
         missions: MISSIONS,
+        combos: COMBO_BONUSES,
         weekStart: weekStart.toISOString(),
         weekEnd: weekEnd.toISOString(),
         maxDailyMissions: 3,
