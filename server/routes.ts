@@ -28,15 +28,16 @@ const COMBO_BONUSES = [
 function getWeekStart(date: Date = new Date()): Date {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
-  const day = d.getUTCDay();
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-  d.setUTCDate(diff);
+  const dayOfWeek = d.getUTCDay();
+  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+  const daysSinceLastSaturday = daysUntilSaturday === 0 ? 0 : 7 - daysUntilSaturday;
+  d.setUTCDate(d.getUTCDate() - daysSinceLastSaturday);
   return d;
 }
 
 function getWeekEnd(weekStart: Date): Date {
   const end = new Date(weekStart);
-  end.setUTCDate(end.getUTCDate() + 4);
+  end.setUTCDate(end.getUTCDate() + 7);
   end.setUTCHours(23, 59, 59, 999);
   return end;
 }
