@@ -731,9 +731,10 @@ export function GameHub() {
       }
 
       try {
-        const response = await fetch(`/api/users/${walletAddress}`);
+        const response = await fetch(`/api/user/${walletAddress}`);
         if (response.ok) {
-          const userData = await response.json();
+          const data = await response.json();
+          const userData = data.user || data;
           if (userData.username) {
             setUsername(userData.username);
             localStorage.setItem(GLOBAL_USERNAME_KEY, userData.username);
@@ -762,7 +763,7 @@ export function GameHub() {
     
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/users/${walletAddress}`, {
+      const response = await fetch(`/api/user/${walletAddress}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: usernameInput.trim() })
@@ -786,7 +787,7 @@ export function GameHub() {
     
     playBlip();
     try {
-      const res = await fetch(`/api/users/${walletAddress}`, {
+      const res = await fetch(`/api/user/${walletAddress}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatarUrl: avatarId })
