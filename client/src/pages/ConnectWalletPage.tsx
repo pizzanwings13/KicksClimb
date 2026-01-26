@@ -109,12 +109,12 @@ export function ConnectWalletPage() {
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
               <div 
-                className="border-[5px] border-black overflow-hidden"
+                className="border-[5px] border-black overflow-hidden rounded-2xl"
                 style={{ boxShadow: '6px 6px 0px black' }}
               >
                 <img 
-                  src="/textures/tokenrush-logo.png" 
-                  alt="Token Rush" 
+                  src="/textures/dashkids-logo.jpg" 
+                  alt="DashKids" 
                   className="w-32 h-32 md:w-40 md:h-40"
                 />
               </div>
