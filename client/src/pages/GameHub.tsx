@@ -826,7 +826,7 @@ export function GameHub() {
   const hasUsername = username && username.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] relative overflow-hidden">
+    <div className="min-h-screen bg-[#0d0d0d] relative overflow-x-hidden overflow-y-auto">
       <GlowOrbs />
       <GrainOverlay />
       <CharacterMarquee />
