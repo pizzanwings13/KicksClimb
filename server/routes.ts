@@ -385,6 +385,9 @@ export async function registerRoutes(
           gamesWon: 0,
           gamesLost: 0,
         });
+      } else if (username && username !== user.username) {
+        // Update username for existing users if a new one is provided
+        user = await storage.updateUser(user.id, { username }) || user;
       }
       
       res.json({ user });

@@ -827,6 +827,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!user) {
         const displayName = username || `Player_${walletAddress.slice(0, 6)}`;
         user = await createUser({ walletAddress, username: displayName, totalGamesPlayed: 0, totalKicksWon: "0", totalKicksLost: "0", highestMultiplier: "0", gamesWon: 0, gamesLost: 0 });
+      } else if (username && username !== user.username) {
+        // Update username for existing users if a new one is provided
+        user = await updateUser(user.id, { username }) || user;
       }
       return res.json({ user });
     }
