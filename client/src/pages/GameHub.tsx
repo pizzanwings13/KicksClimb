@@ -583,9 +583,9 @@ export function GameHub() {
   const [isClaimingPrize, setIsClaimingPrize] = useState(false);
 
   useEffect(() => {
-    audioRef.current = new Audio('/sounds/background.mp3');
+    audioRef.current = new Audio('/sounds/arcade-theme.wav');
     audioRef.current.loop = true;
-    audioRef.current.volume = 0.15;
+    audioRef.current.volume = 0.2;
     
     blipRef.current = new Audio('/sounds/hit.mp3');
     blipRef.current.volume = 0.3;

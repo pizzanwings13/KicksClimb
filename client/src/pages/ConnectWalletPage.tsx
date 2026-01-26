@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Wallet, Shield, Trophy, Zap, Gamepad2 } from "lucide-react";
+import { Wallet, Shield, Trophy, Zap, Gamepad2, Volume2, VolumeX } from "lucide-react";
 import { useWallet } from "@/lib/stores/useWallet";
+import { useState, useEffect, useRef } from "react";
 
 function GlowOrbs() {
   return (
@@ -89,12 +90,53 @@ function ArcadeCard({ children, className = '' }: { children: React.ReactNode; c
 
 export function ConnectWalletPage() {
   const { setShowWalletModal, isConnecting, error } = useWallet();
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/sounds/arcade-theme.wav');
+    audioRef.current.loop = true;
+    audioRef.current.volume = 0.2;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (musicPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch(console.error);
+      }
+      setMusicPlaying(!musicPlaying);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] relative overflow-x-hidden overflow-y-auto">
       <GlowOrbs />
       <GrainOverlay />
       <CharacterMarquee />
+      
+      {/* Music Toggle Button */}
+      <motion.button
+        onClick={toggleMusic}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed top-4 right-4 z-50 w-12 h-12 bg-[#1a1a1a] border-[3px] border-black flex items-center justify-center"
+        style={{ boxShadow: '4px 4px 0px black' }}
+      >
+        {musicPlaying ? (
+          <Volume2 className="w-5 h-5 text-[#39FF14]" />
+        ) : (
+          <VolumeX className="w-5 h-5 text-gray-400" />
+        )}
+      </motion.button>
       
       <div className="relative z-20 min-h-screen flex items-center justify-center px-4 py-8">
         <div className="max-w-md w-full">
