@@ -251,7 +251,7 @@ function MissionsPanel({
           </div>
         )}
 
-        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+        <div className="space-y-3 pr-2">
           {missions.length === 0 && (
             <div className="text-center py-8 text-gray-400">
               <p className="font-bold">LOADING MISSIONS...</p>
@@ -831,7 +831,7 @@ export function GameHub() {
       <GrainOverlay />
       <CharacterMarquee />
       
-      <div className="relative z-20 max-w-4xl mx-auto px-4 py-8 pb-32">
+      <div className="relative z-20 max-w-4xl mx-auto px-4 py-8 pb-48 min-h-screen overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
