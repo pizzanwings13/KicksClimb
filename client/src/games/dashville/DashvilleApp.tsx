@@ -24,6 +24,7 @@ interface Player {
   invincible: number;
   animFrame: number;
   facingRight: boolean;
+  crouching: boolean;
 }
 
 const LEVEL_THEMES = [
@@ -184,7 +185,7 @@ export default function DashvilleApp() {
     cameraX: number;
     keys: { [key: string]: boolean };
     keysJustPressed: { [key: string]: boolean };
-    touchControls: { left: boolean; right: boolean; jump: boolean; shoot: boolean };
+    touchControls: { left: boolean; right: boolean; jump: boolean; shoot: boolean; down: boolean };
     levelCompleteTimer: number;
     charImages: HTMLImageElement[];
     screenShake: number;
@@ -208,7 +209,7 @@ export default function DashvilleApp() {
     cameraX: 0,
     keys: {},
     keysJustPressed: {},
-    touchControls: { left: false, right: false, jump: false, shoot: false },
+    touchControls: { left: false, right: false, jump: false, shoot: false, down: false },
     levelCompleteTimer: 0,
     charImages: [],
     screenShake: 0,
@@ -275,7 +276,8 @@ export default function DashvilleApp() {
       weaponAmmo: 0,
       invincible: 0,
       animFrame: 0,
-      facingRight: true
+      facingRight: true,
+      crouching: false
     };
   }, []);
 
@@ -523,6 +525,8 @@ export default function DashvilleApp() {
         game.player.animFrame = 0;
       }
 
+      game.player.crouching = keys['KeyS'] || keys['ArrowDown'] || touchControls.down;
+
       const jumpJustPressed = game.keysJustPressed['KeyW'] || game.keysJustPressed['ArrowUp'] || game.keysJustPressed['Space'];
       
       if (jumpJustPressed && game.player.jumpCount < 2) {
@@ -536,16 +540,18 @@ export default function DashvilleApp() {
       if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0) {
         const weapon = game.player.weapon;
         const hasAmmo = weapon === 'normal' || game.player.weaponAmmo > 0;
+        const aimingDown = game.player.crouching;
         
         if (hasAmmo) {
           if (weapon === 'shotgun') {
             for (let i = -1; i <= 1; i++) {
               game.bullets.push({
                 x: game.player.x + game.player.w / 2,
-                y: game.player.y + game.player.h / 2 + i * 8,
+                y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : i * 8),
                 w: 6,
                 h: 4,
-                velX: game.player.facingRight ? 12 : -12,
+                velX: aimingDown ? 0 : (game.player.facingRight ? 12 : -12),
+                velY: aimingDown ? 12 : 0,
                 dead: false,
                 type: 'shotgun'
               });
@@ -555,10 +561,11 @@ export default function DashvilleApp() {
           } else if (weapon === 'heavy') {
             game.bullets.push({
               x: game.player.x + game.player.w / 2,
-              y: game.player.y + game.player.h / 2,
-              w: 16,
-              h: 8,
-              velX: game.player.facingRight ? 14 : -14,
+              y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : 0),
+              w: aimingDown ? 8 : 16,
+              h: aimingDown ? 16 : 8,
+              velX: aimingDown ? 0 : (game.player.facingRight ? 14 : -14),
+              velY: aimingDown ? 14 : 0,
               dead: false,
               type: 'heavy'
             });
@@ -567,10 +574,11 @@ export default function DashvilleApp() {
           } else {
             game.bullets.push({
               x: game.player.x + game.player.w / 2,
-              y: game.player.y + game.player.h / 2,
-              w: 8,
-              h: 4,
-              velX: game.player.facingRight ? 10 : -10,
+              y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : 0),
+              w: aimingDown ? 4 : 8,
+              h: aimingDown ? 8 : 4,
+              velX: aimingDown ? 0 : (game.player.facingRight ? 10 : -10),
+              velY: aimingDown ? 10 : 0,
               dead: false,
               type: 'normal'
             });
@@ -706,7 +714,8 @@ export default function DashvilleApp() {
 
       for (const b of game.bullets) {
         b.x += b.velX;
-        if (b.x > game.cameraX + SCREEN_WIDTH + 100 || b.x < game.cameraX - 100) {
+        if (b.velY) b.y += b.velY;
+        if (b.x > game.cameraX + SCREEN_WIDTH + 100 || b.x < game.cameraX - 100 || b.y > SCREEN_HEIGHT + 50 || b.y < -50) {
           b.dead = true;
           continue;
         }
@@ -864,6 +873,10 @@ export default function DashvilleApp() {
         setLevelKicks(lk => lk + bonus);
         setGameState('levelComplete');
         return;
+      }
+
+      if (game.player.y > SCREEN_HEIGHT + 100) {
+        game.player.health = 0;
       }
 
       if (game.player.health <= 0) {
@@ -1329,7 +1342,7 @@ export default function DashvilleApp() {
     setGameState('playing');
   }, [selectedChar, createPlayer, resetLevel]);
 
-  const handleTouchStart = useCallback((control: 'left' | 'right' | 'jump' | 'shoot', e?: React.TouchEvent | React.MouseEvent) => {
+  const handleTouchStart = useCallback((control: 'left' | 'right' | 'jump' | 'shoot' | 'down', e?: React.TouchEvent | React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -1340,7 +1353,7 @@ export default function DashvilleApp() {
     gameRef.current.touchControls[control] = true;
   }, []);
 
-  const handleTouchEnd = useCallback((control: 'left' | 'right' | 'jump' | 'shoot', e?: React.TouchEvent | React.MouseEvent) => {
+  const handleTouchEnd = useCallback((control: 'left' | 'right' | 'jump' | 'shoot' | 'down', e?: React.TouchEvent | React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -1465,6 +1478,16 @@ export default function DashvilleApp() {
               </button>
             </div>
             <div className="flex gap-2">
+              <button
+                onTouchStart={(e) => handleTouchStart('down', e)}
+                onTouchEnd={(e) => handleTouchEnd('down', e)}
+                onTouchCancel={(e) => handleTouchEnd('down', e)}
+                onContextMenu={(e) => e.preventDefault()}
+                className="w-20 h-20 bg-purple-600 border-3 border-white text-white text-2xl font-bold active:bg-purple-500 select-none"
+                style={{ touchAction: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              >
+                ↓
+              </button>
               <button
                 onTouchStart={(e) => handleTouchStart('shoot', e)}
                 onTouchEnd={(e) => handleTouchEnd('shoot', e)}
