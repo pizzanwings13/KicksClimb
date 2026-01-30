@@ -1551,6 +1551,9 @@ export default function DashvilleApp() {
     gameRef.current.cameraX = 0;
     gameRef.current.bullets = [];
     gameRef.current.enemyBullets = [];
+    gameRef.current.keys = {};
+    gameRef.current.keysJustPressed = {};
+    gameRef.current.touchControls = { left: false, right: false, jump: false, shoot: false, down: false };
     resetLevel(1);
     setLevel(1);
     setScore(0);
