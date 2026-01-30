@@ -1168,10 +1168,16 @@ export default function DashvilleApp() {
         const isMoving = Math.abs(p.velX) > 0.5;
         const bobOffset = p.onGround && isMoving ? Math.sin(p.animFrame * 2) * 3 : 0;
         const legOffset = p.onGround && isMoving ? Math.sin(p.animFrame * 4) * 4 : 0;
+        const isCrouching = p.crouching && p.onGround;
         
         ctx.save();
-        ctx.translate(p.x + p.w / 2, p.y + p.h / 2 + bobOffset);
+        const crouchOffset = isCrouching ? 15 : 0;
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2 + bobOffset + crouchOffset);
         if (!p.facingRight) ctx.scale(-1, 1);
+        
+        if (isCrouching) {
+          ctx.scale(1.2, 0.6);
+        }
         
         if (charImg && charImg.complete) {
           ctx.drawImage(charImg, -p.w / 2 - 10, -p.h / 2 - 10, p.w + 20, p.h + 20);
@@ -1183,29 +1189,54 @@ export default function DashvilleApp() {
           ctx.strokeRect(-p.w / 2, -p.h / 2, p.w, p.h);
         }
         
-        if (p.onGround && isMoving) {
+        if (p.onGround && isMoving && !isCrouching) {
           ctx.fillStyle = '#333';
           ctx.fillRect(-p.w / 2 + 5, p.h / 2 + legOffset, 8, 10);
           ctx.fillRect(p.w / 2 - 13, p.h / 2 - legOffset, 8, 10);
         }
         
-        if (p.weapon === 'heavy') {
-          ctx.fillStyle = '#444';
-          ctx.fillRect(p.w / 2 - 5, -8, 30, 10);
-          ctx.fillStyle = '#666';
-          ctx.fillRect(p.w / 2 + 20, -10, 8, 14);
-          ctx.fillStyle = '#FF4400';
-          ctx.beginPath();
-          ctx.arc(p.w / 2 + 28, -3, 3, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (p.weapon === 'shotgun') {
-          ctx.fillStyle = '#8B4513';
-          ctx.fillRect(p.w / 2 - 5, -4, 25, 6);
-          ctx.fillStyle = '#555';
-          ctx.fillRect(p.w / 2 + 15, -6, 12, 10);
-        } else if (p.carrotPower > 0) {
-          ctx.fillStyle = '#666';
-          ctx.fillRect(p.w / 2 - 5, -2, 18, 4);
+        ctx.restore();
+        
+        ctx.save();
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2 + crouchOffset);
+        if (!p.facingRight) ctx.scale(-1, 1);
+        
+        if (isCrouching) {
+          if (p.weapon === 'heavy') {
+            ctx.fillStyle = '#444';
+            ctx.fillRect(-5, 10, 10, 25);
+            ctx.fillStyle = '#FF4400';
+            ctx.beginPath();
+            ctx.arc(0, 35, 4, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (p.weapon === 'shotgun') {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-4, 10, 8, 20);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(-6, 25, 12, 8);
+          } else {
+            ctx.fillStyle = '#666';
+            ctx.fillRect(-3, 10, 6, 15);
+          }
+        } else {
+          if (p.weapon === 'heavy') {
+            ctx.fillStyle = '#444';
+            ctx.fillRect(p.w / 2 - 5, -8, 30, 10);
+            ctx.fillStyle = '#666';
+            ctx.fillRect(p.w / 2 + 20, -10, 8, 14);
+            ctx.fillStyle = '#FF4400';
+            ctx.beginPath();
+            ctx.arc(p.w / 2 + 28, -3, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (p.weapon === 'shotgun') {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(p.w / 2 - 5, -4, 25, 6);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(p.w / 2 + 15, -6, 12, 10);
+          } else {
+            ctx.fillStyle = '#666';
+            ctx.fillRect(p.w / 2 - 5, -2, 18, 4);
+          }
         }
         
         ctx.restore();
