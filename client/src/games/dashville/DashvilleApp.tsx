@@ -82,6 +82,15 @@ export default function DashvilleApp() {
   const [kicks, setKicks] = useState(0);
   const [selectedChar, setSelectedChar] = useState(0);
   const [musicEnabled, setMusicEnabled] = useState(false);
+  const [runId, setRunId] = useState<number | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
+  const [levelKicks, setLevelKicks] = useState(0);
+  
+  const getWalletAddress = () => {
+    return localStorage.getItem('walletAddress') || '';
+  };
   
   const gameRef = useRef<{
     player: Player | null;
@@ -217,12 +226,33 @@ export default function DashvilleApp() {
     }
   }, []);
 
-  const startGame = useCallback(() => {
+  const startGame = useCallback(async () => {
+    const walletAddress = getWalletAddress();
+    
+    if (walletAddress) {
+      try {
+        const response = await fetch('/api/dashville/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, characterId: selectedChar }),
+        });
+        const data = await response.json();
+        if (data.runId) {
+          setRunId(data.runId);
+        }
+      } catch (error) {
+        console.error('Failed to start game run:', error);
+      }
+    }
+    
     gameRef.current.player = createPlayer(selectedChar);
     resetLevel(1);
     setLevel(1);
     setScore(0);
     setKicks(0);
+    setLevelKicks(0);
+    setClaimed(false);
+    setClaimTxHash(null);
     setGameState('playing');
   }, [selectedChar, createPlayer, resetLevel]);
 
@@ -319,6 +349,7 @@ export default function DashvilleApp() {
         if (!c.collected && collide(game.player, c)) {
           setScore(s => s + 1);
           setKicks(k => k + 50);
+          setLevelKicks(lk => lk + 50);
           c.collected = true;
         }
       }
@@ -377,12 +408,21 @@ export default function DashvilleApp() {
       game.carrots = game.carrots.filter(c => !c.collected);
 
       if (game.coins.length === 0 && game.enemies.length === 0) {
-        setKicks(k => k + level * 100);
+        const bonus = level * 100;
+        setKicks(k => k + bonus);
+        setLevelKicks(lk => lk + bonus);
         setGameState('levelComplete');
         return;
       }
 
       if (game.player.health <= 0) {
+        if (runId) {
+          fetch('/api/dashville/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId, won: false, finalScore: score, totalKicks: kicks }),
+          }).catch(console.error);
+        }
         setGameState('gameOver');
         return;
       }
@@ -453,23 +493,94 @@ export default function DashvilleApp() {
     };
   }, [gameState, level]);
 
-  const nextLevel = useCallback(() => {
+  const nextLevel = useCallback(async () => {
     const newLevel = level + 1;
+    
+    if (runId && levelKicks > 0) {
+      try {
+        await fetch('/api/dashville/level-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ runId, level: newLevel, score, kicksEarned: levelKicks }),
+        });
+      } catch (error) {
+        console.error('Failed to record level complete:', error);
+      }
+    }
+    
+    setLevelKicks(0);
+    
     if (newLevel > 5) {
+      if (runId) {
+        try {
+          await fetch('/api/dashville/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId, won: true, finalScore: score, totalKicks: kicks }),
+          });
+        } catch (error) {
+          console.error('Failed to end game:', error);
+        }
+      }
       setGameState('gameOver');
       return;
     }
     setLevel(newLevel);
     resetLevel(newLevel);
     setGameState('playing');
-  }, [level, resetLevel]);
+  }, [level, resetLevel, runId, levelKicks, score, kicks]);
 
-  const restartGame = useCallback(() => {
+  const claimKicks = useCallback(async () => {
+    if (!runId || claiming || claimed) return;
+    
+    const walletAddress = getWalletAddress();
+    if (!walletAddress) return;
+    
+    setClaiming(true);
+    try {
+      const response = await fetch('/api/dashville/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, walletAddress }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setClaimed(true);
+        setClaimTxHash(data.txHash);
+      }
+    } catch (error) {
+      console.error('Failed to claim kicks:', error);
+    }
+    setClaiming(false);
+  }, [runId, claiming, claimed]);
+
+  const restartGame = useCallback(async () => {
+    const walletAddress = getWalletAddress();
+    
+    if (walletAddress) {
+      try {
+        const response = await fetch('/api/dashville/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, characterId: selectedChar }),
+        });
+        const data = await response.json();
+        if (data.runId) {
+          setRunId(data.runId);
+        }
+      } catch (error) {
+        console.error('Failed to start new game run:', error);
+      }
+    }
+    
     gameRef.current.player = createPlayer(selectedChar);
     resetLevel(1);
     setLevel(1);
     setScore(0);
     setKicks(0);
+    setLevelKicks(0);
+    setClaimed(false);
+    setClaimTxHash(null);
     setGameState('playing');
   }, [selectedChar, createPlayer, resetLevel]);
 
@@ -627,7 +738,35 @@ export default function DashvilleApp() {
             {level > 5 ? 'YOU WIN!' : 'GAME OVER'}
           </h2>
           <p className="text-2xl text-white mb-2">Final Score: {score}</p>
-          <p className="text-2xl text-yellow-300 mb-6">$KICKS Earned: {kicks}</p>
+          <p className="text-2xl text-yellow-300 mb-4">$KICKS Earned: {kicks}</p>
+          
+          {kicks > 0 && !claimed && (
+            <button
+              onClick={claimKicks}
+              disabled={claiming}
+              className="px-8 py-4 bg-[#39FF14] text-black font-black text-xl uppercase border-4 border-black hover:bg-[#50FF30] transition-colors mb-4 disabled:opacity-50"
+              style={{ boxShadow: '4px 4px 0px black' }}
+            >
+              {claiming ? 'CLAIMING...' : `CLAIM ${kicks} $KICKS`}
+            </button>
+          )}
+          
+          {claimed && (
+            <div className="mb-4">
+              <p className="text-2xl text-[#39FF14] font-bold mb-2">$KICKS CLAIMED!</p>
+              {claimTxHash && (
+                <a 
+                  href={`https://apescan.io/tx/${claimTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-white underline"
+                >
+                  View Transaction
+                </a>
+              )}
+            </div>
+          )}
+          
           <button
             onClick={restartGame}
             className="px-8 py-4 bg-black text-white font-black text-xl uppercase border-4 border-white hover:bg-gray-800 transition-colors"

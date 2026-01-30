@@ -2,13 +2,13 @@ import {
   users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements,
   rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard,
   bunnyBladeWeeklyLeaderboard, bunnyBladeInventories,
-  dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleMissionPrizes,
+  dashvilleRuns, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleMissionPrizes,
   dashvilleDailyLeaderboard, dashvilleWeeklyLeaderboard,
   type User, type InsertUser, type Game, type InsertGame, 
   type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
   type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry,
   type BunnyBladeWeeklyLeaderboardEntry, type BunnyBladeInventory,
-  type DashvilleMissionSubmission, type DashvilleMissionProgress, type DashvilleMissionPrize,
+  type DashvilleRun, type DashvilleMissionSubmission, type DashvilleMissionProgress, type DashvilleMissionPrize,
   type DashvilleDailyLeaderboardEntry, type DashvilleWeeklyLeaderboardEntry
 } from "@shared/schema";
 import { db } from "./db";
@@ -597,6 +597,45 @@ export class DatabaseStorage implements IStorage {
         activeBlade,
       });
     }
+  }
+
+  async createDashvilleRun(data: { userId: number; walletAddress: string; characterId: number }): Promise<DashvilleRun> {
+    const [run] = await db.insert(dashvilleRuns)
+      .values({
+        userId: data.userId,
+        walletAddress: data.walletAddress,
+        characterId: data.characterId,
+        currentLevel: 1,
+        score: 0,
+        kicksEarned: "0",
+        kicksClaimed: "0",
+        status: "playing",
+        claimStatus: "none",
+      })
+      .returning();
+    return run;
+  }
+
+  async getDashvilleRun(runId: number): Promise<DashvilleRun | null> {
+    const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
+    return run || null;
+  }
+
+  async getActiveDashvilleRun(userId: number): Promise<DashvilleRun | null> {
+    const [run] = await db.select()
+      .from(dashvilleRuns)
+      .where(and(eq(dashvilleRuns.userId, userId), eq(dashvilleRuns.status, "playing")))
+      .orderBy(desc(dashvilleRuns.startedAt))
+      .limit(1);
+    return run || null;
+  }
+
+  async updateDashvilleRun(runId: number, updates: Partial<DashvilleRun>): Promise<DashvilleRun | null> {
+    const [run] = await db.update(dashvilleRuns)
+      .set(updates)
+      .where(eq(dashvilleRuns.id, runId))
+      .returning();
+    return run || null;
   }
 
   async getDashvilleMissionProgress(userId: number, weekStart: Date): Promise<DashvilleMissionProgress | null> {

@@ -242,6 +242,31 @@ export const bunnyBladeInventoriesRelations = relations(bunnyBladeInventories, (
   }),
 }));
 
+export const dashvilleRuns = pgTable("dashville_runs", {
+  id: serial("id").primaryKey(),
+  oddsFormat: text("odds_format"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  walletAddress: text("wallet_address").notNull(),
+  characterId: integer("character_id").default(0).notNull(),
+  currentLevel: integer("current_level").default(1).notNull(),
+  score: integer("score").default(0).notNull(),
+  kicksEarned: decimal("kicks_earned", { precision: 36, scale: 18 }).default("0").notNull(),
+  kicksClaimed: decimal("kicks_claimed", { precision: 36, scale: 18 }).default("0").notNull(),
+  status: text("status").default("playing").notNull(),
+  claimStatus: text("claim_status").default("none").notNull(),
+  claimNonce: text("claim_nonce"),
+  claimTxHash: text("claim_tx_hash"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const dashvilleRunsRelations = relations(dashvilleRuns, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleRuns.userId],
+    references: [users.id],
+  }),
+}));
+
 export const dashvilleMissionSubmissions = pgTable("dashville_mission_submissions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -370,6 +395,7 @@ export type RabbitRushDailyLeaderboardEntry = typeof rabbitRushDailyLeaderboard.
 export type RabbitRushWeeklyLeaderboardEntry = typeof rabbitRushWeeklyLeaderboard.$inferSelect;
 export type BunnyBladeWeeklyLeaderboardEntry = typeof bunnyBladeWeeklyLeaderboard.$inferSelect;
 export type BunnyBladeInventory = typeof bunnyBladeInventories.$inferSelect;
+export type DashvilleRun = typeof dashvilleRuns.$inferSelect;
 export type DashvilleMissionSubmission = typeof dashvilleMissionSubmissions.$inferSelect;
 export type DashvilleMissionProgress = typeof dashvilleMissionProgress.$inferSelect;
 export type DashvilleMissionPrize = typeof dashvilleMissionPrizes.$inferSelect;

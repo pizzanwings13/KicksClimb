@@ -1572,6 +1572,185 @@ export async function registerRoutes(
     }
   });
 
+  // Dashville Game Run Endpoints
+  app.post("/api/dashville/start", async (req, res) => {
+    try {
+      const { walletAddress, characterId } = req.body;
+      
+      if (!walletAddress) {
+        return res.status(400).json({ error: "Wallet address required" });
+      }
+      
+      const user = await storage.getUserByWallet(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const run = await storage.createDashvilleRun({
+        userId: user.id,
+        walletAddress,
+        characterId: characterId || 0,
+      });
+      
+      res.json({ runId: run.id, success: true });
+    } catch (error) {
+      console.error("Start Dashville run error:", error);
+      res.status(500).json({ error: "Failed to start game" });
+    }
+  });
+
+  app.post("/api/dashville/level-complete", async (req, res) => {
+    try {
+      const { runId, level, score, kicksEarned } = req.body;
+      
+      if (!runId) {
+        return res.status(400).json({ error: "Run ID required" });
+      }
+      
+      const run = await storage.getDashvilleRun(runId);
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      if (run.status !== "playing") {
+        return res.status(400).json({ error: "Run is not active" });
+      }
+      
+      const currentKicks = parseFloat(run.kicksEarned as string) || 0;
+      const newKicks = currentKicks + (kicksEarned || 0);
+      
+      await storage.updateDashvilleRun(runId, {
+        currentLevel: level,
+        score: score,
+        kicksEarned: newKicks.toString(),
+      });
+      
+      res.json({ 
+        success: true, 
+        totalKicks: newKicks,
+        level,
+      });
+    } catch (error) {
+      console.error("Level complete error:", error);
+      res.status(500).json({ error: "Failed to update level" });
+    }
+  });
+
+  app.post("/api/dashville/end", async (req, res) => {
+    try {
+      const { runId, won, finalScore, totalKicks } = req.body;
+      
+      if (!runId) {
+        return res.status(400).json({ error: "Run ID required" });
+      }
+      
+      const run = await storage.getDashvilleRun(runId);
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      await storage.updateDashvilleRun(runId, {
+        status: won ? "won" : "lost",
+        score: finalScore || run.score,
+        kicksEarned: totalKicks?.toString() || run.kicksEarned,
+        completedAt: new Date(),
+      });
+      
+      res.json({ 
+        success: true,
+        status: won ? "won" : "lost",
+        kicksEarned: totalKicks || parseFloat(run.kicksEarned as string),
+      });
+    } catch (error) {
+      console.error("End game error:", error);
+      res.status(500).json({ error: "Failed to end game" });
+    }
+  });
+
+  app.post("/api/dashville/claim", async (req, res) => {
+    try {
+      const { runId, walletAddress } = req.body;
+      
+      if (!runId || !walletAddress) {
+        return res.status(400).json({ error: "Run ID and wallet address required" });
+      }
+      
+      const run = await storage.getDashvilleRun(runId);
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      if (run.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Not authorized to claim this run" });
+      }
+      
+      if (run.claimStatus === "claimed") {
+        return res.status(400).json({ error: "Already claimed" });
+      }
+      
+      const kicksToSend = parseFloat(run.kicksEarned as string) - parseFloat(run.kicksClaimed as string);
+      
+      if (kicksToSend <= 0) {
+        return res.status(400).json({ error: "No kicks to claim" });
+      }
+      
+      // Transfer kicks from house wallet
+      let txHash: string | null = null;
+      try {
+        const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+        if (housePrivateKey) {
+          const { ethers } = await import("ethers");
+          const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com/http", 33139);
+          const wallet = new ethers.Wallet(housePrivateKey, provider);
+          
+          const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
+          const tokenAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
+          const tokenContract = new ethers.Contract(kicksAddress, tokenAbi, wallet);
+          
+          const amountWei = ethers.parseUnits(kicksToSend.toString(), 18);
+          const tx = await tokenContract.transfer(walletAddress, amountWei);
+          txHash = tx.hash;
+          
+          console.log(`Dashville claim sent: ${kicksToSend} KICKS to ${walletAddress}, tx: ${txHash}`);
+        }
+      } catch (txError) {
+        console.error("Transfer error:", txError);
+        return res.status(500).json({ error: "Failed to transfer KICKS" });
+      }
+      
+      await storage.updateDashvilleRun(runId, {
+        kicksClaimed: run.kicksEarned,
+        claimStatus: "claimed",
+        claimTxHash: txHash || undefined,
+      });
+      
+      res.json({
+        success: true,
+        claimed: kicksToSend,
+        txHash,
+      });
+    } catch (error) {
+      console.error("Dashville claim error:", error);
+      res.status(500).json({ error: "Failed to claim KICKS" });
+    }
+  });
+
+  app.get("/api/dashville/run/:runId", async (req, res) => {
+    try {
+      const runId = parseInt(req.params.runId);
+      const run = await storage.getDashvilleRun(runId);
+      
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      
+      res.json(run);
+    } catch (error) {
+      console.error("Get run error:", error);
+      res.status(500).json({ error: "Failed to get run" });
+    }
+  });
+
   app.get("/api/missions", async (req, res) => {
     try {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
