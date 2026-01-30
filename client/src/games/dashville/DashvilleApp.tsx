@@ -1645,7 +1645,36 @@ export default function DashvilleApp() {
       {gameState === 'levelComplete' && (
         <div className="text-center bg-[#00FF00] p-8 border-4 border-black" style={{ boxShadow: '8px 8px 0px black' }}>
           <h2 className="text-4xl font-black text-black mb-4">LEVEL COMPLETE!</h2>
-          <p className="text-2xl text-black mb-6">Bonus: {level * 100} $KICKS</p>
+          <p className="text-2xl text-black mb-2">Bonus: {level * 100} $KICKS</p>
+          <p className="text-2xl text-black mb-4">Total Earned: {kicks} $KICKS</p>
+          
+          {kicks > 0 && !claimed && runId && getWalletAddress() && (
+            <button
+              onClick={claimKicks}
+              disabled={claiming}
+              className="px-8 py-4 bg-[#FFD700] text-black font-black text-xl uppercase border-4 border-black hover:bg-[#FFC000] transition-colors mb-4 disabled:opacity-50"
+              style={{ boxShadow: '4px 4px 0px black' }}
+            >
+              {claiming ? 'CLAIMING...' : `CLAIM ${kicks} $KICKS`}
+            </button>
+          )}
+          
+          {claimed && (
+            <div className="mb-4">
+              <p className="text-2xl text-black font-bold mb-2">$KICKS CLAIMED!</p>
+              {claimTxHash && (
+                <a 
+                  href={`https://apescan.io/tx/${claimTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-800 underline text-sm"
+                >
+                  View Transaction
+                </a>
+              )}
+            </div>
+          )}
+          
           <button
             onClick={nextLevel}
             className="px-8 py-4 bg-black text-white font-black text-xl uppercase border-4 border-white hover:bg-gray-800 transition-colors"
@@ -1657,47 +1686,16 @@ export default function DashvilleApp() {
 
       {gameState === 'gameOver' && (
         <div className="text-center bg-[#FF0000] p-8 border-4 border-black" style={{ boxShadow: '8px 8px 0px black' }}>
-          <h2 className="text-4xl font-black text-white mb-4">
-            {level > 5 ? 'YOU WIN!' : 'GAME OVER'}
-          </h2>
+          <h2 className="text-4xl font-black text-white mb-4">GAME OVER</h2>
           <p className="text-2xl text-white mb-2">Final Score: {score}</p>
-          <p className="text-2xl text-yellow-300 mb-4">$KICKS Earned: {kicks}</p>
-          
-          {kicks > 0 && !claimed && runId && getWalletAddress() && (
-            <button
-              onClick={claimKicks}
-              disabled={claiming}
-              className="px-8 py-4 bg-[#39FF14] text-black font-black text-xl uppercase border-4 border-black hover:bg-[#50FF30] transition-colors mb-4 disabled:opacity-50"
-              style={{ boxShadow: '4px 4px 0px black' }}
-            >
-              {claiming ? 'CLAIMING...' : `CLAIM ${kicks} $KICKS`}
-            </button>
-          )}
-          {kicks > 0 && !claimed && (!runId || !getWalletAddress()) && (
-            <p className="text-yellow-400 text-sm mb-4">Connect wallet to claim rewards</p>
-          )}
-          
-          {claimed && (
-            <div className="mb-4">
-              <p className="text-2xl text-[#39FF14] font-bold mb-2">$KICKS CLAIMED!</p>
-              {claimTxHash && (
-                <a 
-                  href={`https://apescan.io/tx/${claimTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-white underline"
-                >
-                  View Transaction
-                </a>
-              )}
-            </div>
-          )}
+          <p className="text-2xl text-yellow-300 mb-2">$KICKS Earned: {kicks}</p>
+          <p className="text-sm text-yellow-200 mb-4">Beat the boss to claim your rewards!</p>
           
           <button
             onClick={restartGame}
             className="px-8 py-4 bg-black text-white font-black text-xl uppercase border-4 border-white hover:bg-gray-800 transition-colors"
           >
-            PLAY AGAIN
+            TRY AGAIN
           </button>
         </div>
       )}
