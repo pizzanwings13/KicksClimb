@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { useWallet } from '@/lib/stores/useWallet';
 
 interface Player {
   x: number;
@@ -161,8 +162,10 @@ export default function DashvilleApp() {
     kicksRef.current = kicks;
   }, [kicks]);
   
+  const { walletAddress: connectedWalletAddress } = useWallet();
+  
   const getWalletAddress = () => {
-    return localStorage.getItem('walletAddress') || '';
+    return connectedWalletAddress || localStorage.getItem('walletAddress') || '';
   };
   
   const gameRef = useRef<{
@@ -261,8 +264,8 @@ export default function DashvilleApp() {
       velY: 0,
       onGround: false,
       health: 3,
-      speed: 5,
-      jumpPower: -12,
+      speed: 6,
+      jumpPower: -13,
       carrotPower: 0,
       shootTimer: 0,
       color: CHARS[charIndex].color,
@@ -511,7 +514,7 @@ export default function DashvilleApp() {
         game.player.velX = game.player.speed;
         game.player.facingRight = true;
       } else {
-        game.player.velX *= 0.8;
+        game.player.velX *= 0.6;
       }
       
       if (game.player.onGround && Math.abs(game.player.velX) > 0.5) {
@@ -530,7 +533,7 @@ export default function DashvilleApp() {
       
       game.keysJustPressed = {};
 
-      if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0 && game.player.carrotPower > 0) {
+      if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0) {
         const weapon = game.player.weapon;
         const hasAmmo = weapon === 'normal' || game.player.weaponAmmo > 0;
         
@@ -542,7 +545,7 @@ export default function DashvilleApp() {
                 y: game.player.y + game.player.h / 2 + i * 8,
                 w: 6,
                 h: 4,
-                velX: 12,
+                velX: game.player.facingRight ? 12 : -12,
                 dead: false,
                 type: 'shotgun'
               });
@@ -555,7 +558,7 @@ export default function DashvilleApp() {
               y: game.player.y + game.player.h / 2,
               w: 16,
               h: 8,
-              velX: 14,
+              velX: game.player.facingRight ? 14 : -14,
               dead: false,
               type: 'heavy'
             });
@@ -567,12 +570,11 @@ export default function DashvilleApp() {
               y: game.player.y + game.player.h / 2,
               w: 8,
               h: 4,
-              velX: 10,
+              velX: game.player.facingRight ? 10 : -10,
               dead: false,
               type: 'normal'
             });
           }
-          game.player.carrotPower--;
           game.player.shootTimer = weapon === 'heavy' ? 20 : weapon === 'shotgun' ? 25 : 15;
           
           if (game.player.weaponAmmo <= 0 && weapon !== 'normal') {
@@ -622,7 +624,7 @@ export default function DashvilleApp() {
       for (const wp of game.weaponPickups) {
         if (!wp.collected && collide(game.player, wp)) {
           game.player.weapon = wp.type;
-          game.player.weaponAmmo = wp.type === 'heavy' ? 10 : 8;
+          game.player.weaponAmmo = 13;
           wp.collected = true;
           game.weaponAnnouncement = wp.type === 'heavy' ? 'HEAVY MACHINE GUN!' : 'SHOTGUN!';
           game.announcementTimer = 90;
@@ -1170,6 +1172,25 @@ export default function DashvilleApp() {
           ctx.fillRect(p.w / 2 - 13, p.h / 2 - legOffset, 8, 10);
         }
         
+        if (p.weapon === 'heavy') {
+          ctx.fillStyle = '#444';
+          ctx.fillRect(p.w / 2 - 5, -8, 30, 10);
+          ctx.fillStyle = '#666';
+          ctx.fillRect(p.w / 2 + 20, -10, 8, 14);
+          ctx.fillStyle = '#FF4400';
+          ctx.beginPath();
+          ctx.arc(p.w / 2 + 28, -3, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.weapon === 'shotgun') {
+          ctx.fillStyle = '#8B4513';
+          ctx.fillRect(p.w / 2 - 5, -4, 25, 6);
+          ctx.fillStyle = '#555';
+          ctx.fillRect(p.w / 2 + 15, -6, 12, 10);
+        } else if (p.carrotPower > 0) {
+          ctx.fillStyle = '#666';
+          ctx.fillRect(p.w / 2 - 5, -2, 18, 4);
+        }
+        
         ctx.restore();
       }
 
@@ -1246,7 +1267,11 @@ export default function DashvilleApp() {
     if (!runId || claiming || claimed) return;
     
     const walletAddress = getWalletAddress();
-    if (!walletAddress) return;
+    if (!walletAddress) {
+      console.error('No wallet address found');
+      alert('Please connect your wallet first');
+      return;
+    }
     
     setClaiming(true);
     try {
@@ -1259,9 +1284,13 @@ export default function DashvilleApp() {
       if (data.success) {
         setClaimed(true);
         setClaimTxHash(data.txHash);
+      } else {
+        console.error('Claim failed:', data.error);
+        alert(data.error || 'Failed to claim KICKS');
       }
     } catch (error) {
       console.error('Failed to claim kicks:', error);
+      alert('Failed to claim KICKS. Please try again.');
     }
     setClaiming(false);
   }, [runId, claiming, claimed]);
@@ -1285,7 +1314,11 @@ export default function DashvilleApp() {
       }
     }
     
-    gameRef.current.player = createPlayer(selectedChar);
+    const newPlayer = createPlayer(selectedChar);
+    gameRef.current.player = newPlayer;
+    gameRef.current.cameraX = 0;
+    gameRef.current.bullets = [];
+    gameRef.current.enemyBullets = [];
     resetLevel(1);
     setLevel(1);
     setScore(0);
@@ -1478,7 +1511,7 @@ export default function DashvilleApp() {
           <p className="text-2xl text-white mb-2">Final Score: {score}</p>
           <p className="text-2xl text-yellow-300 mb-4">$KICKS Earned: {kicks}</p>
           
-          {kicks > 0 && !claimed && (
+          {kicks > 0 && !claimed && runId && getWalletAddress() && (
             <button
               onClick={claimKicks}
               disabled={claiming}
@@ -1487,6 +1520,9 @@ export default function DashvilleApp() {
             >
               {claiming ? 'CLAIMING...' : `CLAIM ${kicks} $KICKS`}
             </button>
+          )}
+          {kicks > 0 && !claimed && (!runId || !getWalletAddress()) && (
+            <p className="text-yellow-400 text-sm mb-4">Connect wallet to claim rewards</p>
           )}
           
           {claimed && (
