@@ -21,6 +21,8 @@ interface Player {
   weapon: 'normal' | 'heavy' | 'shotgun';
   weaponAmmo: number;
   invincible: number;
+  animFrame: number;
+  facingRight: boolean;
 }
 
 const LEVEL_THEMES = [
@@ -232,7 +234,9 @@ export default function DashvilleApp() {
       charIndex: charIndex,
       weapon: 'normal' as const,
       weaponAmmo: 0,
-      invincible: 0
+      invincible: 0,
+      animFrame: 0,
+      facingRight: true
     };
   }, []);
 
@@ -400,10 +404,18 @@ export default function DashvilleApp() {
       const { keys, touchControls } = game;
       if (keys['KeyA'] || keys['ArrowLeft'] || touchControls.left) {
         game.player.velX = -game.player.speed;
+        game.player.facingRight = false;
       } else if (keys['KeyD'] || keys['ArrowRight'] || touchControls.right) {
         game.player.velX = game.player.speed;
+        game.player.facingRight = true;
       } else {
         game.player.velX *= 0.8;
+      }
+      
+      if (game.player.onGround && Math.abs(game.player.velX) > 0.5) {
+        game.player.animFrame += 0.3;
+      } else if (game.player.onGround) {
+        game.player.animFrame = 0;
       }
 
       const jumpJustPressed = game.keysJustPressed['KeyW'] || game.keysJustPressed['ArrowUp'] || game.keysJustPressed['Space'];
@@ -796,15 +808,31 @@ export default function DashvilleApp() {
       const p = game.player;
       if (p.invincible <= 0 || Math.floor(p.invincible / 4) % 2 === 0) {
         const charImg = game.charImages[p.charIndex];
+        const isMoving = Math.abs(p.velX) > 0.5;
+        const bobOffset = p.onGround && isMoving ? Math.sin(p.animFrame * 2) * 3 : 0;
+        const legOffset = p.onGround && isMoving ? Math.sin(p.animFrame * 4) * 4 : 0;
+        
+        ctx.save();
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2 + bobOffset);
+        if (!p.facingRight) ctx.scale(-1, 1);
+        
         if (charImg && charImg.complete) {
-          ctx.drawImage(charImg, p.x - 10, p.y - 10, p.w + 20, p.h + 20);
+          ctx.drawImage(charImg, -p.w / 2 - 10, -p.h / 2 - 10, p.w + 20, p.h + 20);
         } else {
           ctx.fillStyle = `rgb(${p.color[0]}, ${p.color[1]}, ${p.color[2]})`;
           ctx.strokeStyle = '#000';
           ctx.lineWidth = 2;
-          ctx.fillRect(p.x, p.y, p.w, p.h);
-          ctx.strokeRect(p.x, p.y, p.w, p.h);
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.strokeRect(-p.w / 2, -p.h / 2, p.w, p.h);
         }
+        
+        if (p.onGround && isMoving) {
+          ctx.fillStyle = '#333';
+          ctx.fillRect(-p.w / 2 + 5, p.h / 2 + legOffset, 8, 10);
+          ctx.fillRect(p.w / 2 - 13, p.h / 2 - legOffset, 8, 10);
+        }
+        
+        ctx.restore();
       }
 
       ctx.restore();
@@ -1006,20 +1034,23 @@ export default function DashvilleApp() {
       )}
 
       {gameState === 'playing' && (
-        <div className="relative">
-          <div className="absolute top-2 left-2 z-10 bg-black/70 p-3 border-2 border-white text-white font-mono text-sm">
+        <div className="fixed inset-0 bg-black flex items-center justify-center">
+          <div className="absolute top-16 left-4 z-10 bg-black/70 p-3 border-2 border-white text-white font-mono text-sm">
             <div>Level: {level}</div>
             <div>Health: {'❤️'.repeat(gameRef.current.player?.health || 0)}</div>
             <div>Score: {score}</div>
             <div>$KICKS: {kicks}</div>
             <div>Carrots: {gameRef.current.player?.carrotPower || 0} 🥕</div>
+            {gameRef.current.player?.weapon !== 'normal' && (
+              <div className="text-yellow-400">Weapon: {gameRef.current.player?.weapon?.toUpperCase()} ({gameRef.current.player?.weaponAmmo})</div>
+            )}
           </div>
           
           <canvas
             ref={canvasRef}
             width={SCREEN_WIDTH}
             height={SCREEN_HEIGHT}
-            className="border-4 border-white max-w-full"
+            className="max-w-full max-h-full object-contain"
             style={{ imageRendering: 'pixelated' }}
           />
 
