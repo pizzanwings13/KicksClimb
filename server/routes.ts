@@ -1638,7 +1638,7 @@ export async function registerRoutes(
 
   app.post("/api/dashville/end", async (req, res) => {
     try {
-      const { runId, won, finalScore, totalKicks } = req.body;
+      const { runId, won, finalScore, totalKicks, currentLevel } = req.body;
       
       if (!runId) {
         return res.status(400).json({ error: "Run ID required" });
@@ -1654,7 +1654,27 @@ export async function registerRoutes(
         score: finalScore || run.score,
         kicksEarned: totalKicks?.toString() || run.kicksEarned,
         completedAt: new Date(),
+        currentLevel: currentLevel || run.currentLevel,
       });
+      
+      // Update game leaderboards
+      try {
+        const user = await storage.getUserByWallet(run.walletAddress);
+        if (user) {
+          const score = finalScore || run.score || 0;
+          const kicks = totalKicks || parseFloat(run.kicksEarned as string) || 0;
+          const level = currentLevel || run.currentLevel || 1;
+          await storage.updateDashvilleGameLeaderboards(
+            user.id,
+            user.username,
+            score,
+            Math.floor(kicks),
+            level
+          );
+        }
+      } catch (lbError) {
+        console.error("Failed to update leaderboard:", lbError);
+      }
       
       res.json({ 
         success: true,
@@ -1764,6 +1784,91 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get run error:", error);
       res.status(500).json({ error: "Failed to get run" });
+    }
+  });
+
+  // Dashville Game Leaderboards
+  app.get("/api/dashville/leaderboard/daily", async (req, res) => {
+    try {
+      const today = new Date();
+      const leaderboard = await storage.getDashvilleGameDailyLeaderboard(today, 10);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Get daily leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get daily leaderboard" });
+    }
+  });
+
+  app.get("/api/dashville/leaderboard/weekly", async (req, res) => {
+    try {
+      const today = new Date();
+      const dayOfWeek = today.getUTCDay();
+      const weekStart = new Date(today);
+      weekStart.setUTCDate(weekStart.getUTCDate() - ((dayOfWeek + 1) % 7));
+      weekStart.setUTCHours(0, 0, 0, 0);
+      
+      const leaderboard = await storage.getDashvilleGameWeeklyLeaderboard(weekStart, 10);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Get weekly leaderboard error:", error);
+      res.status(500).json({ error: "Failed to get weekly leaderboard" });
+    }
+  });
+
+  // Username management
+  app.get("/api/user/profile/:walletAddress", async (req, res) => {
+    try {
+      const { walletAddress } = req.params;
+      const user = await storage.getUserByWallet(walletAddress);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({
+        username: user.username,
+        walletAddress: user.walletAddress,
+      });
+    } catch (error) {
+      console.error("Get profile error:", error);
+      res.status(500).json({ error: "Failed to get profile" });
+    }
+  });
+
+  app.post("/api/user/username", async (req, res) => {
+    try {
+      const { walletAddress, username } = req.body;
+      
+      if (!walletAddress || !username) {
+        return res.status(400).json({ error: "Wallet address and username required" });
+      }
+      
+      if (username.length < 2 || username.length > 20) {
+        return res.status(400).json({ error: "Username must be 2-20 characters" });
+      }
+      
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({ error: "Username can only contain letters, numbers, and underscores" });
+      }
+      
+      let user = await storage.getUserByWallet(walletAddress);
+      
+      if (!user) {
+        user = await storage.createUser({
+          walletAddress,
+          username,
+        });
+      } else {
+        user = await storage.updateUser(user.id, { username });
+      }
+      
+      res.json({
+        success: true,
+        username: user?.username,
+      });
+    } catch (error) {
+      console.error("Update username error:", error);
+      res.status(500).json({ error: "Failed to update username" });
     }
   });
 

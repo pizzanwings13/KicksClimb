@@ -4,12 +4,14 @@ import {
   bunnyBladeWeeklyLeaderboard, bunnyBladeInventories,
   dashvilleRuns, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleMissionPrizes,
   dashvilleDailyLeaderboard, dashvilleWeeklyLeaderboard,
+  dashvilleGameDailyLeaderboard, dashvilleGameWeeklyLeaderboard,
   type User, type InsertUser, type Game, type InsertGame, 
   type GameStep, type InsertGameStep, type DailyLeaderboardEntry, type WeeklyLeaderboardEntry, type UserAchievement,
   type RabbitRushInventory, type RabbitRushRun, type RabbitRushDailyLeaderboardEntry, type RabbitRushWeeklyLeaderboardEntry,
   type BunnyBladeWeeklyLeaderboardEntry, type BunnyBladeInventory,
   type DashvilleRun, type DashvilleMissionSubmission, type DashvilleMissionProgress, type DashvilleMissionPrize,
-  type DashvilleDailyLeaderboardEntry, type DashvilleWeeklyLeaderboardEntry
+  type DashvilleDailyLeaderboardEntry, type DashvilleWeeklyLeaderboardEntry,
+  type DashvilleGameDailyLeaderboardEntry, type DashvilleGameWeeklyLeaderboardEntry
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -777,6 +779,110 @@ export class DatabaseStorage implements IStorage {
         username,
         points,
         missionsCompleted: 1,
+        weekStart,
+        weekEnd,
+      });
+    }
+  }
+
+  async getDashvilleGameDailyLeaderboard(date: Date, limit: number = 10): Promise<DashvilleGameDailyLeaderboardEntry[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    
+    return await db.select()
+      .from(dashvilleGameDailyLeaderboard)
+      .where(and(
+        gte(dashvilleGameDailyLeaderboard.date, startOfDay),
+        lte(dashvilleGameDailyLeaderboard.date, endOfDay)
+      ))
+      .orderBy(desc(dashvilleGameDailyLeaderboard.highScore))
+      .limit(limit);
+  }
+
+  async getDashvilleGameWeeklyLeaderboard(weekStart: Date, limit: number = 10): Promise<DashvilleGameWeeklyLeaderboardEntry[]> {
+    return await db.select()
+      .from(dashvilleGameWeeklyLeaderboard)
+      .where(eq(dashvilleGameWeeklyLeaderboard.weekStart, weekStart))
+      .orderBy(desc(dashvilleGameWeeklyLeaderboard.highScore))
+      .limit(limit);
+  }
+
+  async updateDashvilleGameLeaderboards(
+    userId: number, 
+    username: string, 
+    score: number, 
+    kicks: number, 
+    level: number
+  ): Promise<void> {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    
+    const dayOfWeek = today.getUTCDay();
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek + 7) % 7;
+    const weekStart = new Date(today);
+    weekStart.setUTCDate(weekStart.getUTCDate() - ((dayOfWeek + 1) % 7));
+    weekStart.setUTCHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    weekEnd.setUTCHours(23, 59, 59, 999);
+
+    const [existingDaily] = await db.select()
+      .from(dashvilleGameDailyLeaderboard)
+      .where(and(
+        eq(dashvilleGameDailyLeaderboard.userId, userId),
+        eq(dashvilleGameDailyLeaderboard.date, today)
+      ));
+
+    if (existingDaily) {
+      await db.update(dashvilleGameDailyLeaderboard)
+        .set({
+          highScore: Math.max(existingDaily.highScore, score),
+          totalKicks: existingDaily.totalKicks + kicks,
+          gamesPlayed: existingDaily.gamesPlayed + 1,
+          highestLevel: Math.max(existingDaily.highestLevel, level),
+          username,
+        })
+        .where(eq(dashvilleGameDailyLeaderboard.id, existingDaily.id));
+    } else {
+      await db.insert(dashvilleGameDailyLeaderboard).values({
+        userId,
+        username,
+        highScore: score,
+        totalKicks: kicks,
+        gamesPlayed: 1,
+        highestLevel: level,
+        date: today,
+      });
+    }
+
+    const [existingWeekly] = await db.select()
+      .from(dashvilleGameWeeklyLeaderboard)
+      .where(and(
+        eq(dashvilleGameWeeklyLeaderboard.userId, userId),
+        eq(dashvilleGameWeeklyLeaderboard.weekStart, weekStart)
+      ));
+
+    if (existingWeekly) {
+      await db.update(dashvilleGameWeeklyLeaderboard)
+        .set({
+          highScore: Math.max(existingWeekly.highScore, score),
+          totalKicks: existingWeekly.totalKicks + kicks,
+          gamesPlayed: existingWeekly.gamesPlayed + 1,
+          highestLevel: Math.max(existingWeekly.highestLevel, level),
+          username,
+        })
+        .where(eq(dashvilleGameWeeklyLeaderboard.id, existingWeekly.id));
+    } else {
+      await db.insert(dashvilleGameWeeklyLeaderboard).values({
+        userId,
+        username,
+        highScore: score,
+        totalKicks: kicks,
+        gamesPlayed: 1,
+        highestLevel: level,
         weekStart,
         weekEnd,
       });
