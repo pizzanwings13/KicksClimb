@@ -329,6 +329,43 @@ export const dashvilleWeeklyLeaderboard = pgTable("dashville_weekly_leaderboard"
   userWeekIdx: uniqueIndex("dashville_weekly_user_week_idx").on(table.userId, table.weekStart),
 }));
 
+export const dashvilleGameDailyLeaderboard = pgTable("dashville_game_daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
+  date: timestamp("date").notNull(),
+});
+
+export const dashvilleGameWeeklyLeaderboard = pgTable("dashville_game_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+export const dashvilleGameDailyLeaderboardRelations = relations(dashvilleGameDailyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleGameDailyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dashvilleGameWeeklyLeaderboardRelations = relations(dashvilleGameWeeklyLeaderboard, ({ one }) => ({
+  user: one(users, {
+    fields: [dashvilleGameWeeklyLeaderboard.userId],
+    references: [users.id],
+  }),
+}));
+
 export const dashvilleMissionSubmissionsRelations = relations(dashvilleMissionSubmissions, ({ one }) => ({
   user: one(users, {
     fields: [dashvilleMissionSubmissions.userId],
@@ -401,3 +438,5 @@ export type DashvilleMissionProgress = typeof dashvilleMissionProgress.$inferSel
 export type DashvilleMissionPrize = typeof dashvilleMissionPrizes.$inferSelect;
 export type DashvilleDailyLeaderboardEntry = typeof dashvilleDailyLeaderboard.$inferSelect;
 export type DashvilleWeeklyLeaderboardEntry = typeof dashvilleWeeklyLeaderboard.$inferSelect;
+export type DashvilleGameDailyLeaderboardEntry = typeof dashvilleGameDailyLeaderboard.$inferSelect;
+export type DashvilleGameWeeklyLeaderboardEntry = typeof dashvilleGameWeeklyLeaderboard.$inferSelect;
