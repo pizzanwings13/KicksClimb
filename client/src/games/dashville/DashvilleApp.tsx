@@ -451,6 +451,7 @@ export default function DashvilleApp() {
     const walletAddress = getWalletAddress();
     
     if (walletAddress) {
+      localStorage.setItem('walletAddress', walletAddress);
       try {
         const response = await fetch('/api/dashville/start', {
           method: 'POST',
@@ -460,10 +461,13 @@ export default function DashvilleApp() {
         const data = await response.json();
         if (data.runId) {
           setRunId(data.runId);
+          console.log('Game started with runId:', data.runId, 'wallet:', walletAddress);
         }
       } catch (error) {
         console.error('Failed to start game run:', error);
       }
+    } else {
+      console.warn('No wallet connected - rewards cannot be claimed');
     }
     
     gameRef.current.player = createPlayer(selectedChar);
@@ -1277,9 +1281,14 @@ export default function DashvilleApp() {
   }, [level, resetLevel, runId, levelKicks, score, kicks]);
 
   const claimKicks = useCallback(async () => {
-    if (!runId || claiming || claimed) return;
+    console.log('Claim attempt - runId:', runId, 'claiming:', claiming, 'claimed:', claimed);
+    if (!runId || claiming || claimed) {
+      console.log('Claim blocked - runId:', runId, 'claiming:', claiming, 'claimed:', claimed);
+      return;
+    }
     
     const walletAddress = getWalletAddress();
+    console.log('Wallet address for claim:', walletAddress);
     if (!walletAddress) {
       console.error('No wallet address found');
       alert('Please connect your wallet first');
@@ -1288,12 +1297,14 @@ export default function DashvilleApp() {
     
     setClaiming(true);
     try {
+      console.log('Sending claim request for runId:', runId, 'wallet:', walletAddress);
       const response = await fetch('/api/dashville/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ runId, walletAddress }),
       });
       const data = await response.json();
+      console.log('Claim response:', data);
       if (data.success) {
         setClaimed(true);
         setClaimTxHash(data.txHash);
@@ -1312,6 +1323,7 @@ export default function DashvilleApp() {
     const walletAddress = getWalletAddress();
     
     if (walletAddress) {
+      localStorage.setItem('walletAddress', walletAddress);
       try {
         const response = await fetch('/api/dashville/start', {
           method: 'POST',
@@ -1321,10 +1333,13 @@ export default function DashvilleApp() {
         const data = await response.json();
         if (data.runId) {
           setRunId(data.runId);
+          console.log('Game restarted with runId:', data.runId, 'wallet:', walletAddress);
         }
       } catch (error) {
         console.error('Failed to start new game run:', error);
       }
+    } else {
+      console.warn('No wallet connected - rewards cannot be claimed');
     }
     
     const newPlayer = createPlayer(selectedChar);
