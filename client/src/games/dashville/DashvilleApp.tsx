@@ -1648,16 +1648,19 @@ export default function DashvilleApp() {
           
           {claimed && (
             <div className="mb-4">
-              <p className="text-2xl text-black font-bold mb-2">$KICKS CLAIMED!</p>
-              {claimTxHash && (
+              <p className="text-2xl text-black font-bold mb-2">{kicks} $KICKS SENT TO YOUR WALLET!</p>
+              <p className="text-sm text-gray-700 mb-2">Tokens sent directly - no signature needed</p>
+              {claimTxHash ? (
                 <a 
                   href={`https://apescan.io/tx/${claimTxHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-800 underline text-sm"
                 >
-                  View Transaction
+                  View Transaction on ApeScan
                 </a>
+              ) : (
+                <p className="text-xs text-gray-600">Check your wallet for the tokens</p>
               )}
             </div>
           )}
