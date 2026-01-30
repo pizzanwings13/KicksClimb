@@ -169,6 +169,15 @@ export default function DashvilleApp() {
   const [levelKicks, setLevelKicks] = useState(0);
   const kicksRef = useRef(0);
   
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardType, setLeaderboardType] = useState<'daily' | 'weekly'>('daily');
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [username, setUsername] = useState('');
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
+  
   useEffect(() => {
     kicksRef.current = kicks;
   }, [kicks]);
@@ -471,6 +480,70 @@ export default function DashvilleApp() {
       game.player.invincible = 0;
     }
   }, []);
+
+  const fetchLeaderboard = useCallback(async (type: 'daily' | 'weekly') => {
+    setLoadingLeaderboard(true);
+    try {
+      const response = await fetch(`/api/dashville/leaderboard/${type}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLeaderboardData(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  }, []);
+
+  const fetchUsername = useCallback(async () => {
+    const walletAddress = getWalletAddress();
+    if (!walletAddress) return;
+    
+    try {
+      const response = await fetch(`/api/user/profile/${walletAddress}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUsername(data.username || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch username:', error);
+    }
+  }, []);
+
+  const saveUsername = useCallback(async () => {
+    const walletAddress = getWalletAddress();
+    if (!walletAddress || !usernameInput.trim()) return;
+    
+    setSavingUsername(true);
+    try {
+      const response = await fetch('/api/user/username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, username: usernameInput.trim() }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUsername(data.username);
+        setEditingUsername(false);
+      }
+    } catch (error) {
+      console.error('Failed to save username:', error);
+    } finally {
+      setSavingUsername(false);
+    }
+  }, [usernameInput]);
+
+  useEffect(() => {
+    fetchUsername();
+  }, [fetchUsername]);
+
+  useEffect(() => {
+    if (showLeaderboard) {
+      fetchLeaderboard(leaderboardType);
+    }
+  }, [showLeaderboard, leaderboardType, fetchLeaderboard]);
 
   const startGame = useCallback(async () => {
     const walletAddress = getWalletAddress();
@@ -1531,20 +1604,66 @@ export default function DashvilleApp() {
       </div>
 
       {gameState === 'menu' && (
-        <div className="text-center">
+        <div className="text-center max-w-4xl mx-auto px-4">
           <h1 className="text-5xl font-black text-[#FFFF00] mb-2 uppercase tracking-wider" style={{ textShadow: '4px 4px 0px #000' }}>
             DASHVILLE
           </h1>
-          <p className="text-xl text-white mb-8">Retro Run 'n Gun Adventure</p>
+          <p className="text-xl text-white mb-4">Retro Run 'n Gun Adventure</p>
           
-          <div className="mb-6">
-            <p className="text-gray-400 mb-4">Choose Your Character:</p>
+          {getWalletAddress() && (
+            <div className="mb-4 flex items-center justify-center gap-2">
+              {editingUsername ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value.slice(0, 20))}
+                    placeholder="Enter username"
+                    className="px-3 py-2 bg-[#1a1a1a] border-2 border-[#39FF14] text-white font-mono text-sm"
+                    maxLength={20}
+                    autoFocus
+                  />
+                  <button
+                    onClick={saveUsername}
+                    disabled={savingUsername || usernameInput.length < 2}
+                    className="px-3 py-2 bg-[#39FF14] text-black font-bold text-sm border-2 border-black disabled:opacity-50"
+                  >
+                    {savingUsername ? '...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingUsername(false)}
+                    className="px-3 py-2 bg-gray-600 text-white font-bold text-sm border-2 border-black"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[#39FF14] font-mono text-sm">
+                    {username || getWalletAddress().slice(0, 6) + '...' + getWalletAddress().slice(-4)}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setUsernameInput(username || '');
+                      setEditingUsername(true);
+                    }}
+                    className="px-2 py-1 bg-[#1a1a1a] text-[#39FF14] text-xs border border-[#39FF14] hover:bg-[#2a2a2a]"
+                  >
+                    Edit Name
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="mb-4">
+            <p className="text-gray-400 mb-3">Choose Your Character:</p>
             <div className="flex gap-4 justify-center flex-wrap">
               {CHARS.map((char, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedChar(i)}
-                  className={`w-24 h-28 border-[3px] border-black transition-all bg-[#1a1a1a] p-1 ${selectedChar === i ? 'scale-110 ring-2 ring-yellow-400' : ''}`}
+                  className={`w-20 h-24 border-[3px] border-black transition-all bg-[#1a1a1a] p-1 ${selectedChar === i ? 'scale-110 ring-2 ring-yellow-400' : ''}`}
                   style={{
                     boxShadow: selectedChar === i ? '0 0 20px rgba(255,255,0,0.5), 4px 4px 0px black' : '4px 4px 0px black'
                   }}
@@ -1557,18 +1676,93 @@ export default function DashvilleApp() {
                 </button>
               ))}
             </div>
-            <p className="text-white mt-3 text-lg font-bold">{CHARS[selectedChar].name}</p>
+            <p className="text-white mt-2 text-lg font-bold">{CHARS[selectedChar].name}</p>
           </div>
 
-          <button
-            onClick={startGame}
-            className="px-8 py-4 bg-[#FF6600] text-black font-black text-xl uppercase border-[4px] border-black hover:bg-[#FF8800] transition-colors"
-            style={{ boxShadow: '6px 6px 0px black' }}
-          >
-            START GAME
-          </button>
+          <div className="flex gap-4 justify-center mb-4">
+            <button
+              onClick={startGame}
+              className="px-8 py-4 bg-[#FF6600] text-black font-black text-xl uppercase border-[4px] border-black hover:bg-[#FF8800] transition-colors"
+              style={{ boxShadow: '6px 6px 0px black' }}
+            >
+              START GAME
+            </button>
+            <button
+              onClick={() => setShowLeaderboard(!showLeaderboard)}
+              className="px-6 py-4 bg-[#00BFFF] text-black font-black text-lg uppercase border-[4px] border-black hover:bg-[#33CCFF] transition-colors"
+              style={{ boxShadow: '6px 6px 0px black' }}
+            >
+              {showLeaderboard ? 'HIDE' : 'LEADERBOARD'}
+            </button>
+          </div>
 
-          <div className="mt-6 text-gray-500 text-sm">
+          {showLeaderboard && (
+            <div className="bg-[#1a1a1a] border-4 border-black p-4 mb-4" style={{ boxShadow: '6px 6px 0px black' }}>
+              <div className="flex justify-center gap-2 mb-4">
+                <button
+                  onClick={() => setLeaderboardType('daily')}
+                  className={`px-4 py-2 font-bold uppercase border-2 border-black ${
+                    leaderboardType === 'daily' ? 'bg-[#FFFF00] text-black' : 'bg-[#333] text-white'
+                  }`}
+                >
+                  Daily
+                </button>
+                <button
+                  onClick={() => setLeaderboardType('weekly')}
+                  className={`px-4 py-2 font-bold uppercase border-2 border-black ${
+                    leaderboardType === 'weekly' ? 'bg-[#FFFF00] text-black' : 'bg-[#333] text-white'
+                  }`}
+                >
+                  Weekly
+                </button>
+              </div>
+              
+              <h3 className="text-[#FFFF00] font-bold text-lg mb-2 uppercase">
+                Top 10 - {leaderboardType === 'daily' ? 'Today' : 'This Week'}
+              </h3>
+              <p className="text-gray-500 text-xs mb-3">Resets Saturday midnight UTC</p>
+              
+              {loadingLeaderboard ? (
+                <p className="text-gray-400">Loading...</p>
+              ) : leaderboardData.length === 0 ? (
+                <p className="text-gray-400">No scores yet. Be the first!</p>
+              ) : (
+                <div className="space-y-2 text-left max-h-60 overflow-y-auto">
+                  {leaderboardData.map((entry, i) => (
+                    <div 
+                      key={entry.id} 
+                      className={`flex items-center justify-between px-3 py-2 ${
+                        i === 0 ? 'bg-[#FFD700]/20 border border-[#FFD700]' : 
+                        i === 1 ? 'bg-[#C0C0C0]/20 border border-[#C0C0C0]' : 
+                        i === 2 ? 'bg-[#CD7F32]/20 border border-[#CD7F32]' : 
+                        'bg-[#222] border border-[#333]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`font-black text-lg w-8 ${
+                          i === 0 ? 'text-[#FFD700]' : 
+                          i === 1 ? 'text-[#C0C0C0]' : 
+                          i === 2 ? 'text-[#CD7F32]' : 
+                          'text-gray-500'
+                        }`}>
+                          #{i + 1}
+                        </span>
+                        <span className="text-white font-mono text-sm">
+                          {entry.username || 'Anonymous'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[#39FF14] font-bold">{entry.highScore.toLocaleString()} pts</div>
+                        <div className="text-gray-400 text-xs">{entry.totalKicks} KICKS | Lvl {entry.highestLevel}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="text-gray-500 text-sm">
             <p>PC: A/D Move, W/Space Jump (x2 for Double Jump), Enter Shoot</p>
             <p>Mobile: Use touch buttons (tap jump twice for double jump)</p>
           </div>

@@ -255,7 +255,30 @@ const dashvilleRuns = pgTable("dashville_runs", {
   completedAt: timestamp("completed_at"),
 });
 
-const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleWeeklyLeaderboard, dashvilleRuns };
+const dashvilleGameDailyLeaderboard = pgTable("dashville_game_daily_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
+  date: timestamp("date").notNull(),
+});
+
+const dashvilleGameWeeklyLeaderboard = pgTable("dashville_game_weekly_leaderboard", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  highScore: integer("high_score").default(0).notNull(),
+  totalKicks: integer("total_kicks").default(0).notNull(),
+  gamesPlayed: integer("games_played").default(0).notNull(),
+  highestLevel: integer("highest_level").default(1).notNull(),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+});
+
+const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleWeeklyLeaderboard, dashvilleRuns, dashvilleGameDailyLeaderboard, dashvilleGameWeeklyLeaderboard };
 const db = drizzle(pool, { schema });
 
 type User = typeof users.$inferSelect;
@@ -1626,7 +1649,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if ((url === '/api/dashville/end' || url.endsWith('/api/dashville/end')) && method === 'POST') {
-      const { runId, won, finalScore, totalKicks } = req.body;
+      const { runId, won, finalScore, totalKicks, currentLevel } = req.body;
       if (!runId) return res.status(400).json({ error: "Run ID required" });
       
       const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
@@ -1636,8 +1659,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: won ? "won" : "lost",
         score: finalScore || run.score,
         kicksEarned: totalKicks?.toString() || run.kicksEarned,
+        currentLevel: currentLevel || run.currentLevel,
         completedAt: new Date(),
       }).where(eq(dashvilleRuns.id, runId));
+      
+      // Update game leaderboards
+      try {
+        const [user] = await db.select().from(users).where(eq(users.walletAddress, run.walletAddress));
+        if (user) {
+          const score = finalScore || run.score || 0;
+          const kicks = totalKicks || parseFloat(run.kicksEarned as string) || 0;
+          const level = currentLevel || run.currentLevel || 1;
+          
+          const today = new Date();
+          today.setUTCHours(0, 0, 0, 0);
+          
+          const dayOfWeek = today.getUTCDay();
+          const weekStart = new Date(today);
+          weekStart.setUTCDate(weekStart.getUTCDate() - ((dayOfWeek + 1) % 7));
+          weekStart.setUTCHours(0, 0, 0, 0);
+          
+          const weekEnd = new Date(weekStart);
+          weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+          weekEnd.setUTCHours(23, 59, 59, 999);
+
+          // Update daily leaderboard
+          const [existingDaily] = await db.select()
+            .from(dashvilleGameDailyLeaderboard)
+            .where(and(
+              eq(dashvilleGameDailyLeaderboard.userId, user.id),
+              eq(dashvilleGameDailyLeaderboard.date, today)
+            ));
+
+          if (existingDaily) {
+            await db.update(dashvilleGameDailyLeaderboard)
+              .set({
+                highScore: Math.max(existingDaily.highScore, score),
+                totalKicks: existingDaily.totalKicks + Math.floor(kicks),
+                gamesPlayed: existingDaily.gamesPlayed + 1,
+                highestLevel: Math.max(existingDaily.highestLevel, level),
+                username: user.username,
+              })
+              .where(eq(dashvilleGameDailyLeaderboard.id, existingDaily.id));
+          } else {
+            await db.insert(dashvilleGameDailyLeaderboard).values({
+              userId: user.id,
+              username: user.username,
+              highScore: score,
+              totalKicks: Math.floor(kicks),
+              gamesPlayed: 1,
+              highestLevel: level,
+              date: today,
+            });
+          }
+
+          // Update weekly leaderboard
+          const [existingWeekly] = await db.select()
+            .from(dashvilleGameWeeklyLeaderboard)
+            .where(and(
+              eq(dashvilleGameWeeklyLeaderboard.userId, user.id),
+              eq(dashvilleGameWeeklyLeaderboard.weekStart, weekStart)
+            ));
+
+          if (existingWeekly) {
+            await db.update(dashvilleGameWeeklyLeaderboard)
+              .set({
+                highScore: Math.max(existingWeekly.highScore, score),
+                totalKicks: existingWeekly.totalKicks + Math.floor(kicks),
+                gamesPlayed: existingWeekly.gamesPlayed + 1,
+                highestLevel: Math.max(existingWeekly.highestLevel, level),
+                username: user.username,
+              })
+              .where(eq(dashvilleGameWeeklyLeaderboard.id, existingWeekly.id));
+          } else {
+            await db.insert(dashvilleGameWeeklyLeaderboard).values({
+              userId: user.id,
+              username: user.username,
+              highScore: score,
+              totalKicks: Math.floor(kicks),
+              gamesPlayed: 1,
+              highestLevel: level,
+              weekStart,
+              weekEnd,
+            });
+          }
+        }
+      } catch (lbError) {
+        console.error("Failed to update leaderboard:", lbError);
+      }
       
       return res.json({ success: true, status: won ? "won" : "lost", kicksEarned: totalKicks || parseFloat(run.kicksEarned as string) });
     }
@@ -1702,6 +1811,95 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
       if (!run) return res.status(404).json({ error: "Run not found" });
       return res.json(run);
+    }
+
+    // Dashville Game Leaderboards
+    if ((url === '/api/dashville/leaderboard/daily' || url.endsWith('/api/dashville/leaderboard/daily')) && method === 'GET') {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(today);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      
+      const leaderboard = await db.select()
+        .from(dashvilleGameDailyLeaderboard)
+        .where(and(
+          gte(dashvilleGameDailyLeaderboard.date, today),
+          lte(dashvilleGameDailyLeaderboard.date, endOfDay)
+        ))
+        .orderBy(desc(dashvilleGameDailyLeaderboard.highScore))
+        .limit(10);
+      
+      return res.json(leaderboard);
+    }
+
+    if ((url === '/api/dashville/leaderboard/weekly' || url.endsWith('/api/dashville/leaderboard/weekly')) && method === 'GET') {
+      const today = new Date();
+      const dayOfWeek = today.getUTCDay();
+      const weekStart = new Date(today);
+      weekStart.setUTCDate(weekStart.getUTCDate() - ((dayOfWeek + 1) % 7));
+      weekStart.setUTCHours(0, 0, 0, 0);
+      
+      const leaderboard = await db.select()
+        .from(dashvilleGameWeeklyLeaderboard)
+        .where(eq(dashvilleGameWeeklyLeaderboard.weekStart, weekStart))
+        .orderBy(desc(dashvilleGameWeeklyLeaderboard.highScore))
+        .limit(10);
+      
+      return res.json(leaderboard);
+    }
+
+    // User profile endpoint
+    const profileMatch = url.match(/\/api\/user\/profile\/(.+)/);
+    if (profileMatch && method === 'GET') {
+      const walletAddress = profileMatch[1];
+      const [user] = await db.select().from(users).where(eq(users.walletAddress, walletAddress));
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      return res.json({
+        username: user.username,
+        walletAddress: user.walletAddress,
+      });
+    }
+
+    // Username update endpoint
+    if ((url === '/api/user/username' || url.endsWith('/api/user/username')) && method === 'POST') {
+      const { walletAddress, username } = req.body;
+      
+      if (!walletAddress || !username) {
+        return res.status(400).json({ error: "Wallet address and username required" });
+      }
+      
+      if (username.length < 2 || username.length > 20) {
+        return res.status(400).json({ error: "Username must be 2-20 characters" });
+      }
+      
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({ error: "Username can only contain letters, numbers, and underscores" });
+      }
+      
+      let [user] = await db.select().from(users).where(eq(users.walletAddress, walletAddress));
+      
+      if (!user) {
+        const [newUser] = await db.insert(users).values({
+          walletAddress,
+          username,
+        }).returning();
+        user = newUser;
+      } else {
+        const [updatedUser] = await db.update(users)
+          .set({ username })
+          .where(eq(users.id, user.id))
+          .returning();
+        user = updatedUser;
+      }
+      
+      return res.json({
+        success: true,
+        username: user?.username,
+      });
     }
 
     return res.status(404).json({ error: "Not found" });
