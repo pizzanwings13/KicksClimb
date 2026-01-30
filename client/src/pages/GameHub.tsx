@@ -522,11 +522,11 @@ function GameCard({ title, description, icon, route, bgColor, available, comingS
 
 const GAMES: GameCardProps[] = [
   {
-    title: "TREASURE QUEST",
-    description: "Sail the seas! Hunt treasure, avoid monsters, cash out anytime!",
-    icon: <Mountain className="w-7 h-7 text-white" />,
-    route: "/treasure-quest",
-    bgColor: "bg-[#FFD700]",
+    title: "DASHVILLE",
+    description: "Retro run 'n gun! Collect coins, shoot enemies, earn $KICKS!",
+    icon: <Gamepad2 className="w-7 h-7 text-white" />,
+    route: "/dashville",
+    bgColor: "bg-[#FF6600]",
     available: true,
   },
   {
