@@ -918,8 +918,18 @@ export default function DashvilleApp() {
 
       if (game.boss && game.boss.dead) {
         const bonus = level * 200;
+        const totalKicksForRun = kicksRef.current + bonus;
         setKicks(k => k + bonus);
         setLevelKicks(lk => lk + bonus);
+        
+        if (runId) {
+          fetch('/api/dashville/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId, won: true, finalScore: score, totalKicks: totalKicksForRun }),
+          }).catch(console.error);
+        }
+        
         setGameState('levelComplete');
         return;
       }
@@ -1360,32 +1370,9 @@ export default function DashvilleApp() {
   const nextLevel = useCallback(async () => {
     const newLevel = level + 1;
     
-    if (runId && levelKicks > 0) {
-      try {
-        await fetch('/api/dashville/level-complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ runId, level: newLevel, score, kicksEarned: levelKicks }),
-        });
-      } catch (error) {
-        console.error('Failed to record level complete:', error);
-      }
-    }
-    
     setLevelKicks(0);
     
     if (newLevel > 5) {
-      if (runId) {
-        try {
-          await fetch('/api/dashville/end', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ runId, won: true, finalScore: score, totalKicks: kicks }),
-          });
-        } catch (error) {
-          console.error('Failed to end game:', error);
-        }
-      }
       setGameState('gameOver');
       return;
     }
