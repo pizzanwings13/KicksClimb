@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 
 interface Player {
@@ -74,7 +74,7 @@ const CHARS = [
 ];
 
 export default function DashvilleApp() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<'menu' | 'playing' | 'levelComplete' | 'gameOver'>('menu');
   const [level, setLevel] = useState(1);
@@ -485,7 +485,7 @@ export default function DashvilleApp() {
     <div className="min-h-screen bg-[#0d0d0d] flex flex-col items-center justify-center p-4">
       <div className="fixed top-4 left-4 z-50 flex gap-2">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => setLocation('/')}
           className="p-3 bg-[#1a1a1a] border-[3px] border-black hover:bg-[#2a2a2a] transition-colors"
           style={{ boxShadow: '4px 4px 0px black' }}
         >
