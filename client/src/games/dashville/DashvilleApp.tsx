@@ -568,18 +568,18 @@ export default function DashvilleApp() {
       if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0) {
         const weapon = game.player.weapon;
         const hasAmmo = weapon === 'normal' || game.player.weaponAmmo > 0;
-        const aimingDown = game.player.crouching;
+        const isCrouching = game.player.crouching && game.player.onGround;
         
         if (hasAmmo) {
           if (weapon === 'shotgun') {
             for (let i = -1; i <= 1; i++) {
               game.bullets.push({
                 x: game.player.x + game.player.w / 2,
-                y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : i * 8),
+                y: game.player.y + game.player.h / 2 + (isCrouching ? 15 : 0) + i * 8,
                 w: 6,
                 h: 4,
-                velX: aimingDown ? 0 : (game.player.facingRight ? 12 : -12),
-                velY: aimingDown ? 12 : 0,
+                velX: game.player.facingRight ? 12 : -12,
+                velY: 0,
                 dead: false,
                 type: 'shotgun'
               });
@@ -589,11 +589,11 @@ export default function DashvilleApp() {
           } else if (weapon === 'heavy') {
             game.bullets.push({
               x: game.player.x + game.player.w / 2,
-              y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : 0),
-              w: aimingDown ? 8 : 16,
-              h: aimingDown ? 16 : 8,
-              velX: aimingDown ? 0 : (game.player.facingRight ? 14 : -14),
-              velY: aimingDown ? 14 : 0,
+              y: game.player.y + game.player.h / 2 + (isCrouching ? 15 : 0),
+              w: 16,
+              h: 8,
+              velX: game.player.facingRight ? 14 : -14,
+              velY: 0,
               dead: false,
               type: 'heavy'
             });
@@ -602,11 +602,11 @@ export default function DashvilleApp() {
           } else {
             game.bullets.push({
               x: game.player.x + game.player.w / 2,
-              y: game.player.y + game.player.h / 2 + (aimingDown ? 20 : 0),
-              w: aimingDown ? 4 : 8,
-              h: aimingDown ? 8 : 4,
-              velX: aimingDown ? 0 : (game.player.facingRight ? 10 : -10),
-              velY: aimingDown ? 10 : 0,
+              y: game.player.y + game.player.h / 2 + (isCrouching ? 15 : 0),
+              w: 8,
+              h: 4,
+              velX: game.player.facingRight ? 10 : -10,
+              velY: 0,
               dead: false,
               type: 'normal'
             });
