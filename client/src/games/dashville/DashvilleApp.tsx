@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { useWallet } from '@/lib/stores/useWallet';
+import { ethers } from 'ethers';
 
 interface Player {
   x: number;
@@ -1398,11 +1399,29 @@ export default function DashvilleApp() {
     
     setClaiming(true);
     try {
+      // Request wallet signature
+      if (!window.ethereum) {
+        alert('Please install a wallet extension');
+        setClaiming(false);
+        return;
+      }
+      
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      // Create claim message
+      const timestamp = Date.now();
+      const message = `Claim ${kicks} KICKS from Dashville\nRun ID: ${runId}\nWallet: ${walletAddress}\nTimestamp: ${timestamp}`;
+      
+      console.log('Requesting signature for message:', message);
+      const signature = await signer.signMessage(message);
+      console.log('Signature received:', signature);
+      
       console.log('Sending claim request for runId:', runId, 'wallet:', walletAddress);
       const response = await fetch('/api/dashville/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ runId, walletAddress }),
+        body: JSON.stringify({ runId, walletAddress, signature, message, timestamp }),
       });
       const data = await response.json();
       console.log('Claim response:', data);
@@ -1413,12 +1432,16 @@ export default function DashvilleApp() {
         console.error('Claim failed:', data.error);
         alert(data.error || 'Failed to claim KICKS');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to claim kicks:', error);
-      alert('Failed to claim KICKS. Please try again.');
+      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+        alert('Signature rejected. Please sign to claim your KICKS.');
+      } else {
+        alert('Failed to claim KICKS. Please try again.');
+      }
     }
     setClaiming(false);
-  }, [runId, claiming, claimed]);
+  }, [runId, claiming, claimed, kicks]);
 
   const restartGame = useCallback(async () => {
     const walletAddress = getWalletAddress();
@@ -1648,8 +1671,7 @@ export default function DashvilleApp() {
           
           {claimed && (
             <div className="mb-4">
-              <p className="text-2xl text-black font-bold mb-2">{kicks} $KICKS SENT TO YOUR WALLET!</p>
-              <p className="text-sm text-gray-700 mb-2">Tokens sent directly - no signature needed</p>
+              <p className="text-2xl text-black font-bold mb-2">{kicks} $KICKS CLAIMED!</p>
               {claimTxHash ? (
                 <a 
                   href={`https://apescan.io/tx/${claimTxHash}`}
@@ -1660,7 +1682,7 @@ export default function DashvilleApp() {
                   View Transaction on ApeScan
                 </a>
               ) : (
-                <p className="text-xs text-gray-600">Check your wallet for the tokens</p>
+                <p className="text-xs text-gray-600">Tokens sent to your wallet</p>
               )}
             </div>
           )}

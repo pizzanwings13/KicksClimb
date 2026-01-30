@@ -1643,8 +1643,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if ((url === '/api/dashville/claim' || url.endsWith('/api/dashville/claim')) && method === 'POST') {
-      const { runId, walletAddress } = req.body;
+      const { runId, walletAddress, signature, message } = req.body;
       if (!runId || !walletAddress) return res.status(400).json({ error: "Run ID and wallet address required" });
+      if (!signature || !message) return res.status(400).json({ error: "Signature required to claim" });
+      
+      // Verify signature
+      try {
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+        if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+          return res.status(403).json({ error: "Invalid signature" });
+        }
+      } catch (sigError) {
+        console.error("Signature verification failed:", sigError);
+        return res.status(403).json({ error: "Invalid signature" });
+      }
       
       const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
       if (!run) return res.status(404).json({ error: "Run not found" });
