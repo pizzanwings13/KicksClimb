@@ -16,7 +16,17 @@ interface Player {
   carrotPower: number;
   shootTimer: number;
   color: number[];
+  jumpCount: number;
+  charIndex: number;
 }
+
+const LEVEL_THEMES = [
+  { name: 'Night City', skyColor: '#0a0a2e', groundColor: '#1a1a3e', accent: '#ff00ff' },
+  { name: 'Jungle', skyColor: '#1a3a1a', groundColor: '#2d5a2d', accent: '#39FF14' },
+  { name: 'Desert', skyColor: '#ff9966', groundColor: '#c19a6b', accent: '#ffcc00' },
+  { name: 'Arctic', skyColor: '#87ceeb', groundColor: '#e0f0ff', accent: '#00bfff' },
+  { name: 'Volcano', skyColor: '#330000', groundColor: '#660000', accent: '#ff4400' },
+];
 
 interface Platform {
   x: number;
@@ -101,8 +111,10 @@ export default function DashvilleApp() {
     bullets: Bullet[];
     cameraX: number;
     keys: { [key: string]: boolean };
+    keysJustPressed: { [key: string]: boolean };
     touchControls: { left: boolean; right: boolean; jump: boolean; shoot: boolean };
     levelCompleteTimer: number;
+    charImages: HTMLImageElement[];
   }>({
     player: null,
     platforms: [],
@@ -112,9 +124,21 @@ export default function DashvilleApp() {
     bullets: [],
     cameraX: 0,
     keys: {},
+    keysJustPressed: {},
     touchControls: { left: false, right: false, jump: false, shoot: false },
-    levelCompleteTimer: 0
+    levelCompleteTimer: 0,
+    charImages: []
   });
+
+  useEffect(() => {
+    const images: HTMLImageElement[] = [];
+    CHARS.forEach((char, i) => {
+      const img = new Image();
+      img.src = char.image;
+      images[i] = img;
+    });
+    gameRef.current.charImages = images;
+  }, []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -146,8 +170,8 @@ export default function DashvilleApp() {
     return {
       x: 100,
       y: SCREEN_HEIGHT - 100,
-      w: 32,
-      h: 48,
+      w: 40,
+      h: 60,
       velX: 0,
       velY: 0,
       onGround: false,
@@ -156,7 +180,9 @@ export default function DashvilleApp() {
       jumpPower: -12,
       carrotPower: 0,
       shootTimer: 0,
-      color: CHARS[charIndex].color
+      color: CHARS[charIndex].color,
+      jumpCount: 0,
+      charIndex: charIndex
     };
   }, []);
 
@@ -272,6 +298,9 @@ export default function DashvilleApp() {
     const game = gameRef.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!game.keys[e.code]) {
+        game.keysJustPressed[e.code] = true;
+      }
       game.keys[e.code] = true;
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -293,10 +322,15 @@ export default function DashvilleApp() {
         game.player.velX *= 0.8;
       }
 
-      if ((keys['KeyW'] || keys['ArrowUp'] || keys['Space'] || touchControls.jump) && game.player.onGround) {
+      const jumpJustPressed = game.keysJustPressed['KeyW'] || game.keysJustPressed['ArrowUp'] || game.keysJustPressed['Space'];
+      
+      if (jumpJustPressed && game.player.jumpCount < 2) {
         game.player.velY = game.player.jumpPower;
+        game.player.jumpCount++;
         game.player.onGround = false;
       }
+      
+      game.keysJustPressed = {};
 
       if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0 && game.player.carrotPower > 0) {
         game.bullets.push({
@@ -330,6 +364,7 @@ export default function DashvilleApp() {
           if (game.player.velY > 0) {
             game.player.y = p.y - game.player.h;
             game.player.onGround = true;
+            game.player.jumpCount = 0;
             game.player.velY = 0;
           } else {
             game.player.y = p.y + p.h;
@@ -427,18 +462,32 @@ export default function DashvilleApp() {
         return;
       }
 
-      ctx.fillStyle = '#6496FF';
+      const theme = LEVEL_THEMES[(level - 1) % LEVEL_THEMES.length];
+      
+      ctx.fillStyle = theme.skyColor;
       ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+      
+      const bgOffset = -game.cameraX * 0.3;
+      ctx.fillStyle = theme.groundColor + '40';
+      for (let i = 0; i < 10; i++) {
+        const x = (i * 200 + bgOffset) % (SCREEN_WIDTH + 200) - 100;
+        ctx.fillRect(x, SCREEN_HEIGHT - 200 - i * 20, 80, 120 + i * 20);
+      }
 
       ctx.save();
       ctx.translate(-game.cameraX, 0);
 
-      ctx.fillStyle = '#808080';
+      ctx.fillStyle = theme.groundColor;
       for (const p of game.platforms) {
         ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
       }
 
       ctx.fillStyle = '#FFFF00';
+      ctx.shadowColor = '#FFFF00';
+      ctx.shadowBlur = 10;
       for (const c of game.coins) {
         if (!c.collected) {
           ctx.beginPath();
@@ -446,6 +495,7 @@ export default function DashvilleApp() {
           ctx.fill();
         }
       }
+      ctx.shadowBlur = 0;
 
       for (const ca of game.carrots) {
         if (!ca.collected) {
@@ -473,11 +523,16 @@ export default function DashvilleApp() {
       }
 
       const p = game.player;
-      ctx.fillStyle = `rgb(${p.color[0]}, ${p.color[1]}, ${p.color[2]})`;
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.fillRect(p.x, p.y, p.w, p.h);
-      ctx.strokeRect(p.x, p.y, p.w, p.h);
+      const charImg = game.charImages[p.charIndex];
+      if (charImg && charImg.complete) {
+        ctx.drawImage(charImg, p.x - 10, p.y - 10, p.w + 20, p.h + 20);
+      } else {
+        ctx.fillStyle = `rgb(${p.color[0]}, ${p.color[1]}, ${p.color[2]})`;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+      }
 
       ctx.restore();
 
@@ -585,6 +640,9 @@ export default function DashvilleApp() {
   }, [selectedChar, createPlayer, resetLevel]);
 
   const handleTouchStart = (control: 'left' | 'right' | 'jump' | 'shoot') => {
+    if (control === 'jump' && !gameRef.current.touchControls.jump) {
+      gameRef.current.keysJustPressed['Space'] = true;
+    }
     gameRef.current.touchControls[control] = true;
   };
 
@@ -650,8 +708,8 @@ export default function DashvilleApp() {
           </button>
 
           <div className="mt-6 text-gray-500 text-sm">
-            <p>PC: A/D Move, W/Space Jump, Enter Shoot</p>
-            <p>Mobile: Use touch buttons</p>
+            <p>PC: A/D Move, W/Space Jump (x2 for Double Jump), Enter Shoot</p>
+            <p>Mobile: Use touch buttons (tap jump twice for double jump)</p>
           </div>
         </div>
       )}
