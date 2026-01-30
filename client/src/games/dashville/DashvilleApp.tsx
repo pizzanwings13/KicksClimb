@@ -829,9 +829,16 @@ export default function DashvilleApp() {
         }
         
         if (e.type === 'flying') {
-          e.velY = Math.sin(game.gameTime * 0.05 + e.x * 0.01) * 2;
+          const playerY = game.player.y;
+          const distToPlayer = Math.abs(e.x - game.player.x);
+          if (distToPlayer < 300) {
+            e.velY = (playerY - e.y) * 0.03;
+          } else {
+            e.velY = Math.sin(game.gameTime * 0.05 + e.x * 0.01) * 3;
+          }
           e.x += e.velX;
           e.y += e.velY;
+          e.y = Math.max(80, Math.min(SCREEN_HEIGHT - 100, e.y));
           if (e.x < 0 || e.x > levelLength) e.velX *= -1;
         } else {
           e.velY += 0.5;
