@@ -67,10 +67,10 @@ const SCREEN_HEIGHT = 576;
 const TILE_SIZE = 32;
 
 const CHARS = [
-  { color: [255, 192, 203], name: 'Pink Runner' },
-  { color: [255, 165, 0], name: 'Orange Runner' },
-  { color: [128, 0, 128], name: 'Purple Runner' },
-  { color: [0, 255, 0], name: 'Green Runner' }
+  { image: '/textures/char-dashkid-1.png', name: 'DashKid #1', color: [200, 120, 80] },
+  { image: '/textures/char-dashkid-2.png', name: 'DashKid #2', color: [128, 64, 96] },
+  { image: '/textures/char-rabbit-1.png', name: 'Rabbit #1', color: [230, 200, 170] },
+  { image: '/textures/char-rabbit-2.png', name: 'Rabbit #2', color: [180, 80, 80] }
 ];
 
 export default function DashvilleApp() {
@@ -509,20 +509,25 @@ export default function DashvilleApp() {
           
           <div className="mb-6">
             <p className="text-gray-400 mb-4">Choose Your Character:</p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center flex-wrap">
               {CHARS.map((char, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedChar(i)}
-                  className={`w-16 h-16 border-[3px] border-black transition-all ${selectedChar === i ? 'scale-110' : ''}`}
+                  className={`w-24 h-28 border-[3px] border-black transition-all bg-[#1a1a1a] p-1 ${selectedChar === i ? 'scale-110 ring-2 ring-yellow-400' : ''}`}
                   style={{
-                    backgroundColor: `rgb(${char.color[0]}, ${char.color[1]}, ${char.color[2]})`,
                     boxShadow: selectedChar === i ? '0 0 20px rgba(255,255,0,0.5), 4px 4px 0px black' : '4px 4px 0px black'
                   }}
-                />
+                >
+                  <img 
+                    src={char.image} 
+                    alt={char.name}
+                    className="w-full h-full object-contain"
+                  />
+                </button>
               ))}
             </div>
-            <p className="text-white mt-2">{CHARS[selectedChar].name}</p>
+            <p className="text-white mt-3 text-lg font-bold">{CHARS[selectedChar].name}</p>
           </div>
 
           <button
