@@ -25,6 +25,15 @@ interface Player {
   animFrame: number;
   facingRight: boolean;
   crouching: boolean;
+  shield: number;
+}
+
+interface ShieldPickup {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  collected: boolean;
 }
 
 const LEVEL_THEMES = [
@@ -178,6 +187,7 @@ export default function DashvilleApp() {
     bullets: Bullet[];
     springs: Spring[];
     weaponPickups: WeaponPickup[];
+    shieldPickups: ShieldPickup[];
     droppedCoins: DroppedCoin[];
     boss: Boss | null;
     backgroundElements: BackgroundElement[];
@@ -202,6 +212,7 @@ export default function DashvilleApp() {
     bullets: [],
     springs: [],
     weaponPickups: [],
+    shieldPickups: [],
     droppedCoins: [],
     boss: null,
     backgroundElements: [],
@@ -277,7 +288,8 @@ export default function DashvilleApp() {
       invincible: 0,
       animFrame: 0,
       facingRight: true,
-      crouching: false
+      crouching: false,
+      shield: 0
     };
   }, []);
 
@@ -290,6 +302,7 @@ export default function DashvilleApp() {
     game.bullets = [];
     game.springs = [];
     game.weaponPickups = [];
+    game.shieldPickups = [];
     game.droppedCoins = [];
     game.boss = null;
     game.backgroundElements = [];
@@ -432,6 +445,17 @@ export default function DashvilleApp() {
         w: 24,
         h: 24,
         type: Math.random() > 0.5 ? 'heavy' : 'shotgun',
+        collected: false
+      });
+    }
+
+    const numShields = 2 + Math.floor(lvl / 2);
+    for (let i = 0; i < numShields; i++) {
+      game.shieldPickups.push({
+        x: 300 + (i / numShields) * (levelLength - 600),
+        y: 100 + Math.random() * 250,
+        w: 28,
+        h: 28,
         collected: false
       });
     }
@@ -587,7 +611,7 @@ export default function DashvilleApp() {
               type: 'normal'
             });
           }
-          game.player.shootTimer = weapon === 'heavy' ? 20 : weapon === 'shotgun' ? 25 : 15;
+          game.player.shootTimer = weapon === 'heavy' ? 8 : weapon === 'shotgun' ? 25 : 15;
           
           if (game.player.weaponAmmo <= 0 && weapon !== 'normal') {
             game.player.weapon = 'normal';
@@ -644,6 +668,16 @@ export default function DashvilleApp() {
         }
       }
 
+      for (const sp of game.shieldPickups) {
+        if (!sp.collected && collide(game.player, sp)) {
+          game.player.shield = 3;
+          sp.collected = true;
+          game.weaponAnnouncement = 'SHIELD ACTIVATED!';
+          game.announcementTimer = 90;
+          game.screenShake = 4;
+        }
+      }
+
       if (game.player.invincible > 0) game.player.invincible--;
 
       for (const e of game.enemies) {
@@ -661,9 +695,14 @@ export default function DashvilleApp() {
           }
           setKicks(k => Math.max(0, k - coinsToLose * 50));
           setLevelKicks(lk => Math.max(0, lk - coinsToLose * 50));
-          game.player.health--;
+          if (game.player.shield > 0) {
+            game.player.shield--;
+            game.screenShake = 8;
+          } else {
+            game.player.health--;
+            game.screenShake = 15;
+          }
           game.player.invincible = 60;
-          game.screenShake = 15;
           e.dead = true;
         }
       }
@@ -754,9 +793,14 @@ export default function DashvilleApp() {
           continue;
         }
         if (game.player.invincible <= 0 && collide(game.player, eb)) {
-          game.player.health--;
+          if (game.player.shield > 0) {
+            game.player.shield--;
+            game.screenShake = 8;
+          } else {
+            game.player.health--;
+            game.screenShake = 15;
+          }
           game.player.invincible = 60;
-          game.screenShake = 15;
           eb.dead = true;
         }
       }
@@ -867,6 +911,7 @@ export default function DashvilleApp() {
       game.coins = game.coins.filter(c => !c.collected);
       game.carrots = game.carrots.filter(c => !c.collected);
       game.weaponPickups = game.weaponPickups.filter(w => !w.collected);
+      game.shieldPickups = game.shieldPickups.filter(s => !s.collected);
       
       if (game.screenShake > 0) game.screenShake--;
       if (game.announcementTimer > 0) game.announcementTimer--;
@@ -1015,6 +1060,27 @@ export default function DashvilleApp() {
           ctx.fillStyle = '#FFFFFF';
           ctx.font = 'bold 12px monospace';
           ctx.fillText(wp.type === 'heavy' ? 'H' : 'S', wp.x + 8, wp.y + 17);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      for (const sp of game.shieldPickups) {
+        if (!sp.collected) {
+          ctx.fillStyle = '#00FFFF';
+          ctx.shadowColor = '#00FFFF';
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.moveTo(sp.x + sp.w / 2, sp.y);
+          ctx.lineTo(sp.x + sp.w, sp.y + sp.h * 0.3);
+          ctx.lineTo(sp.x + sp.w, sp.y + sp.h * 0.6);
+          ctx.lineTo(sp.x + sp.w / 2, sp.y + sp.h);
+          ctx.lineTo(sp.x, sp.y + sp.h * 0.6);
+          ctx.lineTo(sp.x, sp.y + sp.h * 0.3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText('+', sp.x + 10, sp.y + 18);
           ctx.shadowBlur = 0;
         }
       }
@@ -1240,6 +1306,23 @@ export default function DashvilleApp() {
         }
         
         ctx.restore();
+        
+        if (p.shield > 0) {
+          ctx.save();
+          ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+          ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + Math.sin(game.gameTime * 0.1) * 0.3})`;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#00FFFF';
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.w / 2 + 10, p.h / 2 + 10, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#00FFFF';
+          ctx.font = 'bold 12px monospace';
+          ctx.fillText(`${p.shield}`, -4, -p.h / 2 - 15);
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
       }
 
       ctx.restore();
