@@ -237,7 +237,25 @@ const dashvilleWeeklyLeaderboard = pgTable("dashville_weekly_leaderboard", {
   weekEnd: timestamp("week_end").notNull(),
 });
 
-const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleWeeklyLeaderboard };
+const dashvilleRuns = pgTable("dashville_runs", {
+  id: serial("id").primaryKey(),
+  oddsFormat: text("odds_format"),
+  userId: integer("user_id").notNull().references(() => users.id),
+  walletAddress: text("wallet_address").notNull(),
+  characterId: integer("character_id").default(0).notNull(),
+  currentLevel: integer("current_level").default(1).notNull(),
+  score: integer("score").default(0).notNull(),
+  kicksEarned: decimal("kicks_earned", { precision: 36, scale: 18 }).default("0").notNull(),
+  kicksClaimed: decimal("kicks_claimed", { precision: 36, scale: 18 }).default("0").notNull(),
+  status: text("status").default("playing").notNull(),
+  claimStatus: text("claim_status").default("none").notNull(),
+  claimNonce: text("claim_nonce"),
+  claimTxHash: text("claim_tx_hash"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+const schema = { users, games, gameSteps, dailyLeaderboard, weeklyLeaderboard, userAchievements, rabbitRushInventories, rabbitRushRuns, rabbitRushDailyLeaderboard, rabbitRushWeeklyLeaderboard, bunnyBladeWeeklyLeaderboard, dashvilleMissionSubmissions, dashvilleMissionProgress, dashvilleWeeklyLeaderboard, dashvilleRuns };
 const db = drizzle(pool, { schema });
 
 type User = typeof users.$inferSelect;
@@ -1568,6 +1586,110 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         points: mission.points,
         totalPoints: progress.totalPoints + mission.points,
       });
+    }
+
+    // Dashville Game Routes
+    if ((url === '/api/dashville/start' || url.endsWith('/api/dashville/start')) && method === 'POST') {
+      const { walletAddress, characterId } = req.body;
+      if (!walletAddress) return res.status(400).json({ error: "Wallet address required" });
+      
+      const user = await getUserByWallet(walletAddress);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      
+      const [run] = await db.insert(dashvilleRuns).values({
+        userId: user.id,
+        walletAddress,
+        characterId: characterId || 0,
+      }).returning();
+      
+      return res.json({ runId: run.id, success: true });
+    }
+
+    if ((url === '/api/dashville/level-complete' || url.endsWith('/api/dashville/level-complete')) && method === 'POST') {
+      const { runId, level, score, kicksEarned } = req.body;
+      if (!runId) return res.status(400).json({ error: "Run ID required" });
+      
+      const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      if (run.status !== "playing") return res.status(400).json({ error: "Run is not active" });
+      
+      const currentKicks = parseFloat(run.kicksEarned as string) || 0;
+      const newKicks = currentKicks + (kicksEarned || 0);
+      
+      await db.update(dashvilleRuns).set({
+        currentLevel: level,
+        score: score,
+        kicksEarned: newKicks.toString(),
+      }).where(eq(dashvilleRuns.id, runId));
+      
+      return res.json({ success: true, totalKicks: newKicks, level });
+    }
+
+    if ((url === '/api/dashville/end' || url.endsWith('/api/dashville/end')) && method === 'POST') {
+      const { runId, won, finalScore, totalKicks } = req.body;
+      if (!runId) return res.status(400).json({ error: "Run ID required" });
+      
+      const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      
+      await db.update(dashvilleRuns).set({
+        status: won ? "won" : "lost",
+        score: finalScore || run.score,
+        kicksEarned: totalKicks?.toString() || run.kicksEarned,
+        completedAt: new Date(),
+      }).where(eq(dashvilleRuns.id, runId));
+      
+      return res.json({ success: true, status: won ? "won" : "lost", kicksEarned: totalKicks || parseFloat(run.kicksEarned as string) });
+    }
+
+    if ((url === '/api/dashville/claim' || url.endsWith('/api/dashville/claim')) && method === 'POST') {
+      const { runId, walletAddress } = req.body;
+      if (!runId || !walletAddress) return res.status(400).json({ error: "Run ID and wallet address required" });
+      
+      const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      if (run.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) return res.status(403).json({ error: "Not authorized to claim this run" });
+      if (run.claimStatus === "claimed") return res.status(400).json({ error: "Already claimed" });
+      
+      const kicksToSend = parseFloat(run.kicksEarned as string) - parseFloat(run.kicksClaimed as string);
+      if (kicksToSend <= 0) return res.status(400).json({ error: "No kicks to claim" });
+      
+      let txHash: string | null = null;
+      try {
+        const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+        if (housePrivateKey) {
+          const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com/http", 33139);
+          const wallet = new ethers.Wallet(housePrivateKey, provider);
+          
+          const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
+          const tokenAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
+          const tokenContract = new ethers.Contract(kicksAddress, tokenAbi, wallet);
+          
+          const amountWei = ethers.parseUnits(kicksToSend.toString(), 18);
+          const tx = await tokenContract.transfer(walletAddress, amountWei);
+          txHash = tx.hash;
+          console.log(`Dashville claim sent: ${kicksToSend} KICKS to ${walletAddress}, tx: ${txHash}`);
+        }
+      } catch (txError) {
+        console.error("Transfer error:", txError);
+        return res.status(500).json({ error: "Failed to transfer KICKS" });
+      }
+      
+      await db.update(dashvilleRuns).set({
+        kicksClaimed: run.kicksEarned,
+        claimStatus: "claimed",
+        claimTxHash: txHash || undefined,
+      }).where(eq(dashvilleRuns.id, runId));
+      
+      return res.json({ success: true, claimed: kicksToSend, txHash });
+    }
+
+    const dashvilleRunMatch = url.match(/\/api\/dashville\/run\/(\d+)$/);
+    if (dashvilleRunMatch && method === 'GET') {
+      const runId = parseInt(dashvilleRunMatch[1]);
+      const [run] = await db.select().from(dashvilleRuns).where(eq(dashvilleRuns.id, runId));
+      if (!run) return res.status(404).json({ error: "Run not found" });
+      return res.json(run);
     }
 
     return res.status(404).json({ error: "Not found" });
