@@ -18,6 +18,9 @@ interface Player {
   color: number[];
   jumpCount: number;
   charIndex: number;
+  weapon: 'normal' | 'heavy' | 'shotgun';
+  weaponAmmo: number;
+  invincible: number;
 }
 
 const LEVEL_THEMES = [
@@ -70,6 +73,33 @@ interface Bullet {
   h: number;
   velX: number;
   dead: boolean;
+  type: 'normal' | 'heavy' | 'shotgun';
+}
+
+interface Spring {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  power: number;
+  compressed: number;
+}
+
+interface WeaponPickup {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  type: 'heavy' | 'shotgun';
+  collected: boolean;
+}
+
+interface DroppedCoin {
+  x: number;
+  y: number;
+  velX: number;
+  velY: number;
+  timer: number;
 }
 
 const SCREEN_WIDTH = 1024;
@@ -97,6 +127,11 @@ export default function DashvilleApp() {
   const [claimed, setClaimed] = useState(false);
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [levelKicks, setLevelKicks] = useState(0);
+  const kicksRef = useRef(0);
+  
+  useEffect(() => {
+    kicksRef.current = kicks;
+  }, [kicks]);
   
   const getWalletAddress = () => {
     return localStorage.getItem('walletAddress') || '';
@@ -109,12 +144,18 @@ export default function DashvilleApp() {
     coins: Coin[];
     carrots: Carrot[];
     bullets: Bullet[];
+    springs: Spring[];
+    weaponPickups: WeaponPickup[];
+    droppedCoins: DroppedCoin[];
     cameraX: number;
     keys: { [key: string]: boolean };
     keysJustPressed: { [key: string]: boolean };
     touchControls: { left: boolean; right: boolean; jump: boolean; shoot: boolean };
     levelCompleteTimer: number;
     charImages: HTMLImageElement[];
+    screenShake: number;
+    weaponAnnouncement: string;
+    announcementTimer: number;
   }>({
     player: null,
     platforms: [],
@@ -122,12 +163,18 @@ export default function DashvilleApp() {
     coins: [],
     carrots: [],
     bullets: [],
+    springs: [],
+    weaponPickups: [],
+    droppedCoins: [],
     cameraX: 0,
     keys: {},
     keysJustPressed: {},
     touchControls: { left: false, right: false, jump: false, shoot: false },
     levelCompleteTimer: 0,
-    charImages: []
+    charImages: [],
+    screenShake: 0,
+    weaponAnnouncement: '',
+    announcementTimer: 0
   });
 
   useEffect(() => {
@@ -182,7 +229,10 @@ export default function DashvilleApp() {
       shootTimer: 0,
       color: CHARS[charIndex].color,
       jumpCount: 0,
-      charIndex: charIndex
+      charIndex: charIndex,
+      weapon: 'normal' as const,
+      weaponAmmo: 0,
+      invincible: 0
     };
   }, []);
 
@@ -193,8 +243,14 @@ export default function DashvilleApp() {
     game.coins = [];
     game.carrots = [];
     game.bullets = [];
+    game.springs = [];
+    game.weaponPickups = [];
+    game.droppedCoins = [];
     game.cameraX = 0;
     game.levelCompleteTimer = 0;
+    game.screenShake = 0;
+    game.weaponAnnouncement = '';
+    game.announcementTimer = 0;
 
     for (let x = 0; x < SCREEN_WIDTH * 3; x += TILE_SIZE) {
       game.platforms.push({ x, y: SCREEN_HEIGHT - TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE });
@@ -209,13 +265,14 @@ export default function DashvilleApp() {
 
     const numEnemies = 3 + lvl * 3;
     for (let i = 0; i < numEnemies; i++) {
+      const isFlying = Math.random() > 0.7;
       game.enemies.push({
         x: SCREEN_WIDTH + Math.random() * (SCREEN_WIDTH * 2),
-        y: SCREEN_HEIGHT - TILE_SIZE * 2,
-        w: 24,
-        h: 24,
-        velX: (Math.random() > 0.5 ? 2 : -2) * (1 + lvl * 0.5),
-        velY: 0,
+        y: isFlying ? 100 + Math.random() * 200 : SCREEN_HEIGHT - TILE_SIZE * 2,
+        w: isFlying ? 32 : 24,
+        h: isFlying ? 20 : 24,
+        velX: (Math.random() > 0.5 ? 2 : -2) * (1 + lvl * 0.3),
+        velY: isFlying ? Math.sin(Math.random() * Math.PI * 2) * 2 : 0,
         health: 1 + lvl / 2,
         dead: false
       });
@@ -244,11 +301,38 @@ export default function DashvilleApp() {
       });
     }
 
+    const numSprings = 2 + Math.floor(lvl / 2);
+    for (let i = 0; i < numSprings; i++) {
+      game.springs.push({
+        x: SCREEN_WIDTH + Math.random() * (SCREEN_WIDTH * 2),
+        y: SCREEN_HEIGHT - TILE_SIZE - 20,
+        w: 32,
+        h: 20,
+        power: -18 - lvl,
+        compressed: 0
+      });
+    }
+
+    const numWeapons = 1 + Math.floor(lvl / 2);
+    for (let i = 0; i < numWeapons; i++) {
+      game.weaponPickups.push({
+        x: SCREEN_WIDTH + Math.random() * (SCREEN_WIDTH * 2),
+        y: 150 + Math.random() * 200,
+        w: 24,
+        h: 24,
+        type: Math.random() > 0.5 ? 'heavy' : 'shotgun',
+        collected: false
+      });
+    }
+
     if (game.player) {
       game.player.carrotPower = 0;
       game.player.health = 3;
       game.player.x = 100;
       game.player.y = SCREEN_HEIGHT - 100;
+      game.player.weapon = 'normal';
+      game.player.weaponAmmo = 0;
+      game.player.invincible = 0;
     }
   }, []);
 
@@ -333,16 +417,54 @@ export default function DashvilleApp() {
       game.keysJustPressed = {};
 
       if ((keys['Enter'] || touchControls.shoot) && game.player.shootTimer <= 0 && game.player.carrotPower > 0) {
-        game.bullets.push({
-          x: game.player.x + game.player.w / 2,
-          y: game.player.y + game.player.h / 2,
-          w: 8,
-          h: 4,
-          velX: 10,
-          dead: false
-        });
-        game.player.carrotPower--;
-        game.player.shootTimer = 15;
+        const weapon = game.player.weapon;
+        const hasAmmo = weapon === 'normal' || game.player.weaponAmmo > 0;
+        
+        if (hasAmmo) {
+          if (weapon === 'shotgun') {
+            for (let i = -1; i <= 1; i++) {
+              game.bullets.push({
+                x: game.player.x + game.player.w / 2,
+                y: game.player.y + game.player.h / 2 + i * 8,
+                w: 6,
+                h: 4,
+                velX: 12,
+                dead: false,
+                type: 'shotgun'
+              });
+            }
+            game.player.weaponAmmo--;
+            game.screenShake = 8;
+          } else if (weapon === 'heavy') {
+            game.bullets.push({
+              x: game.player.x + game.player.w / 2,
+              y: game.player.y + game.player.h / 2,
+              w: 16,
+              h: 8,
+              velX: 14,
+              dead: false,
+              type: 'heavy'
+            });
+            game.player.weaponAmmo--;
+            game.screenShake = 12;
+          } else {
+            game.bullets.push({
+              x: game.player.x + game.player.w / 2,
+              y: game.player.y + game.player.h / 2,
+              w: 8,
+              h: 4,
+              velX: 10,
+              dead: false,
+              type: 'normal'
+            });
+          }
+          game.player.carrotPower--;
+          game.player.shootTimer = weapon === 'heavy' ? 20 : weapon === 'shotgun' ? 25 : 15;
+          
+          if (game.player.weaponAmmo <= 0 && weapon !== 'normal') {
+            game.player.weapon = 'normal';
+          }
+        }
       }
 
       game.player.velY += 0.5;
@@ -373,12 +495,72 @@ export default function DashvilleApp() {
         }
       }
 
+      for (const spring of game.springs) {
+        if (collide(game.player, spring) && game.player.velY > 0) {
+          game.player.velY = spring.power;
+          game.player.jumpCount = 1;
+          spring.compressed = 10;
+          game.screenShake = 4;
+        }
+        if (spring.compressed > 0) spring.compressed--;
+      }
+
+      for (const wp of game.weaponPickups) {
+        if (!wp.collected && collide(game.player, wp)) {
+          game.player.weapon = wp.type;
+          game.player.weaponAmmo = wp.type === 'heavy' ? 10 : 8;
+          wp.collected = true;
+          game.weaponAnnouncement = wp.type === 'heavy' ? 'HEAVY MACHINE GUN!' : 'SHOTGUN!';
+          game.announcementTimer = 90;
+          game.screenShake = 6;
+        }
+      }
+
+      if (game.player.invincible > 0) game.player.invincible--;
+
       for (const e of game.enemies) {
-        if (!e.dead && collide(game.player, e)) {
+        if (!e.dead && game.player.invincible <= 0 && collide(game.player, e)) {
+          const currentKicks = kicksRef.current;
+          const coinsToLose = Math.min(3, Math.floor(currentKicks / 50));
+          for (let i = 0; i < coinsToLose; i++) {
+            game.droppedCoins.push({
+              x: game.player.x + game.player.w / 2,
+              y: game.player.y,
+              velX: (Math.random() - 0.5) * 8,
+              velY: -6 - Math.random() * 4,
+              timer: 180
+            });
+          }
+          setKicks(k => Math.max(0, k - coinsToLose * 50));
+          setLevelKicks(lk => Math.max(0, lk - coinsToLose * 50));
           game.player.health--;
+          game.player.invincible = 60;
+          game.screenShake = 15;
           e.dead = true;
         }
       }
+
+      for (const dc of game.droppedCoins) {
+        dc.velY += 0.3;
+        dc.x += dc.velX;
+        dc.y += dc.velY;
+        dc.timer--;
+        
+        if (dc.timer > 60 && collide(game.player, { x: dc.x - 8, y: dc.y - 8, w: 16, h: 16 })) {
+          setKicks(k => k + 50);
+          setLevelKicks(lk => lk + 50);
+          dc.timer = 0;
+        }
+        
+        for (const p of game.platforms) {
+          if (dc.velY > 0 && dc.y + 8 > p.y && dc.y < p.y + p.h && dc.x > p.x && dc.x < p.x + p.w) {
+            dc.y = p.y - 8;
+            dc.velY *= -0.5;
+            dc.velX *= 0.8;
+          }
+        }
+      }
+      game.droppedCoins = game.droppedCoins.filter(dc => dc.timer > 0);
 
       for (const c of game.coins) {
         if (!c.collected && collide(game.player, c)) {
@@ -397,6 +579,9 @@ export default function DashvilleApp() {
       }
 
       if (game.player.shootTimer > 0) game.player.shootTimer--;
+      if (game.player.weapon !== 'normal' && game.player.weaponAmmo <= 0) {
+        game.player.weapon = 'normal';
+      }
 
       game.cameraX = game.player.x + game.player.w / 2 - SCREEN_WIDTH / 2;
       game.cameraX = Math.max(0, Math.min(game.cameraX, SCREEN_WIDTH * 2));
@@ -418,16 +603,24 @@ export default function DashvilleApp() {
 
       for (const e of game.enemies) {
         if (e.dead) continue;
-        e.velY += 0.5;
-        e.x += e.velX;
-        for (const p of game.platforms) {
-          if (collide(e, p)) e.velX *= -1;
-        }
-        e.y += e.velY;
-        for (const p of game.platforms) {
-          if (collide(e, p)) {
-            e.y = p.y - e.h;
-            e.velY = 0;
+        const isFlying = e.w === 32;
+        if (isFlying) {
+          e.velY = Math.sin(Date.now() * 0.003 + e.x * 0.01) * 2;
+          e.x += e.velX;
+          e.y += e.velY;
+          if (e.x < 0 || e.x > SCREEN_WIDTH * 3) e.velX *= -1;
+        } else {
+          e.velY += 0.5;
+          e.x += e.velX;
+          for (const p of game.platforms) {
+            if (collide(e, p)) e.velX *= -1;
+          }
+          e.y += e.velY;
+          for (const p of game.platforms) {
+            if (collide(e, p)) {
+              e.y = p.y - e.h;
+              e.velY = 0;
+            }
           }
         }
       }
@@ -441,6 +634,10 @@ export default function DashvilleApp() {
       game.enemies = game.enemies.filter(e => !e.dead);
       game.coins = game.coins.filter(c => !c.collected);
       game.carrots = game.carrots.filter(c => !c.collected);
+      game.weaponPickups = game.weaponPickups.filter(w => !w.collected);
+      
+      if (game.screenShake > 0) game.screenShake--;
+      if (game.announcementTimer > 0) game.announcementTimer--;
 
       if (game.coins.length === 0 && game.enemies.length === 0) {
         const bonus = level * 100;
@@ -463,6 +660,13 @@ export default function DashvilleApp() {
       }
 
       const theme = LEVEL_THEMES[(level - 1) % LEVEL_THEMES.length];
+      
+      ctx.save();
+      if (game.screenShake > 0) {
+        const shakeX = (Math.random() - 0.5) * game.screenShake * 2;
+        const shakeY = (Math.random() - 0.5) * game.screenShake * 2;
+        ctx.translate(shakeX, shakeY);
+      }
       
       ctx.fillStyle = theme.skyColor;
       ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -506,32 +710,119 @@ export default function DashvilleApp() {
         }
       }
 
-      ctx.fillStyle = '#FF0000';
-      for (const e of game.enemies) {
-        if (!e.dead) {
+      for (const spring of game.springs) {
+        const compression = spring.compressed > 0 ? 8 : 0;
+        ctx.fillStyle = '#FF6600';
+        ctx.fillRect(spring.x, spring.y + compression, spring.w, spring.h - compression);
+        ctx.fillStyle = '#FFCC00';
+        ctx.fillRect(spring.x + 4, spring.y + compression, spring.w - 8, 4);
+        ctx.fillRect(spring.x + 8, spring.y + compression + 6, spring.w - 16, 4);
+      }
+
+      for (const wp of game.weaponPickups) {
+        if (!wp.collected) {
+          ctx.fillStyle = wp.type === 'heavy' ? '#FF4444' : '#4444FF';
+          ctx.shadowColor = wp.type === 'heavy' ? '#FF0000' : '#0000FF';
+          ctx.shadowBlur = 15;
+          ctx.fillRect(wp.x, wp.y, wp.w, wp.h);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 12px monospace';
+          ctx.fillText(wp.type === 'heavy' ? 'H' : 'S', wp.x + 8, wp.y + 17);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      for (const dc of game.droppedCoins) {
+        if (dc.timer > 0) {
+          const alpha = dc.timer < 60 ? dc.timer / 60 : 1;
+          ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
           ctx.beginPath();
-          ctx.arc(e.x + 12, e.y + 12, 12, 0, Math.PI * 2);
+          ctx.arc(dc.x, dc.y, 6, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      ctx.fillStyle = '#FFFF00';
+      for (const e of game.enemies) {
+        if (!e.dead) {
+          const isFlying = e.w === 32;
+          if (isFlying) {
+            ctx.fillStyle = '#8800FF';
+            ctx.beginPath();
+            ctx.ellipse(e.x + e.w/2, e.y + e.h/2, e.w/2, e.h/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#AA44FF';
+            const wingOffset = Math.sin(Date.now() * 0.02) * 5;
+            ctx.beginPath();
+            ctx.moveTo(e.x, e.y + e.h/2);
+            ctx.lineTo(e.x - 10, e.y + wingOffset);
+            ctx.lineTo(e.x, e.y);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(e.x + e.w, e.y + e.h/2);
+            ctx.lineTo(e.x + e.w + 10, e.y + wingOffset);
+            ctx.lineTo(e.x + e.w, e.y);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(e.x + 12, e.y + 12, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#CC0000';
+            ctx.fillRect(e.x + 4, e.y + 8, 6, 4);
+            ctx.fillRect(e.x + 14, e.y + 8, 6, 4);
+          }
+        }
+      }
+
       for (const b of game.bullets) {
         if (!b.dead) {
+          if (b.type === 'heavy') {
+            ctx.fillStyle = '#FF4400';
+            ctx.shadowColor = '#FF0000';
+            ctx.shadowBlur = 10;
+          } else if (b.type === 'shotgun') {
+            ctx.fillStyle = '#4444FF';
+            ctx.shadowColor = '#0000FF';
+            ctx.shadowBlur = 8;
+          } else {
+            ctx.fillStyle = '#FFFF00';
+            ctx.shadowBlur = 0;
+          }
           ctx.fillRect(b.x, b.y, b.w, b.h);
+          ctx.shadowBlur = 0;
         }
       }
 
       const p = game.player;
-      const charImg = game.charImages[p.charIndex];
-      if (charImg && charImg.complete) {
-        ctx.drawImage(charImg, p.x - 10, p.y - 10, p.w + 20, p.h + 20);
-      } else {
-        ctx.fillStyle = `rgb(${p.color[0]}, ${p.color[1]}, ${p.color[2]})`;
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.fillRect(p.x, p.y, p.w, p.h);
-        ctx.strokeRect(p.x, p.y, p.w, p.h);
+      if (p.invincible <= 0 || Math.floor(p.invincible / 4) % 2 === 0) {
+        const charImg = game.charImages[p.charIndex];
+        if (charImg && charImg.complete) {
+          ctx.drawImage(charImg, p.x - 10, p.y - 10, p.w + 20, p.h + 20);
+        } else {
+          ctx.fillStyle = `rgb(${p.color[0]}, ${p.color[1]}, ${p.color[2]})`;
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.strokeRect(p.x, p.y, p.w, p.h);
+        }
+      }
+
+      ctx.restore();
+
+      if (game.announcementTimer > 0) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.font = 'bold 36px monospace';
+        ctx.textAlign = 'center';
+        const scale = game.announcementTimer > 80 ? 1 + (90 - game.announcementTimer) * 0.05 : 1;
+        ctx.save();
+        ctx.translate(SCREEN_WIDTH / 2, 100);
+        ctx.scale(scale, scale);
+        ctx.strokeText(game.weaponAnnouncement, 0, 0);
+        ctx.fillText(game.weaponAnnouncement, 0, 0);
+        ctx.restore();
+        ctx.textAlign = 'left';
       }
 
       ctx.restore();
