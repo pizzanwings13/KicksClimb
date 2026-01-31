@@ -15,7 +15,7 @@ const MISSIONS = [
   { id: 6, title: "RabbitsOnApe NFT Showcase", description: "Post your RabbitsOnApe NFT and mention @rabbitsonape", points: 15, requiredMentions: ["rabbitsonape"] },
   { id: 7, title: "DashKidsNFT Showcase", description: "Post your DashKidsNFT and mention @DashKidsnft", points: 15, requiredMentions: ["dashkidsnft"] },
   { id: 8, title: "Squad / Duo Moment", description: "Post a screenshot or clip of you playing Dashville with friends/squad mentioning @DashKidsnft and @rabbitsonape", points: 35, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
-  { id: 9, title: "Treasure Quest Adventure", description: "Post a picture or video of your adventure in DashKids Treasure Quest tagging @DashKidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
+  { id: 9, title: "Dashville Retro", description: "Post a picture or video of your Dashville game tagging @dashkidsnft and @rabbitsonape", points: 30, requiredMentions: ["dashkidsnft", "rabbitsonape"] },
   { id: 10, title: "GM Post", description: "Post a GM using your @rabbitsonape or @DashKidsnft NFT and tag the account", points: 30, requiredMentions: ["rabbitsonape", "dashkidsnft"] },
 ];
 
