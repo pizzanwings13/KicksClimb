@@ -168,6 +168,7 @@ export default function DashvilleApp() {
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [levelKicks, setLevelKicks] = useState(0);
   const kicksRef = useRef(0);
+  const scoreRef = useRef(0);
   
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardType, setLeaderboardType] = useState<'daily' | 'weekly'>('daily');
@@ -181,6 +182,10 @@ export default function DashvilleApp() {
   useEffect(() => {
     kicksRef.current = kicks;
   }, [kicks]);
+  
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
   
   const { walletAddress: connectedWalletAddress } = useWallet();
   
@@ -1007,7 +1012,7 @@ export default function DashvilleApp() {
           fetch('/api/dashville/end', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ runId, won: true, finalScore: score, totalKicks: totalKicksForRun }),
+            body: JSON.stringify({ runId, won: true, finalScore: scoreRef.current, totalKicks: totalKicksForRun, currentLevel: level }),
           }).catch(console.error);
         }
         
@@ -1024,7 +1029,7 @@ export default function DashvilleApp() {
           fetch('/api/dashville/end', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ runId, won: false, finalScore: score, totalKicks: kicks }),
+            body: JSON.stringify({ runId, won: false, finalScore: scoreRef.current, totalKicks: kicksRef.current, currentLevel: level }),
           }).catch(console.error);
         }
         setGameState('gameOver');
@@ -1755,8 +1760,7 @@ export default function DashvilleApp() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <div className="text-[#39FF14] font-bold">{entry.highScore.toLocaleString()} pts</div>
-                        <div className="text-gray-400 text-xs">{entry.totalKicks} KICKS | Lvl {entry.highestLevel}</div>
+                        <div className="text-[#39FF14] font-bold text-lg">{entry.highScore.toLocaleString()} pts</div>
                       </div>
                     </div>
                   ))}
