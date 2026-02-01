@@ -1777,13 +1777,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       let txHash: string | null = null;
       try {
-        const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
+        const housePrivateKey = process.env.HOUSE_WALLET_KEY || process.env.HOUSE_WALLET_PRIVATE_KEY;
         if (!housePrivateKey) {
-          console.error("HOUSE_WALLET_PRIVATE_KEY not configured");
+          console.error("HOUSE_WALLET_KEY not configured");
           return res.status(500).json({ error: "House wallet not configured" });
         }
         
-        const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com/http", 33139);
+        const provider = new ethers.JsonRpcProvider("https://apechain.calderachain.xyz/http", 33139);
         const wallet = new ethers.Wallet(housePrivateKey, provider);
         
         const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
