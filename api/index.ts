@@ -1778,22 +1778,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let txHash: string | null = null;
       try {
         const housePrivateKey = process.env.HOUSE_WALLET_PRIVATE_KEY;
-        if (housePrivateKey) {
-          const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com/http", 33139);
-          const wallet = new ethers.Wallet(housePrivateKey, provider);
-          
-          const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
-          const tokenAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
-          const tokenContract = new ethers.Contract(kicksAddress, tokenAbi, wallet);
-          
-          const amountWei = ethers.parseUnits(kicksToSend.toString(), 18);
-          const tx = await tokenContract.transfer(walletAddress, amountWei);
-          txHash = tx.hash;
-          console.log(`Dashville claim sent: ${kicksToSend} KICKS to ${walletAddress}, tx: ${txHash}`);
+        if (!housePrivateKey) {
+          console.error("HOUSE_WALLET_PRIVATE_KEY not configured");
+          return res.status(500).json({ error: "House wallet not configured" });
         }
-      } catch (txError) {
-        console.error("Transfer error:", txError);
-        return res.status(500).json({ error: "Failed to transfer KICKS" });
+        
+        const provider = new ethers.JsonRpcProvider("https://rpc.apechain.com/http", 33139);
+        const wallet = new ethers.Wallet(housePrivateKey, provider);
+        
+        const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
+        const tokenAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
+        const tokenContract = new ethers.Contract(kicksAddress, tokenAbi, wallet);
+        
+        const amountWei = ethers.parseUnits(kicksToSend.toString(), 18);
+        console.log(`Attempting transfer of ${kicksToSend} KICKS (${amountWei} wei) to ${walletAddress}`);
+        const tx = await tokenContract.transfer(walletAddress, amountWei);
+        txHash = tx.hash;
+        console.log(`Dashville claim sent: ${kicksToSend} KICKS to ${walletAddress}, tx: ${txHash}`);
+        
+        // Wait for transaction confirmation
+        await tx.wait();
+        console.log(`Dashville claim confirmed: tx ${txHash}`);
+      } catch (txError: any) {
+        console.error("Transfer error:", txError?.message || txError);
+        return res.status(500).json({ error: "Failed to transfer KICKS: " + (txError?.message || "Unknown error") });
       }
       
       await db.update(dashvilleRuns).set({
