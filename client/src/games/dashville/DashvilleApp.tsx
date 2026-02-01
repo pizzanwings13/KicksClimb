@@ -576,6 +576,7 @@ export default function DashvilleApp() {
     gameRef.current.player = createPlayer(selectedChar);
     resetLevel(1);
     setLevel(1);
+    scoreRef.current = 0;
     setScore(0);
     setKicks(0);
     setLevelKicks(0);
@@ -810,7 +811,8 @@ export default function DashvilleApp() {
 
       for (const c of game.coins) {
         if (!c.collected && collide(game.player, c)) {
-          setScore(s => s + 1);
+          scoreRef.current += 1;
+          setScore(scoreRef.current);
           setKicks(k => k + 50);
           setLevelKicks(lk => lk + 50);
           c.collected = true;
@@ -846,7 +848,9 @@ export default function DashvilleApp() {
             e.health--;
             if (e.health <= 0) {
               e.dead = true;
-              setScore(s => s + (e.type === 'tank' ? 30 : e.type === 'shooter' ? 20 : 10));
+              const points = e.type === 'tank' ? 30 : e.type === 'shooter' ? 20 : 10;
+              scoreRef.current += points;
+              setScore(scoreRef.current);
             }
             b.dead = true;
           }
@@ -855,11 +859,13 @@ export default function DashvilleApp() {
           game.boss.health--;
           game.screenShake = 8;
           b.dead = true;
-          setScore(s => s + 5);
+          scoreRef.current += 5;
+          setScore(scoreRef.current);
           if (game.boss.health <= 0) {
             game.boss.dead = true;
             game.screenShake = 30;
-            setScore(s => s + 500);
+            scoreRef.current += 500;
+            setScore(scoreRef.current);
           }
         }
       }
@@ -1561,6 +1567,7 @@ export default function DashvilleApp() {
     gameRef.current.touchControls = { left: false, right: false, jump: false, shoot: false, down: false };
     resetLevel(1);
     setLevel(1);
+    scoreRef.current = 0;
     setScore(0);
     setKicks(0);
     setLevelKicks(0);
