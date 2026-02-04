@@ -1542,21 +1542,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Check daily limit (reset every 24 hours based on UTC date)
       const lastDailyDate = progress.lastDailyDate ? new Date(progress.lastDailyDate) : null;
-      let dailyCount = progress.dailyCount;
       const todayUTC = today.toISOString().split('T')[0];
       const lastDateUTC = lastDailyDate ? lastDailyDate.toISOString().split('T')[0] : null;
-      if (!lastDateUTC || lastDateUTC !== todayUTC) {
-        dailyCount = 0;
-      }
+      const isNewDay = !lastDateUTC || lastDateUTC !== todayUTC;
+      
+      // Reset daily count and completed missions on new day
+      let dailyCount = isNewDay ? 0 : progress.dailyCount;
+      const completedMissionsToday: number[] = isNewDay ? [] : JSON.parse(progress.completedMissions || "[]");
       
       if (dailyCount >= 3) {
         return res.status(400).json({ error: "Daily limit reached (3 missions per day)" });
       }
       
-      // Check if mission already completed this week
-      const completedMissions: number[] = JSON.parse(progress.completedMissions || "[]");
-      if (completedMissions.includes(missionId)) {
-        return res.status(400).json({ error: "Mission already completed this week" });
+      // Check if mission already completed today
+      if (completedMissionsToday.includes(missionId)) {
+        return res.status(400).json({ error: "You have already completed this mission today. Try again tomorrow!" });
       }
       
       // Extract tweet ID from URL
@@ -1574,10 +1574,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       
       // Update progress
-      completedMissions.push(missionId);
+      completedMissionsToday.push(missionId);
       await db.update(dashvilleMissionProgress).set({
         totalPoints: progress.totalPoints + mission.points,
-        completedMissions: JSON.stringify(completedMissions),
+        completedMissions: JSON.stringify(completedMissionsToday),
         dailyCount: dailyCount + 1,
         lastDailyDate: today,
         updatedAt: new Date(),
