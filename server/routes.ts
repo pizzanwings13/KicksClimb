@@ -1936,7 +1936,7 @@ export async function registerRoutes(
         totalPoints: progress.totalPoints,
         completedMissions: completedMissionsToday,
         dailyCount,
-        dailyLimit: 3,
+        dailyLimit: 5,
         submissions: submissions.map(s => ({
           missionId: s.missionId,
           tweetUrl: s.tweetUrl,
@@ -1991,8 +1991,8 @@ export async function registerRoutes(
       
       const currentDailyCount = isNewDay ? 0 : progress.dailyCount;
       
-      if (currentDailyCount >= 3) {
-        return res.status(400).json({ error: "You have reached the daily limit of 3 missions. Try again tomorrow!" });
+      if (currentDailyCount >= 5) {
+        return res.status(400).json({ error: "You have reached the daily limit of 5 missions. Try again tomorrow!" });
       }
       
       const existingSubmission = await storage.getDashvilleMissionSubmissionByTweetId(tweetId);

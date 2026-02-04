@@ -1447,7 +1447,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           totalPoints: 0,
           completedMissions: [],
           dailyCount: 0,
-          dailyLimit: 3,
+          dailyLimit: 5,
           submissions: [],
         });
       }
@@ -1463,7 +1463,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           totalPoints: 0,
           completedMissions: [],
           dailyCount: 0,
-          dailyLimit: 3,
+          dailyLimit: 5,
           submissions: [],
         });
       }
@@ -1482,7 +1482,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         totalPoints: progress.totalPoints,
         completedMissions: completedMissionsToday,
         dailyCount,
-        dailyLimit: 3,
+        dailyLimit: 5,
         submissions: submissions.map(s => ({
           missionId: s.missionId,
           tweetUrl: s.tweetUrl,
@@ -1550,8 +1550,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let dailyCount = isNewDay ? 0 : progress.dailyCount;
       const completedMissionsToday: number[] = isNewDay ? [] : JSON.parse(progress.completedMissions || "[]");
       
-      if (dailyCount >= 3) {
-        return res.status(400).json({ error: "Daily limit reached (3 missions per day)" });
+      if (dailyCount >= 5) {
+        return res.status(400).json({ error: "Daily limit reached (5 missions per day)" });
       }
       
       // Check if mission already completed today
