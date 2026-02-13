@@ -1743,13 +1743,14 @@ export async function registerRoutes(
         const provider = new ethers.JsonRpcProvider("https://apechain.calderachain.xyz/http", 33139);
         const wallet = new ethers.Wallet(housePrivateKey, provider);
         
-        const kicksAddress = "0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc";
+        const kicksAddress = ethers.getAddress("0xDfce1e97B2CCB6D89c52f18cdbFFFE104E4F09cc");
         const tokenAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(kicksAddress, tokenAbi, wallet);
         
         const amountWei = ethers.parseUnits(kicksToSend.toString(), 18);
         console.log(`Attempting transfer of ${kicksToSend} KICKS (${amountWei} wei) to ${walletAddress}`);
-        const tx = await tokenContract.transfer(walletAddress, amountWei);
+        const checksummedWallet = ethers.getAddress(walletAddress);
+        const tx = await tokenContract.transfer(checksummedWallet, amountWei);
         txHash = tx.hash;
         console.log(`Dashville claim sent: ${kicksToSend} KICKS to ${walletAddress}, tx: ${txHash}`);
         
